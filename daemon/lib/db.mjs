@@ -135,16 +135,23 @@ export function addItems(db, all) {
   const migrated = []
   // Forget records keys from the stored, redacted row. An incoming item is checked in both forms: as it
   // arrives and exactly as it would be stored, so the comparison never depends on how redaction rewrote it.
-  const items = trusted.filter(i => permitsItem(i)).map(i => {
-    if (i.source !== 'mail') return i
-    const { current, aliases } = mailIdentity(i)
-    const stored = mailIdentity(redactItem({ ...i, id: current }))
-    if ([...aliases, ...stored.aliases].some(id => gone.has(forgetKey('item', id)))) {
-      migrated.push(current)
-      return null
+  // Single pass: redact each item once, check both original and redacted forms, then store the redacted row.
+  // Avoids redacting the same row twice (once in keep(), once in the final map).
+  const items = []
+  for (const i of trusted.filter(i => permitsItem(i))) {
+    if (i.source === 'mail') {
+      const { current, aliases } = mailIdentity(i)
+      const stored = mailIdentity(redactItem({ ...i, id: current }))
+      if ([...aliases, ...stored.aliases].some(id => gone.has(forgetKey('item', id)))) {
+        migrated.push(current)
+        continue
+      }
+      i.id = current
     }
-    return { ...i, id: current }
-  }).filter(i => i && keep(i, gone) && keep(redactItem(i), gone)).map(redactItem)
+    const redacted = redactItem(i)
+    if (!keep(i, gone) || !keep(redacted, gone)) continue
+    items.push(redacted)
+  }
   const insert = db.prepare(`insert or ignore into items (id, source, thread, sender, from_me, ts, text, url, meta, source_id)
     values (:id, :source, :thread, :sender, :from_me, :ts, :text, :url, :meta, :source_id)`)
   // Copies are immutable. Message-ID and matching From headers never authorize enrichment.
