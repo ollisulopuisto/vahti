@@ -134,7 +134,7 @@ struct ContentView: View {
     }
     .task(id: store.page) { await store.refresh() }
     .task { await store.loadConversations() }
-    .background(Kier.page.ignoresSafeArea())
+    .background(Vahti.page.ignoresSafeArea())
     .toolbarBackground(.hidden, for: .windowToolbar)
     .environment(\.colorScheme, .dark)
     // The title, the search and the Timeline's own controls live here, not in the pages: every page stays built, and a
@@ -206,8 +206,8 @@ private struct Sidebar: View {
         row(.vault, "Vault", "archivebox")
         row(.setup, "Setup", "gearshape", count: store.setupLeft)
         Text("Chats")
-          .font(.kierLabel)
-          .foregroundStyle(Kier.faint)
+          .font(.vahtiLabel)
+          .foregroundStyle(Vahti.faint)
           .padding(.leading, 10).padding(.top, 18).padding(.bottom, 4)
         SidebarRow(title: "New chat", symbol: "square.and.pencil", selected: chatOpen(nil), pill: pill) { go { store.newChat() } }
         ForEach(store.conversations.prefix(40)) { c in
@@ -219,10 +219,10 @@ private struct Sidebar: View {
       .padding(.vertical, 6)
     }
     .scrollIndicators(.never)
-    .background(Kier.sidebar)
+    .background(Vahti.sidebar)
     .safeAreaInset(edge: .bottom) {
       if store.offline {
-        Label("Kier is restarting", systemImage: "arrow.triangle.2.circlepath").font(.caption).foregroundStyle(.secondary).padding(12)
+        Label("Vahti is restarting", systemImage: "arrow.triangle.2.circlepath").font(.caption).foregroundStyle(.secondary).padding(12)
       }
     }
   }
@@ -260,14 +260,14 @@ private struct SidebarRow: View {
           .foregroundStyle(Color.white.opacity(selected ? 0.95 : hovered ? 0.85 : 0.6))
       }
       Text(title)
-        .font(selected ? .kierRowSelected : .kierRow)
-        .foregroundStyle(selected ? Kier.bright : hovered ? Color.white.opacity(0.92) : Kier.text)
+        .font(selected ? .vahtiRowSelected : .vahtiRow)
+        .foregroundStyle(selected ? Vahti.bright : hovered ? Color.white.opacity(0.92) : Vahti.text)
         .lineLimit(1)
       Spacer(minLength: 4)
       if count > 0 {
         Text("\(count)")
-          .font(.kierCount)
-          .foregroundStyle(hovered || selected ? Color.white.opacity(0.55) : Kier.faint)
+          .font(.vahtiCount)
+          .foregroundStyle(hovered || selected ? Color.white.opacity(0.55) : Vahti.faint)
           .contentTransition(.numericText())
       }
     }
@@ -275,9 +275,9 @@ private struct SidebarRow: View {
     .padding(.vertical, 6)
     .background {
       ZStack {
-        if hovered && !selected { Self.shape.fill(Kier.hovered).transition(.opacity) }
+        if hovered && !selected { Self.shape.fill(Vahti.hovered).transition(.opacity) }
         if selected {
-          Self.shape.fill(Kier.selected)
+          Self.shape.fill(Vahti.selected)
             .overlay(Self.shape.strokeBorder(LinearGradient(colors: [.white.opacity(0.10), .white.opacity(0.02)], startPoint: .top, endPoint: .bottom), lineWidth: 0.5))
             .matchedGeometryEffect(id: "selection", in: pill)
         }
@@ -319,7 +319,7 @@ struct BriefView: View {
           PageHeader(title: headline(b, queue.count), lede: "\(longFormat.string(from: Date())). \(lede(b))")
           if let top = queue.first {
             VStack(alignment: .leading, spacing: 10) {
-              Text(b.forgotten.first?.id == top.id ? "Maybe forgotten" : "Next up").font(.kierLabel).foregroundStyle(Kier.dim).padding(.horizontal, 4)
+              Text(b.forgotten.first?.id == top.id ? "Maybe forgotten" : "Next up").font(.vahtiLabel).foregroundStyle(Vahti.dim).padding(.horizontal, 4)
               CardStack(behind: queue.count - 1) { CardRow(card: top, hero: true).padding(.horizontal, 22).padding(.vertical, 18) }
             }
           }
@@ -349,7 +349,7 @@ struct BriefView: View {
           }
           // Closed by a reply, a call or a commit: one click puts a wrong guess back.
           if let done = b.done, !done.isEmpty {
-            Panel(title: "Done by Kier", count: done.count, footer: "Closed by what happened after: a reply, a payment, a call, a merged fix. Put back anything Kier got wrong.") {
+            Panel(title: "Done by Vahti", count: done.count, footer: "Closed by what happened after: a reply, a payment, a call, a merged fix. Put back anything Vahti got wrong.") {
               ForEach(done) { DoneLine(card: $0) }
               Button("View more") { store.page = .done }.buttonStyle(TextButton()).padding(.vertical, 12)
             }
@@ -363,7 +363,7 @@ struct BriefView: View {
           // Tasks the second opinion doubts: out of the way, one click to see.
           if !b.maybe.isEmpty {
             Panel(title: "Maybe yours", count: b.maybe.count + (b.more.maybe ?? 0), accessory: { Fold(open: $showMaybe) }) {
-              if showMaybe { ForEach(b.maybe) { CardRow(card: $0) } } else { note("Things the second opinion doubts are yours. Tick any that are, and Kier learns.") }
+              if showMaybe { ForEach(b.maybe) { CardRow(card: $0) } } else { note("Things the second opinion doubts are yours. Tick any that are, and Vahti learns.") }
             }
           }
         }
@@ -378,24 +378,24 @@ struct BriefView: View {
     return n == 0 ? "Nothing waiting on you" : n == 1 ? "One thing waits on you" : "\(n) things wait on you"
   }
 
-  // One calm line: what's on today, what may have slipped, and what Kier already ticked off.
+  // One calm line: what's on today, what may have slipped, and what Vahti already ticked off.
   private func lede(_ b: Brief) -> String {
     var parts: [String] = []
     let events = b.today.events.count
     if events > 0 { parts.append(events == 1 ? "One thing on your calendar today" : "\(events) things on your calendar today") }
     if !b.forgotten.isEmpty { parts.append("\(b.forgotten.count) may have slipped") }
-    if let done = b.done, !done.isEmpty { parts.append("Kier ticked off \(done.count) for you") }
-    if parts.isEmpty { return "Kier keeps watch and taps the orb when something needs you." }
+    if let done = b.done, !done.isEmpty { parts.append("Vahti ticked off \(done.count) for you") }
+    if parts.isEmpty { return "Vahti keeps watch and taps the orb when something needs you." }
     let line = parts.joined(separator: ", ")
     return line.prefix(1).uppercased() + line.dropFirst() + "."
   }
 
   private func more(_ n: Int) -> some View {
-    Text("and \(n) more").font(.kierSmall).foregroundStyle(Kier.faint).padding(.vertical, 12)
+    Text("and \(n) more").font(.vahtiSmall).foregroundStyle(Vahti.faint).padding(.vertical, 12)
   }
 
   private func note(_ text: String) -> some View {
-    Text(text).font(.kierSmall).foregroundStyle(Kier.faint).padding(.vertical, 12)
+    Text(text).font(.vahtiSmall).foregroundStyle(Vahti.faint).padding(.vertical, 12)
   }
 }
 
@@ -409,7 +409,7 @@ struct CompletedView: View {
         PageScroll {
           PageHeader(title: "Done", lede: "Completed in the past year, newest first. Put back anything that needs another look.")
           if cards.isEmpty {
-            Text("Nothing completed yet.").font(.kierBody).foregroundStyle(Kier.dim)
+            Text("Nothing completed yet.").font(.vahtiBody).foregroundStyle(Vahti.dim)
           } else {
             Panel(title: "Completed", count: store.completedTotal) {
               ForEach(cards) { card in DoneLine(card: card, showSource: true) }
@@ -437,9 +437,9 @@ struct EventRow: View {
     HStack(alignment: .center, spacing: 14) {
       IconTile(symbol: "calendar")
       VStack(alignment: .leading, spacing: 2) {
-        Text(event.text).font(.kierCardTitle)
+        Text(event.text).font(.vahtiCardTitle)
         Text((withDay ? dayLabel(event.day) + ", " : "") + (event.allDay == true ? "all day" : timeLabel(event.ts)))
-          .font(.kierSmall).foregroundStyle(Kier.faint)
+          .font(.vahtiSmall).foregroundStyle(Vahti.faint)
       }
       Spacer(minLength: 0)
     }
@@ -447,7 +447,7 @@ struct EventRow: View {
   }
 }
 
-// One thing Kier closed: a ring with a dot, the task struck through, and how it knew.
+// One thing Vahti closed: a ring with a dot, the task struck through, and how it knew.
 struct DoneLine: View {
   @Environment(Store.self) var store
   let card: Card
@@ -455,17 +455,17 @@ struct DoneLine: View {
 
   var body: some View {
     HStack(alignment: .center, spacing: 14) {
-      Circle().strokeBorder(Kier.peri.opacity(0.8), lineWidth: 1.5)
-        .overlay(Circle().fill(Kier.peri).padding(4.5))
+      Circle().strokeBorder(Vahti.peri.opacity(0.8), lineWidth: 1.5)
+        .overlay(Circle().fill(Vahti.peri).padding(4.5))
         .frame(width: 16, height: 16)
         .frame(width: 30)
       VStack(alignment: .leading, spacing: 2) {
-        Text(card.headline).font(.system(size: 14.5)).strikethrough(color: Kier.faint).foregroundStyle(Kier.dim).lineLimit(showSource ? 2 : 1)
+        Text(card.headline).font(.system(size: 14.5)).strikethrough(color: Vahti.faint).foregroundStyle(Vahti.dim).lineLimit(showSource ? 2 : 1)
         if showSource {
           Text("\(dateLabel(card.done_at ?? card.ts)) · \(card.state == "done" ? "You marked it done" : howDone(card.reason) ?? "Done")")
-            .font(.kierSmall).foregroundStyle(Kier.faint).lineLimit(1)
-          Text(card.kicker).font(.kierSmall).foregroundStyle(Kier.faint).lineLimit(1)
-        } else if let how = howDone(card.reason) { Text(how).font(.kierSmall).foregroundStyle(Kier.faint).lineLimit(1) }
+            .font(.vahtiSmall).foregroundStyle(Vahti.faint).lineLimit(1)
+          Text(card.kicker).font(.vahtiSmall).foregroundStyle(Vahti.faint).lineLimit(1)
+        } else if let how = howDone(card.reason) { Text(how).font(.vahtiSmall).foregroundStyle(Vahti.faint).lineLimit(1) }
       }
       Spacer(minLength: 12)
       Button("Put back") { store.mark(card, "open") }.buttonStyle(TextButton()).help("Not done: put the card back")
@@ -535,23 +535,23 @@ struct CardRow: View {
   private func details(_ kind: Kind) -> some View {
     VStack(alignment: .leading, spacing: hero ? 6 : 3) {
       Text((card.needsConfirmation ? card.suggestionLabel : kind.label) + (card.due.flatMap { $0.isEmpty ? nil : ", " + dayLabel($0) } ?? ""))
-        .font(.kierSmall).foregroundStyle(Kier.faint)
+        .font(.vahtiSmall).foregroundStyle(Vahti.faint)
       HStack(alignment: .firstTextBaseline, spacing: 8) {
-        Text(card.headline).font(hero ? .kierHeadline : .kierCardTitle).fixedSize(horizontal: false, vertical: true)
-        if let amount = card.amount { Text(amount).font(hero ? .kierHeadline : .kierCardTitle).foregroundStyle(Kier.lavender) }
+        Text(card.headline).font(hero ? .vahtiHeadline : .vahtiCardTitle).fixedSize(horizontal: false, vertical: true)
+        if let amount = card.amount { Text(amount).font(hero ? .vahtiHeadline : .vahtiCardTitle).foregroundStyle(Vahti.lavender) }
       }
       // Where it came from, so a surprising card can be checked at a glance.
       if card.card != "ask", let said = card.text, said != card.summary {
-        Text("“\(said.replacingOccurrences(of: "\n", with: " / "))”").font(.system(size: hero ? 14.5 : 13)).foregroundStyle(Kier.dim).lineLimit(hero ? 3 : 2)
+        Text("“\(said.replacingOccurrences(of: "\n", with: " / "))”").font(.system(size: hero ? 14.5 : 13)).foregroundStyle(Vahti.dim).lineLimit(hero ? 3 : 2)
       }
-      Text(origin).font(.kierSmall).foregroundStyle(Kier.faint)
+      Text(origin).font(.vahtiSmall).foregroundStyle(Vahti.faint)
       if card.state == "handled" || card.needsConfirmation, let reason = card.reason {
-        Label(reason, systemImage: "checkmark.seal").font(.kierSmall).foregroundStyle(.green).lineLimit(2)
+        Label(reason, systemImage: "checkmark.seal").font(.vahtiSmall).foregroundStyle(.green).lineLimit(2)
       } else if let hint = card.hint {
         // A commit made right after the promise that may be the fix: one click confirms it.
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-          Label("Maybe done by: \(hint)", systemImage: "arrow.triangle.branch").font(.kierSmall).foregroundStyle(.teal).lineLimit(2)
-          if let link = safeLink(card.hint_url) { Link("Open", destination: link).font(.kierSmall) }
+          Label("Maybe done by: \(hint)", systemImage: "arrow.triangle.branch").font(.vahtiSmall).foregroundStyle(.teal).lineLimit(2)
+          if let link = safeLink(card.hint_url) { Link("Open", destination: link).font(.vahtiSmall) }
           Button("Yes, done") { store.mark(card, "done") }.buttonStyle(TextButton())
         }
       }
@@ -606,11 +606,11 @@ struct WaitingRow: View {
     HStack(alignment: .top, spacing: 14) {
       IconTile(symbol: "hourglass")
       VStack(alignment: .leading, spacing: 3) {
-        Text("\(item.who): \(item.what)").font(.kierCardTitle)
+        Text("\(item.who): \(item.what)").font(.vahtiCardTitle)
         if let said = item.text {
-          Text("“\(said.replacingOccurrences(of: "\n", with: " / "))”").font(.system(size: 13)).foregroundStyle(Kier.dim).lineLimit(2)
+          Text("“\(said.replacingOccurrences(of: "\n", with: " / "))”").font(.system(size: 13)).foregroundStyle(Vahti.dim).lineLimit(2)
         }
-        Text("you asked in \(item.thread ?? sourceName(item.source)), \(dateLabel(item.ts)) \(timeLabel(item.ts))").font(.kierSmall).foregroundStyle(Kier.faint)
+        Text("you asked in \(item.thread ?? sourceName(item.source)), \(dateLabel(item.ts)) \(timeLabel(item.ts))").font(.vahtiSmall).foregroundStyle(Vahti.faint)
       }
       Spacer(minLength: 12)
       HStack(spacing: 14) {
@@ -626,14 +626,14 @@ struct WaitingRow: View {
 
 // MARK: Chats
 
-// A chat with Kier, laid out like the ChatGPT app: an empty chat is one question in the middle with the box under it
+// A chat with Vahti, laid out like the ChatGPT app: an empty chat is one question in the middle with the box under it
 // and a few starters; a running one is a readable column with your messages in soft bubbles and the answers as plain
 // text, and the box pinned at the bottom.
 private let starters = ["What's waiting on me today?", "What did I promise people this week?", "What's still open with my team?", "What did I miss yesterday?"]
 
 struct ChatsView: View {
   @Environment(Store.self) var store
-  @AppStorage("kierAgent") private var agent = "claude"
+  @AppStorage("vahtiAgent") private var agent = "claude"
 
   var body: some View {
     let key = store.chatKey ?? ""
@@ -666,8 +666,8 @@ struct ChatsView: View {
         }
         Composer(agent: $agent) { send($0, key) }.frame(maxWidth: 720).padding(.horizontal, 32)
       }
-      Text("Claude and Codex read your vault through Kier. Kier on this Mac answers from today's brief.")
-        .font(.kierSmall).foregroundStyle(Kier.faint).padding(.top, 10).padding(.bottom, 14)
+      Text("Claude and Codex read your vault through Vahti. Vahti on this Mac answers from today's brief.")
+        .font(.vahtiSmall).foregroundStyle(Vahti.faint).padding(.top, 10).padding(.bottom, 14)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .onAppear { if store.chatKey == nil { store.chatKey = store.newChatKey() } }
@@ -702,7 +702,7 @@ struct ChatMessages: View {
         } else {
           HStack(spacing: 10) {
             TypingDots()
-            if let step = store.step[key] { WorkingLine(step: step, font: .kierSmall, tint: Kier.faint) }
+            if let step = store.step[key] { WorkingLine(step: step, font: .vahtiSmall, tint: Vahti.faint) }
           }
           .animation(.easeOut(duration: 0.25), value: store.step[key])
         }
@@ -718,7 +718,7 @@ struct ChatMessages: View {
       Spacer(minLength: compact ? 30 : 90)
       Text(q).font(.system(size: size)).textSelection(.enabled)
         .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Kier.raised))
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Vahti.raised))
     }
   }
 
@@ -730,12 +730,12 @@ struct ChatMessages: View {
       if let from {
         HStack(spacing: 12) {
           Button { store.copy(text) } label: { Image(systemName: "doc.on.doc") }.buttonStyle(.borderless).help("Copy")
-          Text(from).font(.kierSmall)
+          Text(from).font(.vahtiSmall)
         }
-        .foregroundStyle(Kier.faint)
+        .foregroundStyle(Vahti.faint)
       }
       if let note {
-        Label("Kier will remember: \(note)", systemImage: "person.text.rectangle").font(.kierSmall).foregroundStyle(.teal)
+        Label("Vahti will remember: \(note)", systemImage: "person.text.rectangle").font(.vahtiSmall).foregroundStyle(.teal)
           .help("Saved to Who you are on the Setup page, where you can change it")
       }
     }
@@ -760,10 +760,10 @@ struct Composer: View {
       HStack(spacing: 8) {
         Menu {
           Button("Claude") { agent = "claude" }
-          Button("Codex unavailable: access cannot be limited to Kier") {}.disabled(true)
-          Button("Kier, on this Mac") { agent = "kier" }
+          Button("Codex unavailable: access cannot be limited to Vahti") {}.disabled(true)
+          Button("Vahti, on this Mac") { agent = "vahti" }
         } label: {
-          Text(["claude": "Claude", "codex": "Codex"][agent] ?? "Kier").font(.system(size: 12.5, weight: .medium))
+          Text(["claude": "Claude", "codex": "Codex"][agent] ?? "Vahti").font(.system(size: 12.5, weight: .medium))
         }
         .onAppear { if agent == "codex" { agent = "claude" } }
         .menuStyle(.borderlessButton).fixedSize()
@@ -778,7 +778,7 @@ struct Composer: View {
       }
     }
     .padding(.horizontal, 18).padding(.top, 14).padding(.bottom, 12)
-    .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(Kier.raised))
+    .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(Vahti.raised))
     .contentShape(Rectangle())
     .onTapGesture { focused = true }
     .task { try? await Task.sleep(for: .milliseconds(250)); focused = true }
@@ -796,7 +796,7 @@ struct Composer: View {
 
 struct ContextView: View {
   @Environment(Store.self) var store
-  @AppStorage("kierAgent") private var agent = "claude"
+  @AppStorage("vahtiAgent") private var agent = "claude"
 
   var body: some View {
     VStack(spacing: 0) {
@@ -822,7 +822,7 @@ struct ContextView: View {
       }
     }
     // Use the window’s opaque black so wallpaper cannot tint the inspector; separate it with a hairline.
-    .background(Kier.page.ignoresSafeArea())
+    .background(Vahti.page.ignoresSafeArea())
     .overlay(alignment: .leading) { Rectangle().fill(Glass.hairline).frame(width: 0.5).ignoresSafeArea() }
   }
 
@@ -969,10 +969,10 @@ struct TimelineView: View {
         // the page could show. Each row draws its slice of the hour's card, rounded at the hour's first and last row.
         ForEach(rows, id: \.item.id) { r in
           HStack(alignment: .top, spacing: 14) {
-            Text(r.first ? r.hour : "").font(.kierSmall.monospacedDigit()).foregroundStyle(Kier.faint)
+            Text(r.first ? r.hour : "").font(.vahtiSmall.monospacedDigit()).foregroundStyle(Vahti.faint)
               .frame(width: search ? 116 : 44, alignment: .trailing).padding(.top, 17)
             VStack(spacing: 0) {
-              if !r.first { Rectangle().fill(Kier.hair).frame(height: 1) }
+              if !r.first { Rectangle().fill(Vahti.hair).frame(height: 1) }
               ItemRow(item: r.item, withDay: false, open: open.contains(r.item.id))
                 .contentShape(Rectangle())
                 .onTapGesture { if open.remove(r.item.id) == nil { open.insert(r.item.id) } }
@@ -1005,18 +1005,18 @@ struct ItemRow: View {
     let who = item.from_me?.on == true ? "You" : item.sender ?? ""
     let task = item.is_task?.on == true
     HStack(alignment: .top, spacing: 12) {
-      IconTile(symbol: sourceSymbol(item.source), brand: item.brand, tint: task ? Kier.periLight : Kier.dim, size: 26).padding(.top, 1)
+      IconTile(symbol: sourceSymbol(item.source), brand: item.brand, tint: task ? Vahti.periLight : Vahti.dim, size: 26).padding(.top, 1)
       VStack(alignment: .leading, spacing: 3) {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
           Text(item.conversationLabel).font(.system(size: 13, weight: .medium))
-          if !who.isEmpty && who != item.thread { Text(who).font(.system(size: 13)).foregroundStyle(Kier.dim) }
-          Text(item.originLabel).font(.system(size: 12)).foregroundStyle(Kier.faint)
-          if task { Text("Task").font(.system(size: 11.5, weight: .medium)).foregroundStyle(Kier.periLight) }
+          if !who.isEmpty && who != item.thread { Text(who).font(.system(size: 13)).foregroundStyle(Vahti.dim) }
+          Text(item.originLabel).font(.system(size: 12)).foregroundStyle(Vahti.faint)
+          if task { Text("Task").font(.system(size: 11.5, weight: .medium)).foregroundStyle(Vahti.periLight) }
           Spacer(minLength: 8)
-          Text((withDay ? dateLabel(item.ts) + " " : "") + timeLabel(item.ts)).font(.kierSmall.monospacedDigit()).foregroundStyle(Kier.faint)
+          Text((withDay ? dateLabel(item.ts) + " " : "") + timeLabel(item.ts)).font(.vahtiSmall.monospacedDigit()).foregroundStyle(Vahti.faint)
         }
         .lineLimit(1)
-        Text(item.text ?? "").font(.kierBody).foregroundStyle(Color.white.opacity(0.86)).lineLimit(open ? nil : 3)
+        Text(item.text ?? "").font(.vahtiBody).foregroundStyle(Color.white.opacity(0.86)).lineLimit(open ? nil : 3)
           .fixedSize(horizontal: false, vertical: true)
       }
     }
@@ -1048,7 +1048,7 @@ private let keeps = [
   "ai": "Questions Claude or Codex asked you that are still unanswered, and what each session was about. Never the chat itself.",
   "git": "Your commits in every repository on this Mac: the message and a link, never the code.",
   "discord": "Conversations read from Discord's window while it's in front. Never what you're typing.",
-  "social": "Your replies on Threads and X and the posts they answer, from the Kier extension in your browser. It never posts, likes or marks anything seen.",
+  "social": "Your replies on Threads and X and the posts they answer, from the Vahti extension in your browser. It never posts, likes or marks anything seen.",
 ]
 
 struct Forgettable: Identifiable {
@@ -1076,13 +1076,13 @@ struct VaultView: View {
             never("building.columns", "Banking, password and health apps, not even their notifications")
             never("eye.slash", "Adult sites, searches, downloads and copies")
             never("hand.raised", "Private and incognito windows")
-            never("keyboard", "What you type in text fields. Kier never logs keystrokes.")
-            never("trash", v.forgotten > 0 ? "\(v.forgotten) things you forgot here, kept only as a fingerprint Kier can't read back" : "Things you forget here")
+            never("keyboard", "What you type in text fields. Vahti never logs keystrokes.")
+            never("trash", v.forgotten > 0 ? "\(v.forgotten) things you forgot here, kept only as a fingerprint Vahti can't read back" : "Things you forget here")
           }
           Panel(title: "Forget one thing") {
             HStack(spacing: 10) {
-              Image(systemName: "magnifyingglass").foregroundStyle(Kier.faint)
-              TextField("Find a message, page, copy or file", text: $query).textFieldStyle(.plain).font(.kierBody)
+              Image(systemName: "magnifyingglass").foregroundStyle(Vahti.faint)
+              TextField("Find a message, page, copy or file", text: $query).textFieldStyle(.plain).font(.vahtiBody)
                 .onChange(of: query) { Task { found = await store.find(query) } }
             }
             .padding(.vertical, 13)
@@ -1090,8 +1090,8 @@ struct VaultView: View {
               HStack(alignment: .center, spacing: 12) {
                 IconTile(symbol: sourceSymbol(i.source), brand: i.brand, size: 26)
                 VStack(alignment: .leading, spacing: 2) {
-                  Text(i.text ?? "").font(.kierBody).lineLimit(1)
-                  Text("\(dateLabel(i.ts)), \(i.conversationLabel), \(i.originLabel)").font(.kierSmall).foregroundStyle(Kier.faint)
+                  Text(i.text ?? "").font(.vahtiBody).lineLimit(1)
+                  Text("\(dateLabel(i.ts)), \(i.conversationLabel), \(i.originLabel)").font(.vahtiSmall).foregroundStyle(Vahti.faint)
                 }
                 Spacer(minLength: 12)
                 Button("Forget") {
@@ -1108,14 +1108,14 @@ struct VaultView: View {
           Panel(title: "Who read your vault", count: v.reads.recent.isEmpty ? nil : v.reads.week,
                 footer: v.reads.recent.isEmpty ? nil : "\(v.reads.week) reads in the last 7 days. Only what you allow each AI to see, and every read is listed here.") {
             if v.reads.recent.isEmpty {
-              Text("No AI has read your vault yet.").font(.kierBody).foregroundStyle(Kier.dim).padding(.vertical, 13)
+              Text("No AI has read your vault yet.").font(.vahtiBody).foregroundStyle(Vahti.dim).padding(.vertical, 13)
             } else {
               ForEach(v.reads.recent) { r in
                 HStack(alignment: .firstTextBaseline, spacing: 14) {
-                  Text("\(dateLabel(r.ts)) \(timeLabel(r.ts))").font(.kierSmall.monospacedDigit()).foregroundStyle(Kier.faint).frame(width: 96, alignment: .leading)
+                  Text("\(dateLabel(r.ts)) \(timeLabel(r.ts))").font(.vahtiSmall.monospacedDigit()).foregroundStyle(Vahti.faint).frame(width: 96, alignment: .leading)
                   VStack(alignment: .leading, spacing: 2) {
-                    Text("\(r.client.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? "An AI") used \(r.tool ?? "Kier")").font(.kierBody)
-                    Text("\(r.args ?? ""), \(r.rows ?? 0) items").font(.kierSmall).foregroundStyle(Kier.faint).lineLimit(1)
+                    Text("\(r.client.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? "An AI") used \(r.tool ?? "Vahti")").font(.vahtiBody)
+                    Text("\(r.args ?? ""), \(r.rows ?? 0) items").font(.vahtiSmall).foregroundStyle(Vahti.faint).lineLimit(1)
                   }
                 }
                 .padding(.vertical, 10)
@@ -1137,18 +1137,18 @@ struct VaultView: View {
     VStack(alignment: .leading, spacing: 12) {
       HStack(spacing: 10) {
         IconTile(symbol: sourceSymbol(s.source), brand: Brand.of(source: s.source, thread: nil, sender: nil))
-        Text(sourceName(s.source)).font(.kierCardTitle)
+        Text(sourceName(s.source)).font(.vahtiCardTitle)
       }
       VStack(alignment: .leading, spacing: 1) {
-        Text(s.n.formatted()).font(.kierStat).monospacedDigit()
-        Text("kept, \(s.recent.formatted()) in the last 30 days").font(.kierSmall).foregroundStyle(Kier.faint)
+        Text(s.n.formatted()).font(.vahtiStat).monospacedDigit()
+        Text("kept, \(s.recent.formatted()) in the last 30 days").font(.vahtiSmall).foregroundStyle(Vahti.faint)
       }
-      if let k = keeps[s.source] { Text(k).font(.kierSmall).foregroundStyle(Kier.dim).fixedSize(horizontal: false, vertical: true) }
+      if let k = keeps[s.source] { Text(k).font(.vahtiSmall).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true) }
       if let threads = v.threads[s.source], !threads.isEmpty {
         Flow(spacing: 6) {
           ForEach(threads) { t in
             Chip(text: t.thread, count: t.n) {
-              pending = Forgettable(title: "Forget everything from \(t.thread)? It is deleted now, and Kier stops keeping it.") {
+              pending = Forgettable(title: "Forget everything from \(t.thread)? It is deleted now, and Vahti stops keeping it.") {
                 store.forget(source: t.source, thread: t.thread)
               }
             }
@@ -1164,7 +1164,7 @@ struct VaultView: View {
   private func never(_ symbol: String, _ text: String) -> some View {
     HStack(spacing: 14) {
       IconTile(symbol: symbol, size: 28)
-      Text(text).font(.kierBody).foregroundStyle(Kier.dim)
+      Text(text).font(.vahtiBody).foregroundStyle(Vahti.dim)
       Spacer(minLength: 0)
     }
     .padding(.vertical, 9)
@@ -1185,9 +1185,9 @@ struct Chip: View {
   var body: some View {
     HStack(spacing: 5) {
       Text(text).lineLimit(1)
-      Text("\(count)").foregroundStyle(Kier.faint).monospacedDigit()
+      Text("\(count)").foregroundStyle(Vahti.faint).monospacedDigit()
       Button(action: forget) { Image(systemName: "xmark").font(.system(size: 9, weight: .bold)) }
-        .buttonStyle(.plain).foregroundStyle(Kier.faint).help("Forget \(text) and stop keeping it")
+        .buttonStyle(.plain).foregroundStyle(Vahti.faint).help("Forget \(text) and stop keeping it")
     }
     .font(.system(size: 12))
     .padding(.leading, 10).padding(.trailing, 7).padding(.vertical, 4)
@@ -1237,9 +1237,9 @@ struct Flow: Layout {
 struct SetupView: View {
   @Environment(Store.self) var store
   // Read by the island (Companion in Orb.swift), which follows changes as they're made.
-  @AppStorage("kierIslandMode") private var islandMode = IslandMode.always.rawValue
-  @AppStorage("kierSound") private var sound = true
-  @AppStorage("kierAppearance") private var appearance = Appearance.hour.rawValue
+  @AppStorage("vahtiIslandMode") private var islandMode = IslandMode.always.rawValue
+  @AppStorage("vahtiSound") private var sound = true
+  @AppStorage("vahtiAppearance") private var appearance = Appearance.hour.rawValue
   @State private var report: String?
   @State private var copied = false
   @State private var draft: Profile?
@@ -1256,9 +1256,9 @@ struct SetupView: View {
 
     var detail: String {
       switch self {
-      case .permissions: "Give Kier access to the parts of your Mac you want it to use."
-      case .sources: "Choose what Kier reads and what it adds to Calendar and Reminders."
-      case .you: "Help Kier understand you, the people you work with, and your chats."
+      case .permissions: "Give Vahti access to the parts of your Mac you want it to use."
+      case .sources: "Choose what Vahti reads and what it adds to Calendar and Reminders."
+      case .you: "Help Vahti understand you, the people you work with, and your chats."
       case .appearance: "Make the island, sounds, and shortcuts feel right for you."
       case .system: "Local models, optional online helpers, and troubleshooting."
       }
@@ -1271,7 +1271,7 @@ struct SetupView: View {
   var body: some View {
     VStack(spacing: 0) {
       VStack(alignment: .leading, spacing: 16) {
-        PageHeader(title: "Setup", lede: store.setupLeft == 0 ? "Kier is set up. Make it work your way." : "\(store.setupLeft) things left to switch on.")
+        PageHeader(title: "Setup", lede: store.setupLeft == 0 ? "Vahti is set up. Make it work your way." : "\(store.setupLeft) things left to switch on.")
         Flow(spacing: 6) {
           ForEach(SetupTab.allCases, id: \.self) { section in
             Button(section.rawValue) { tab = section }
@@ -1285,7 +1285,7 @@ struct SetupView: View {
       .frame(maxWidth: .infinity)
 
       PageScroll {
-        Text(tab.detail).font(.kierSmall).foregroundStyle(Kier.dim)
+        Text(tab.detail).font(.vahtiSmall).foregroundStyle(Vahti.dim)
         switch tab {
         case .permissions: permissions
         case .sources: sources
@@ -1322,8 +1322,8 @@ struct SetupView: View {
 
   @ViewBuilder private var sources: some View {
     if let settings = store.settings {
-        Panel(title: "What Kier reads",
-              footer: "Switched off, a source isn't read or kept from then on, its cards leave the brief, and no AI can read it through Kier. What's already in your vault stays.") {
+        Panel(title: "What Vahti reads",
+              footer: "Switched off, a source isn't read or kept from then on, its cards leave the brief, and no AI can read it through Vahti. What's already in your vault stays.") {
           ForEach(settings.sources) { s in
             row(s.label, [s.detail, s.count > 0 ? "\(s.count.formatted()) in the last 30 days" : nil].compactMap { $0 }.joined(separator: ". "), symbol: sourceSymbol(s.id)) {
               Toggle("", isOn: Binding(get: { s.on }, set: { store.setSource(s.id, on: $0) })).toggleStyle(.switch).labelsHidden().controlSize(.small)
@@ -1338,7 +1338,7 @@ struct SetupView: View {
 
   private var aboutYou: some View {
       Panel(title: "Who you are",
-            footer: "Drafted by Kier's local model from your own messages, chats and projects; nothing leaves this Mac. Fix anything that's wrong: what you write is kept when it learns again each week.",
+            footer: "Drafted by Vahti's local model from your own messages, chats and projects; nothing leaves this Mac. Fix anything that's wrong: what you write is kept when it learns again each week.",
             accessory: {
               if draft != nil {
                 HStack(spacing: 14) {
@@ -1349,11 +1349,11 @@ struct SetupView: View {
             }) {
         if let p = draft {
           VStack(alignment: .leading, spacing: 4) {
-            Text("What you do").font(.kierSmall).foregroundStyle(Kier.faint)
+            Text("What you do").font(.vahtiSmall).foregroundStyle(Vahti.faint)
             TextField("What you do", text: Binding(get: { p.about }, set: { draft?.about = $0 }), axis: .vertical)
-              .textFieldStyle(.plain).font(.kierBody).lineLimit(2...8)
+              .textFieldStyle(.plain).font(.vahtiBody).lineLimit(2...8)
             if let names = p.aliases, !names.isEmpty {
-              Text("Also goes by \(names.joined(separator: ", "))").font(.kierSmall).foregroundStyle(Kier.faint)
+              Text("Also goes by \(names.joined(separator: ", "))").font(.vahtiSmall).foregroundStyle(Vahti.faint)
             }
           }
           .padding(.vertical, 12)
@@ -1364,7 +1364,7 @@ struct SetupView: View {
             note(p.groups[i].name, "What this group is for", Binding(get: { draft?.groups[i].text ?? "" }, set: { draft?.groups[i].text = $0 }))
           }
         } else {
-          Text("Kier is learning who you are from your messages. This takes a few minutes the first time.").font(.kierBody).foregroundStyle(Kier.dim).padding(.vertical, 12)
+          Text("Vahti is learning who you are from your messages. This takes a few minutes the first time.").font(.vahtiBody).foregroundStyle(Vahti.dim).padding(.vertical, 12)
         }
       }
   }
@@ -1388,10 +1388,10 @@ struct SetupView: View {
         }
       }
           Panel(title: "Shortcuts", footer: "Click one and press the keys you'd like, with Command, Option or Control. Escape keeps it as it was.") {
-        row("Open Kier", "From anywhere, even with the island hidden.", symbol: "capsule") {
+        row("Open Vahti", "From anywhere, even with the island hidden.", symbol: "capsule") {
           ShortcutField(name: "open", fallback: .open)
         }
-        row("Find anything", "Search everything Kier has read, the way you'd ask for it.", symbol: "magnifyingglass") {
+        row("Find anything", "Search everything Vahti has read, the way you'd ask for it.", symbol: "magnifyingglass") {
           ShortcutField(name: "find", fallback: .find)
         }
       }
@@ -1399,10 +1399,10 @@ struct SetupView: View {
   }
 
   @ViewBuilder private var systemSettings: some View {
-      // What the site promises, shown live: what Kier read, the model doing it here, and what left this Mac.
+      // What the site promises, shown live: what Vahti read, the model doing it here, and what left this Mac.
       if let p = store.privacy {
         VStack(alignment: .leading, spacing: 10) {
-          Text("On this Mac").font(.kierLabel).foregroundStyle(Kier.dim).padding(.horizontal, 4)
+          Text("On this Mac").font(.vahtiLabel).foregroundStyle(Vahti.dim).padding(.horizontal, 4)
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 12)], spacing: 12) {
             Stat(label: "Messages read today", value: p.read.formatted())
             Stat(label: p.yours == true ? "Your model" : "Local model", value: p.running ? "Running" : "Not running",
@@ -1411,28 +1411,28 @@ struct SetupView: View {
             Stat(label: "Account", value: "None needed")
           }
           Text(p.yours == true && p.local != true
-               ? "Kier has no servers and no account. Your model runs on the server you chose, so what Kier reads goes there to be read; the search index and the second opinion stay on this Mac. Nothing else leaves it unless you hand it to Claude or Codex or turn on online helpers below."
-               : "Kier has no servers and no account, and its models run on this Mac. Nothing leaves it unless you hand it to Claude or Codex (chats with them, hand-offs, what they read through Kier) or turn on online helpers below.")
-            .font(.kierSmall).foregroundStyle(Kier.faint).padding(.horizontal, 4).fixedSize(horizontal: false, vertical: true)
+               ? "Vahti has no servers and no account. Your model runs on the server you chose, so what Vahti reads goes there to be read; the search index and the second opinion stay on this Mac. Nothing else leaves it unless you hand it to Claude or Codex or turn on online helpers below."
+               : "Vahti has no servers and no account, and its models run on this Mac. Nothing leaves it unless you hand it to Claude or Codex (chats with them, hand-offs, what they read through Vahti) or turn on online helpers below.")
+            .font(.vahtiSmall).foregroundStyle(Vahti.faint).padding(.horizontal, 4).fixedSize(horizontal: false, vertical: true)
         }
       }
 
     setupSteps("Models & background service", steps: store.steps.filter { $0.id != "terms" && !permissionIDs.contains($0.id) && !syncIDs.contains($0.id) && !connectionIDs.contains($0.id) })
     ModelPanel()
     if let settings = store.settings {
-        // Kier is a local model end to end; these are the only connections it makes of its own, and they start off.
+        // Vahti is a local model end to end; these are the only connections it makes of its own, and they start off.
         Panel(title: "Online helpers",
               footer: settings.online
-                ? "On: Kier uses the internet only for the helpers above. Handing a card to Claude or Codex, or picking them in a chat, is always your choice."
-                : "Off: Kier makes no internet connections of its own. Everything it reads and thinks stays on this Mac. Handing a card to Claude or Codex, or picking them in a chat, is always your choice.") {
-          row("Online helpers", "Let Kier check a few things on the internet to notice more of what's done.", symbol: "network") {
+                ? "On: Vahti uses the internet only for the helpers above. Handing a card to Claude or Codex, or picking them in a chat, is always your choice."
+                : "Off: Vahti makes no internet connections of its own. Everything it reads and thinks stays on this Mac. Handing a card to Claude or Codex, or picking them in a chat, is always your choice.") {
+          row("Online helpers", "Let Vahti check a few things on the internet to notice more of what's done.", symbol: "network") {
             Toggle("", isOn: Binding(get: { settings.online }, set: { store.setOnline($0) })).toggleStyle(.switch).labelsHidden().controlSize(.small)
           }
           helper("GitHub", "Sees whether your pull requests are still open or merged, using your gh login.", symbol: "arrow.triangle.pull", on: settings.online)
           helper("Your pages and feeds", "Opens the blog or feed you publish to, to see whether a promised post went out.", symbol: "doc.richtext", on: settings.online)
           if settings.claude {
             row("Let Claude double-check stuck cards",
-                "When a card is still open hours later and you committed code after it, Kier asks your Claude once whether one of those commits fixed it. That sends the card's chat and those commits to Claude.",
+                "When a card is still open hours later and you committed code after it, Vahti asks your Claude once whether one of those commits fixed it. That sends the card's chat and those commits to Claude.",
                 symbol: "sparkles") {
               Toggle("", isOn: Binding(get: { settings.claudeCheck }, set: { store.setClaudeCheck($0) })).toggleStyle(.switch).labelsHidden().controlSize(.small)
                 .disabled(!settings.online)
@@ -1441,8 +1441,8 @@ struct SetupView: View {
           }
         }
           }
-      // Shown whole before it's copied, and never sent by Kier: you paste it where you report the bug.
-      Panel(title: "Diagnostics", footer: "Only what's shown here: versions, which parts run, counts, and the kinds of trouble in Kier's log, never their words. No names, messages, chats, files or paths. Kier never sends it; you copy it into your bug report.") {
+      // Shown whole before it's copied, and never sent by Vahti: you paste it where you report the bug.
+      Panel(title: "Diagnostics", footer: "Only what's shown here: versions, which parts run, counts, and the kinds of trouble in Vahti's log, never their words. No names, messages, chats, files or paths. Vahti never sends it; you copy it into your bug report.") {
         row("Report for a bug", report == nil ? "See exactly what it holds before you copy it." : nil, symbol: "stethoscope") {
           HStack(spacing: 10) {
             if report != nil {
@@ -1461,7 +1461,7 @@ struct SetupView: View {
         }
         if let report {
           ScrollView {
-            Text(report).font(.system(size: 11.5, design: .monospaced)).foregroundStyle(Kier.dim).textSelection(.enabled)
+            Text(report).font(.system(size: 11.5, design: .monospaced)).foregroundStyle(Vahti.dim).textSelection(.enabled)
               .frame(maxWidth: .infinity, alignment: .leading).padding(12)
           }
           .frame(maxHeight: 280)
@@ -1478,8 +1478,8 @@ struct SetupView: View {
         HStack(alignment: .top, spacing: 14) {
           status(s.status)
           VStack(alignment: .leading, spacing: 3) {
-            Text(s.title).font(.kierCardTitle)
-            if let d = s.detail { Text(d).font(.system(size: 13)).foregroundStyle(Kier.dim).fixedSize(horizontal: false, vertical: true) }
+            Text(s.title).font(.vahtiCardTitle)
+            if let d = s.detail { Text(d).font(.system(size: 13)).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true) }
             if let l = s.link, let url = s.linkURL {
               Button(l.label) { LinkPolicy.open(url) }.buttonStyle(TextButton()).padding(.top, 2)
             }
@@ -1497,8 +1497,8 @@ struct SetupView: View {
     HStack(alignment: .center, spacing: 14) {
       IconTile(symbol: symbol)
       VStack(alignment: .leading, spacing: 2) {
-        Text(title).font(.kierCardTitle)
-        if let detail, !detail.isEmpty { Text(detail).font(.system(size: 12.5)).foregroundStyle(Kier.dim).fixedSize(horizontal: false, vertical: true) }
+        Text(title).font(.vahtiCardTitle)
+        if let detail, !detail.isEmpty { Text(detail).font(.system(size: 12.5)).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true) }
       }
       Spacer(minLength: 12)
       control()
@@ -1509,17 +1509,17 @@ struct SetupView: View {
   // One online helper, described; it follows the switch above.
   private func helper(_ title: String, _ detail: String, symbol: String, on: Bool) -> some View {
     row(title, detail, symbol: symbol) {
-      Text(on ? "On" : "Off").font(.kierSmall).foregroundStyle(on ? Kier.dim : Kier.faint)
+      Text(on ? "On" : "Off").font(.vahtiSmall).foregroundStyle(on ? Vahti.dim : Vahti.faint)
     }
     .opacity(on ? 1 : 0.5)
   }
 
-  // A person or group, then what Kier knows about them, written underneath and left-aligned like a note.
+  // A person or group, then what Vahti knows about them, written underneath and left-aligned like a note.
   private func note(_ name: String, _ prompt: String, _ text: Binding<String>) -> some View {
     VStack(alignment: .leading, spacing: 4) {
-      Text(name).font(.kierCardTitle)
+      Text(name).font(.vahtiCardTitle)
       TextField(prompt, text: text, prompt: Text(prompt), axis: .vertical)
-        .labelsHidden().textFieldStyle(.plain).multilineTextAlignment(.leading).font(.system(size: 13)).foregroundStyle(Kier.dim).lineLimit(1...6)
+        .labelsHidden().textFieldStyle(.plain).multilineTextAlignment(.leading).font(.system(size: 13)).foregroundStyle(Vahti.dim).lineLimit(1...6)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.vertical, 11)
@@ -1529,8 +1529,8 @@ struct SetupView: View {
     switch s {
     case "done": IconTile(symbol: "checkmark", tint: .green)
     case "todo": IconTile(symbol: "exclamationmark", tint: .orange)
-    case "later": IconTile(symbol: "clock", tint: Kier.faint)
-    default: IconTile(symbol: "circle.dashed", tint: Kier.faint)
+    case "later": IconTile(symbol: "clock", tint: Vahti.faint)
+    default: IconTile(symbol: "circle.dashed", tint: Vahti.faint)
     }
   }
 
@@ -1538,7 +1538,7 @@ struct SetupView: View {
 }
 
 // A global shortcut you change by pressing it: click, then press the keys. Escape keeps the old one, Reset brings back
-// Kier's own. While it listens the shortcuts let go (Shortcut.recording), so the current one can be pressed again.
+// Vahti's own. While it listens the shortcuts let go (Shortcut.recording), so the current one can be pressed again.
 struct ShortcutField: View {
   let name: String
   let fallback: Shortcut
@@ -1588,7 +1588,7 @@ struct ShortcutField: View {
 }
 
 // Model settings select the built-in local runtime or an owner-supplied compatible server.
-// Saving verifies connectivity before restarting Kier.
+// Saving verifies connectivity before restarting Vahti.
 struct ModelPanel: View {
   @Environment(Store.self) var store
   @State private var draft: ModelDraft?
@@ -1600,9 +1600,9 @@ struct ModelPanel: View {
   var body: some View {
     Panel(title: "Model", footer: footer) {
       if let s = store.modelSettings, var d = draft {
-        row("Reads your messages", s.mode == "custom" ? "\(s.activeModel), on your server." : "\(s.activeModel), Kier's own model, on this Mac.", symbol: "cpu") {
+        row("Reads your messages", s.mode == "custom" ? "\(s.activeModel), on your server." : "\(s.activeModel), Vahti's own model, on this Mac.", symbol: "cpu") {
           Picker("", selection: Binding(get: { d.mode }, set: { d.mode = $0; draft = d; message = nil })) {
-            Text("Kier's own").tag("builtin")
+            Text("Vahti's own").tag("builtin")
             Text("Your model").tag("custom")
           }
           .labelsHidden().fixedSize()
@@ -1620,7 +1620,7 @@ struct ModelPanel: View {
           field("Address", "Where the server answers, like \(d.connection.defaultEndpoint)") {
             TextField("", text: Binding(get: { d.endpoint }, set: { d.endpoint = $0; draft = d }), prompt: Text(d.connection.defaultEndpoint))
           }
-          field("API key", s.hasKey && d.apiKey.isEmpty && !d.clearKey ? "Saved. Leave it empty to keep it." : "Only if the server asks for one. It stays in Kier's settings on this Mac.") {
+          field("API key", s.hasKey && d.apiKey.isEmpty && !d.clearKey ? "Saved. Leave it empty to keep it." : "Only if the server asks for one. It stays in Vahti's settings on this Mac.") {
             HStack {
               SecureField("", text: Binding(get: { d.apiKey }, set: { d.apiKey = $0; d.clearKey = false; draft = d }), prompt: Text(s.hasKey ? "Saved" : "None"))
               if s.hasKey && !d.clearKey { Button("Remove") { d.apiKey = ""; d.clearKey = true; draft = d }.buttonStyle(TextButton()) }
@@ -1637,20 +1637,20 @@ struct ModelPanel: View {
         }
         HStack(spacing: 12) {
           if let message {
-            Text(message).font(.kierSmall).foregroundStyle(failed ? .orange : Kier.dim).fixedSize(horizontal: false, vertical: true)
+            Text(message).font(.vahtiSmall).foregroundStyle(failed ? .orange : Vahti.dim).fixedSize(horizontal: false, vertical: true)
           }
           Spacer(minLength: 12)
           if d.mode == "custom" {
             Button(busy == "test" ? "Checking…" : "Check") { Task { await check(d) } }
               .buttonStyle(TextButton()).disabled(busy != nil || d.endpoint.isEmpty)
           }
-          Button(busy == "save" ? "Switching…" : d.mode == "custom" ? "Use this model" : "Use Kier's own") { Task { await save(d) } }
+          Button(busy == "save" ? "Switching…" : d.mode == "custom" ? "Use this model" : "Use Vahti's own") { Task { await save(d) } }
             .buttonStyle(PillButton(prominent: true))
             .disabled(busy != nil || !changed(d, s) || (d.mode == "custom" && d.model.trimmingCharacters(in: .whitespaces).isEmpty))
         }
         .padding(.vertical, 11)
       } else {
-        Text("Reading the model settings…").font(.kierBody).foregroundStyle(Kier.dim).padding(.vertical, 12)
+        Text("Reading the model settings…").font(.vahtiBody).foregroundStyle(Vahti.dim).padding(.vertical, 12)
       }
     }
     .task {
@@ -1662,11 +1662,11 @@ struct ModelPanel: View {
 
   private var footer: String {
     guard let d = draft, d.mode == "custom" else {
-      return "Kier's own model runs on this Mac, and nothing it reads leaves it."
+      return "Vahti's own model runs on this Mac, and nothing it reads leaves it."
     }
     return d.sameMac
-      ? "A server on this Mac: what Kier reads still stays here. The search index and the second opinion stay on this Mac either way."
-      : "A server elsewhere: Kier sends it the messages it reads, to find your tasks and answer you. What it sends is counted under Sent to the cloud. The search index and the second opinion stay on this Mac."
+      ? "A server on this Mac: what Vahti reads still stays here. The search index and the second opinion stay on this Mac either way."
+      : "A server elsewhere: Vahti sends it the messages it reads, to find your tasks and answer you. What it sends is counted under Sent to the cloud. The search index and the second opinion stay on this Mac."
   }
 
   // Something to save: another mode, or a different server, model or key than the one in use.
@@ -1681,16 +1681,16 @@ struct ModelPanel: View {
     let answer = await store.testModel(d)
     failed = answer?.ok != true
     models = answer?.models ?? []
-    if failed { message = answer?.error ?? "Kier couldn't reach it." }
+    if failed { message = answer?.error ?? "Vahti couldn't reach it." }
     else if d.model.isEmpty { message = models.isEmpty ? "It answers, but lists no models." : "It answers. Pick a model." }
-    else { message = "It answers, and \(d.model) replies the way Kier needs." }
+    else { message = "It answers, and \(d.model) replies the way Vahti needs." }
   }
 
   private func save(_ d: ModelDraft) async {
     busy = "save"; defer { busy = nil }
     let answer = await store.configureModel(d)
     failed = answer?.ok != true
-    message = failed ? (answer?.error ?? "Kier couldn't switch.") : "Switched. Kier is restarting on it."
+    message = failed ? (answer?.error ?? "Vahti couldn't switch.") : "Switched. Vahti is restarting on it."
     if !failed { draft?.apiKey = ""; draft?.clearKey = false }
   }
 
@@ -1698,8 +1698,8 @@ struct ModelPanel: View {
     HStack(alignment: .center, spacing: 14) {
       IconTile(symbol: symbol)
       VStack(alignment: .leading, spacing: 2) {
-        Text(title).font(.kierCardTitle)
-        if let detail, !detail.isEmpty { Text(detail).font(.system(size: 12.5)).foregroundStyle(Kier.dim).fixedSize(horizontal: false, vertical: true) }
+        Text(title).font(.vahtiCardTitle)
+        if let detail, !detail.isEmpty { Text(detail).font(.system(size: 12.5)).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true) }
       }
       Spacer(minLength: 12)
       control()
@@ -1709,9 +1709,9 @@ struct ModelPanel: View {
 
   private func field<Input: View>(_ title: String, _ detail: String, @ViewBuilder input: () -> Input) -> some View {
     VStack(alignment: .leading, spacing: 5) {
-      Text(title).font(.kierCardTitle)
+      Text(title).font(.vahtiCardTitle)
       input().textFieldStyle(.roundedBorder).font(.system(size: 13))
-      Text(detail).font(.kierSmall).foregroundStyle(Kier.faint).fixedSize(horizontal: false, vertical: true)
+      Text(detail).font(.vahtiSmall).foregroundStyle(Vahti.faint).fixedSize(horizontal: false, vertical: true)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.vertical, 11)
@@ -1728,7 +1728,7 @@ struct MCPSourcesView: View {
   @State private var busy = false
 
   var body: some View {
-    Panel(title: "MCP sources", footer: "Off until you enable a source. Kier sends your chosen tool name and JSON arguments to that server every 10 minutes. HTTP goes directly to its URL. Local commands may contact services using the credentials you configure. Results stay on this Mac; nothing goes to a Kier server. Choose servers and read tools you trust. On timeout or daemon exit, Kier kills the process group, observed descendants and detached children retaining its inherited marker. Local programs can evade cleanup by clearing the marker and detaching before observation; this is not a sandbox.") {
+    Panel(title: "MCP sources", footer: "Off until you enable a source. Vahti sends your chosen tool name and JSON arguments to that server every 10 minutes. HTTP goes directly to its URL. Local commands may contact services using the credentials you configure. Results stay on this Mac; nothing goes to a Vahti server. Choose servers and read tools you trust. On timeout or daemon exit, Vahti kills the process group, observed descendants and detached children retaining its inherited marker. Local programs can evade cleanup by clearing the marker and detaching before observation; this is not a sandbox.") {
       ForEach(sources) { source in
         MCPSourceRow(source: source) { sources = await store.mcpSources() }
       }
@@ -1744,8 +1744,8 @@ struct MCPSourcesView: View {
             busy = false
           }
         }.disabled(busy || name.isEmpty || endpoint.isEmpty)
-        if let error { Text(error).font(.kierSmall).foregroundStyle(.red) }
-        Text("For per-server environment variables, edit mcpSources in config.json. Commands run directly, without a shell. Tool arguments are sent exactly as entered.").font(.kierSmall).foregroundStyle(Kier.dim)
+        if let error { Text(error).font(.vahtiSmall).foregroundStyle(.red) }
+        Text("For per-server environment variables, edit mcpSources in config.json. Commands run directly, without a shell. Tool arguments are sent exactly as entered.").font(.vahtiSmall).foregroundStyle(Vahti.dim)
       }.padding(.vertical, 12)
     }.task { sources = await store.mcpSources() }
   }
@@ -1765,8 +1765,8 @@ struct MCPSourceRow: View {
     VStack(alignment: .leading, spacing: 10) {
       HStack {
         VStack(alignment: .leading) {
-          Text(source.name).font(.kierCardTitle)
-          Text(source.destination).font(.kierSmall).foregroundStyle(Kier.dim)
+          Text(source.name).font(.vahtiCardTitle)
+          Text(source.destination).font(.vahtiSmall).foregroundStyle(Vahti.dim)
         }
         Spacer()
         Toggle("On", isOn: Binding(get: { source.enabled }, set: { on in
@@ -1789,11 +1789,11 @@ struct MCPSourceRow: View {
             Text("Choose a tool").tag("")
             ForEach(tools) { Text($0.name).tag($0.name) }
           }
-        } else if !source.tool.isEmpty { Text(source.tool).font(.kierSmall) }
+        } else if !source.tool.isEmpty { Text(source.tool).font(.vahtiSmall) }
         Button("Sync now") { Task { await action("/sync", ["id": source.id]) } }.disabled(busy || !source.enabled)
       }
       if let selected = tools.first(where: { $0.name == tool }) {
-        Text(selected.description).font(.kierSmall).foregroundStyle(Kier.dim)
+        Text(selected.description).font(.vahtiSmall).foregroundStyle(Vahti.dim)
       }
       TextField("Tool arguments as a JSON object", text: $arguments, axis: .vertical).lineLimit(2...5)
       Button("Save read tool") {
@@ -1804,7 +1804,7 @@ struct MCPSourceRow: View {
           await action("", ["id": source.id, "tool": tool, "arguments": args])
         }
       }.disabled(busy || tool.isEmpty)
-      if let error { Text(error).font(.kierSmall).foregroundStyle(.red) }
+      if let error { Text(error).font(.vahtiSmall).foregroundStyle(.red) }
     }.padding(.vertical, 12)
       .task(id: source.id) { tool = source.tool; arguments = source.arguments }
   }

@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { inspectGit } from '../lib/safe-git.mjs'
 
 test('status cannot run clean/process filters, hooks or inherited Git configuration', async t => {
-  const dir = mkdtempSync(join(tmpdir(), 'kier-git-test-')); t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const dir = mkdtempSync(join(tmpdir(), 'vahti-git-test-')); t.after(() => rmSync(dir, { recursive: true, force: true }))
   const git = (...args) => execFileSync('/usr/bin/git', ['-C', dir, ...args], { stdio: 'ignore', env: { PATH: '/usr/bin:/bin', HOME: dir, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' } })
   git('init'); git('config', 'user.name', 'Sam'); git('config', 'user.email', 'sam@example.test'); git('config', 'commit.gpgsign', 'false')
   for (const f of ['clean.txt', 'process.txt']) writeFileSync(join(dir, f), 'before\n')

@@ -7,12 +7,12 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 test('collector ignores repository signature programs and reads local branches only', async t => {
-  const dir = mkdtempSync(join(tmpdir(), 'kier-collector-test-'))
+  const dir = mkdtempSync(join(tmpdir(), 'vahti-collector-test-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const repo = join(dir, 'repo'); mkdirSync(repo)
-  process.env.KIER_DATA_DIR = join(dir, 'data')
-  mkdirSync(process.env.KIER_DATA_DIR)
-  writeFileSync(join(process.env.KIER_DATA_DIR, 'config.json'), JSON.stringify({ me: 'Sam', workRoots: [dir], gitAuthors: ['sam@example.test'] }))
+  process.env.VAHTI_DATA_DIR = join(dir, 'data')
+  mkdirSync(process.env.VAHTI_DATA_DIR)
+  writeFileSync(join(process.env.VAHTI_DATA_DIR, 'config.json'), JSON.stringify({ me: 'Sam', workRoots: [dir], gitAuthors: ['sam@example.test'] }))
   const git = (...args) => execFileSync('/usr/bin/git', ['-C', repo, ...args], { encoding: 'utf8', env: { PATH: '/usr/bin:/bin', HOME: dir, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' } }).trim()
   git('init', '-q'); git('config', 'user.name', 'Sam'); git('config', 'user.email', 'sam@example.test')
   git('-c', 'commit.gpgsign=false', 'commit', '--allow-empty', '-qm', 'Synthetic commit')
@@ -36,7 +36,7 @@ test('collector ignores repository signature programs and reads local branches o
   const db = open(); t.after(() => db.close())
   assert.deepEqual(await collectAll(db, ['git']), { git: 2 })
   assert.equal(db.prepare("select added from runs where source = 'git'").get().added, 2)
-  const report = execFileSync(process.execPath, ['--disable-warning=ExperimentalWarning', fileURLToPath(new URL('../bin/kier.mjs', import.meta.url)), 'collect', '--json', '--only=git'], { env: { PATH: '/usr/bin:/bin', KIER_DATA_DIR: process.env.KIER_DATA_DIR }, encoding: 'utf8' })
+  const report = execFileSync(process.execPath, ['--disable-warning=ExperimentalWarning', fileURLToPath(new URL('../bin/vahti.mjs', import.meta.url)), 'collect', '--json', '--only=git'], { env: { PATH: '/usr/bin:/bin', VAHTI_DATA_DIR: process.env.VAHTI_DATA_DIR }, encoding: 'utf8' })
   assert.deepEqual(JSON.parse(report), { git: 0 })
   assert.equal(db.prepare("select count(*) as n from items where source = 'git'").get().n, 2)
   assert.equal(existsSync(marker), false)

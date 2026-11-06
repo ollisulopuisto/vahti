@@ -4,11 +4,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-priority-action-'))
-after(() => rmSync(process.env.KIER_DATA_DIR, { recursive: true, force: true }))
-writeFileSync(join(process.env.KIER_DATA_DIR, 'config.json'), JSON.stringify({ me: 'Jonas', languages: ['Croatian', 'English'], runtime: 'ollama' }))
-writeFileSync(join(process.env.KIER_DATA_DIR, 'profile.json'), JSON.stringify({ aliases: [], people: [], groups: [] }))
-writeFileSync(join(process.env.KIER_DATA_DIR, 'handles.json'), JSON.stringify({ Discord: ['jonas_notes'] }))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-priority-action-'))
+after(() => rmSync(process.env.VAHTI_DATA_DIR, { recursive: true, force: true }))
+writeFileSync(join(process.env.VAHTI_DATA_DIR, 'config.json'), JSON.stringify({ me: 'Jonas', languages: ['Croatian', 'English'], runtime: 'ollama' }))
+writeFileSync(join(process.env.VAHTI_DATA_DIR, 'profile.json'), JSON.stringify({ aliases: [], people: [], groups: [] }))
+writeFileSync(join(process.env.VAHTI_DATA_DIR, 'handles.json'), JSON.stringify({ Discord: ['jonas_notes'] }))
 
 const { priorityStatement, actionCard } = await import('../lib/owner-action.mjs')
 const { cards } = await import('../lib/second.mjs')

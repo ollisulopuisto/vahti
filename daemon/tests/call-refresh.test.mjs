@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-call-refresh-'))
-after(() => rmSync(process.env.KIER_DATA_DIR, { recursive: true, force: true }))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-call-refresh-'))
+after(() => rmSync(process.env.VAHTI_DATA_DIR, { recursive: true, force: true }))
 const { open, now, cursor, setCursor } = await import('../lib/db.mjs')
 const { refreshCallItems } = await import('../collectors/calls.mjs')
 const { syncCallbacks } = await import('../lib/callbacks.mjs')
@@ -50,7 +50,7 @@ test('a forgotten call is never reinserted or changed by recent-history refresh'
 })
 
 test('a fresh callback baseline leaves old call history out of Maybe yours and Done, and survives restart',t=>{
-  const path=join(process.env.KIER_DATA_DIR,'fresh-callback-install.db')
+  const path=join(process.env.VAHTI_DATA_DIR,'fresh-callback-install.db')
   let db=open(path)
   t.after(()=>db?.close())
   const oldMiss=raw()

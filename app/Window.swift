@@ -1,10 +1,10 @@
 import AppKit
 import SwiftUI
 
-// MARK: Kier's window, shown by the daemon: a Dock icon while it's open, the menu bar otherwise
+// MARK: Vahti's window, shown by the daemon: a Dock icon while it's open, the menu bar otherwise
 
 extension Notification.Name {
-  static let kierWindowShown = Notification.Name("kierWindowShown")
+  static let vahtiWindowShown = Notification.Name("vahtiWindowShown")
 }
 
 @MainActor
@@ -13,8 +13,8 @@ final class Viewer: NSObject, NSWindowDelegate {
   let store = Store()
 
   func show(_ path: String) {
-    // The floating panel steps aside, so opening Kier (or its Setup) from it shows just the window.
-    NotificationCenter.default.post(name: .kierWindowShown, object: nil)
+    // The floating panel steps aside, so opening Vahti (or its Setup) from it shows just the window.
+    NotificationCenter.default.post(name: .vahtiWindowShown, object: nil)
     open(path)
     NSApp.setActivationPolicy(.regular)
     window?.makeKeyAndOrderFront(nil)
@@ -45,7 +45,7 @@ final class Viewer: NSObject, NSWindowDelegate {
       w.isReleasedWhenClosed = false
       w.delegate = self
       w.center()
-      w.setFrameAutosaveName("Kier")
+      w.setFrameAutosaveName("Vahti")
       window = w
     }
     Task { await store.refresh() }
@@ -57,9 +57,9 @@ final class Viewer: NSObject, NSWindowDelegate {
 
   func windowWillClose(_ notification: Notification) { NSApp.setActivationPolicy(.accessory) }
 
-  // Stop the current login-agent job without removing its plist: reopening Kier starts it again.
+  // Stop the current login-agent job without removing its plist: reopening Vahti starts it again.
   @objc func quit() {
-    let target = "gui/\(getuid())/com.getkier.agent"
+    let target = "gui/\(getuid())/to.sulopuis.vahti.agent"
     let probe = Process()
     probe.executableURL = URL(fileURLWithPath: "/bin/launchctl")
     probe.environment = child.environment
@@ -86,13 +86,13 @@ final class Viewer: NSObject, NSWindowDelegate {
 
   private func showQuitError() {
     let alert = NSAlert()
-    alert.messageText = "Kier couldn’t quit"
-    alert.informativeText = "The background service couldn’t stop. Try Quit Kier again."
+    alert.messageText = "Vahti couldn’t quit"
+    alert.informativeText = "The background service couldn’t stop. Try Quit Vahti again."
     alert.addButton(withTitle: "OK")
     alert.runModal()
   }
 
-  // Copy, paste and close need a menu once Kier is a regular app with a window.
+  // Copy, paste and close need a menu once Vahti is a regular app with a window.
   func installMenu() {
     let main = NSMenu()
     func submenu(_ title: String, _ items: [NSMenuItem]) {
@@ -107,7 +107,7 @@ final class Viewer: NSObject, NSWindowDelegate {
       m.target = target
       return m
     }
-    submenu("Kier", [item("Hide Kier", #selector(NSApplication.hide(_:)), "h"), item("Quit Kier", #selector(quit), "q", target: self)])
+    submenu("Vahti", [item("Hide Vahti", #selector(NSApplication.hide(_:)), "h"), item("Quit Vahti", #selector(quit), "q", target: self)])
     submenu("Edit", [
       item("Undo", Selector(("undo:")), "z"), item("Redo", Selector(("redo:")), "Z"), .separator(),
       item("Cut", #selector(NSText.cut(_:)), "x"), item("Copy", #selector(NSText.copy(_:)), "c"),

@@ -4,8 +4,8 @@ import { EventEmitter } from 'node:events'
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-const dir = mkdtempSync(join(tmpdir(), 'kier-log-test-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-log-test-'))
+process.env.VAHTI_DATA_DIR = dir
 after(() => rmSync(dir, { recursive: true, force: true }))
 const { parse } = await import('../lib/plans.mjs')
 const { searchWords } = await import('../lib/headsup.mjs')
@@ -41,7 +41,7 @@ test('runtime and decision stdout, stderr and spawn errors emit only bounded cod
 test('routine background errors and every remaining model JSON boundary use fixed diagnostics', () => {
   assert.doesNotMatch(JSON.stringify(errorRecord(marker)), new RegExp(marker))
   assert.throws(() => parseModelJSON(broken), safe)
-  const bin = readFileSync(new URL('../bin/kier.mjs', import.meta.url), 'utf8')
+  const bin = readFileSync(new URL('../bin/vahti.mjs', import.meta.url), 'utf8')
   assert.doesNotMatch(bin, /\be\.message\b/)
   for (const file of ['runtime', 'second']) {
     const text = readFileSync(new URL(`../lib/${file}.mjs`, import.meta.url), 'utf8')

@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
-const dir = mkdtempSync(join(tmpdir(), 'kier-mail-fixtures-'))
-process.env.KIER_DATA_DIR = join(dir, 'vault')
-mkdirSync(process.env.KIER_DATA_DIR)
-writeFileSync(join(process.env.KIER_DATA_DIR, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam', languages: ['English', 'Croatian'], online: false, workRoots: [], backfillDays: 30 }))
+const dir = mkdtempSync(join(tmpdir(), 'vahti-mail-fixtures-'))
+process.env.VAHTI_DATA_DIR = join(dir, 'vault')
+mkdirSync(process.env.VAHTI_DATA_DIR)
+writeFileSync(join(process.env.VAHTI_DATA_DIR, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam', languages: ['English', 'Croatian'], online: false, workRoots: [], backfillDays: 30 }))
 after(() => rmSync(dir, { recursive: true, force: true }))
 const { collect, mailStores, mailSetup, plainMail, addresses, mailDate } = await import('../collectors/mail.mjs')
 const { APPLE_EPOCH } = await import('../collectors/util.mjs')
@@ -95,7 +95,7 @@ test('Apple Mail collects sender, recipients, subject, Sent role and capped plai
   assert.equal(meta.cc[0].name, 'Priya')
   assert.equal(meta.messageId, 'apple-1@example.test')
   assert.deepEqual(readFileSync(f.applePath), original)
-  assert.deepEqual(readdirSync(join(process.env.KIER_DATA_DIR, 'tmp')), [])
+  assert.deepEqual(readdirSync(join(process.env.VAHTI_DATA_DIR, 'tmp')), [])
 })
 
 test('Spark collects JSON or RFC address lists and learns owner addresses only from Sent', t => {
@@ -203,7 +203,7 @@ test('sent mail suggests completion of a cross-source owner reminder', async t =
   assert.equal(lines.length, 1)
   assert.equal(lines[0].owner, true)
   assert.match(lines[0].line, /email to Nika/)
-  assert.equal(evidence(f.db, card, authorization(['kier'], [])).length, 0)
+  assert.equal(evidence(f.db, card, authorization(['vahti'], [])).length, 0)
   const original = globalThis.fetch
   globalThis.fetch = async url => new Response(String(url).endsWith('/api/version') ? '{}' : JSON.stringify({ message: { content: JSON.stringify({ done: true, line: 1 }) } }))
   t.after(() => { globalThis.fetch = original })

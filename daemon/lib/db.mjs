@@ -14,11 +14,11 @@ export function open(path = dbPath, { readOnly = false } = {}) {
   const db = new DatabaseSync(path, { readOnly })
   db.exec('pragma busy_timeout = 5000')
   let lastOff, lastDisabled
-  db.function('kier_origin_permitted', (source, thread, meta, disabled, sourceId) => {
+  db.function('vahti_origin_permitted', (source, thread, meta, disabled, sourceId) => {
     if (disabled !== lastOff) { lastDisabled = JSON.parse(disabled); lastOff = disabled }
     return Number(permitsItem({ source, thread, meta, sourceId }, lastDisabled))
   })
-  db.function('kier_forget_key', { varargs: true }, (...parts) => forgetKey(...parts))
+  db.function('vahti_forget_key', { varargs: true }, (...parts) => forgetKey(...parts))
   if (readOnly) return db
   if (path !== ':memory:') for (const suffix of ['', '-wal', '-shm']) {
     if (existsSync(path + suffix)) chmodSync(path + suffix, 0o600)
@@ -62,14 +62,14 @@ export function open(path = dbPath, { readOnly = false } = {}) {
     create table if not exists runs (source text primary key, ok integer not null, at integer not null, added integer, error text);
     create table if not exists access_log (ts integer not null, client text, tool text, args text, rows integer);
     create table if not exists forgotten (key text primary key, kind text not null, at integer not null);
-    -- Conversations with Kier: "general", or an item's id for the chat about that item. Kept so they survive a restart.
+    -- Conversations with Vahti: "general", or an item's id for the chat about that item. Kept so they survive a restart.
     create table if not exists chats (key text not null, ts integer not null, q text not null, a text not null, agent text, seconds integer);
     create index if not exists chats_key on chats (key, ts);
     -- Conversations put away from the panel's list; still kept, like a closed card.
     create table if not exists chat_archive (key text primary key, at integer not null);
     -- Pairs of cards already asked about (are they the same work?), so each pair is asked once.
     create table if not exists merge_checked (a text not null, b text not null, at integer not null, primary key (a, b));
-    -- What Kier handed to Claude or Codex, by size only, for the "On this Mac" panel (settings.mjs).
+    -- What Vahti handed to Claude or Codex, by size only, for the "On this Mac" panel (settings.mjs).
     create table if not exists outbound (ts integer not null, kind text not null, agent text, bytes integer not null);
     -- Tomorrow's events and dated tasks, each asked once whether it's worth a heads-up the day before (headsup.mjs).
     create table if not exists heads_up (key text primary key, important integer not null, label text, at integer not null);
@@ -101,7 +101,7 @@ export function open(path = dbPath, { readOnly = false } = {}) {
       update task_state set completion_origin = 'owner' where status = 'done' and reason = 'marked in the timeline';
       update task_state set completion_origin = 'reminders' where status = 'done' and reason = 'ticked off in Reminders'`)
   }
-  // when the owner's Claude last double-checked a card Kier couldn't settle (doublecheck.mjs).
+  // when the owner's Claude last double-checked a card Vahti couldn't settle (doublecheck.mjs).
   if (!db.prepare("select 1 from pragma_table_info('tags') where name = 'deep_at'").get()) db.exec('alter table tags add column deep_at integer')
   // a commit that may have kept a promise, shown on the card for one-click confirmation.
   if (!db.prepare("select 1 from pragma_table_info('tags') where name = 'hint'").get()) db.exec('alter table tags add column hint text; alter table tags add column hint_url text')
@@ -291,9 +291,9 @@ function keepEarlierClosures(db) {
     db.exec("update task_state set completion_origin = 'reminders' where reason = 'deleted in Reminders' and completion_origin is null")
     const cutoff = now() - 2 * 86400
     db.prepare(`insert or ignore into task_state (item_id, status, changed_at, reason)
-      select t.item_id, 'handled', ?, 'closed by an earlier version of Kier' from tags t join items i on i.id = t.item_id
+      select t.item_id, 'handled', ?, 'closed by an earlier version of Vahti' from tags t join items i on i.id = t.item_id
       left join task_state s on s.item_id = t.item_id
-      where t.is_task = 1 and s.item_id is null and i.from_me = 0 and i.ts < ? and i.source not in ('kier', 'reminders', 'ai')
+      where t.is_task = 1 and s.item_id is null and i.from_me = 0 and i.ts < ? and i.source not in ('vahti', 'reminders', 'ai')
         and exists (select 1 from items o where o.source = i.source and o.thread = i.thread and o.from_me = 1
           and o.ts > i.ts and o.ts <= i.ts + 86400)`).run(now(), cutoff)
     db.prepare('insert into migrations values (?, ?)').run(version, now())

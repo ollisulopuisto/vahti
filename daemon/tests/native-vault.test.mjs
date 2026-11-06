@@ -30,12 +30,12 @@ test('credential operation names never enter the native channel', async () => {
   for (const operation of ['get', 'set', 'delete', 'legacy-get', 'legacy-delete']) await assert.rejects(call(operation), /OPERATION_REFUSED/)
 })
 
-test('native storage uses a signed Kier-only ACL and never offers a credential CLI', () => {
+test('native storage uses a signed Vahti-only ACL and never offers a credential CLI', () => {
   const native = readFileSync('../app/GmailVault.swift', 'utf8')
   assert.match(native, /SecCodeCheckValidity/)
-  assert.match(native, /com\.getkier\.kier/)
+  assert.match(native, /to\.sulopuis\.vahti/)
   assert.match(native, /kSecCodeInfoTeamIdentifier/)
-  assert.match(native, /SecAccessCreate\("Kier Gmail" as CFString, \[app\] as CFArray/)
+  assert.match(native, /SecAccessCreate\("Vahti Gmail" as CFString, \[app\] as CFArray/)
   assert.match(native, /kSecAttrAccess as String: access/)
   assert.match(native, /SecKeychainSetUserInteractionAllowed\(false\)/)
   assert.doesNotMatch(native, /add-generic-password|token.*process\.arguments/)
@@ -51,26 +51,26 @@ test('native and daemon Gmail paths have no legacy credential migration', () => 
 
 
 test('complete sealed runtime is checked before launch and after resource replacement without Keychain access', { skip: process.platform !== 'darwin' }, () => {
-  const dir = mkdtempSync(join(tmpdir(), 'kier-runtime-seal-'))
+  const dir = mkdtempSync(join(tmpdir(), 'vahti-runtime-seal-'))
   try {
     const bundle = join(dir, 'Fixture.app'), contents = join(bundle, 'Contents')
     for (const path of ['MacOS', 'Resources/runtime', 'Resources/daemon/bin']) mkdirSync(join(contents, path), { recursive: true })
     copyFileSync('/usr/bin/true', join(contents, 'MacOS/Fixture'))
     copyFileSync('/usr/bin/true', join(contents, 'Resources/runtime/node'))
-    writeFileSync(join(contents, 'Resources/daemon/bin/kier.mjs'), 'fixture JavaScript')
-    writeFileSync(join(contents, 'Info.plist'), '<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.getkier.fixture</string><key>CFBundleExecutable</key><string>Fixture</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>')
+    writeFileSync(join(contents, 'Resources/daemon/bin/vahti.mjs'), 'fixture JavaScript')
+    writeFileSync(join(contents, 'Info.plist'), '<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>to.sulopuis.vahti.fixture</string><key>CFBundleExecutable</key><string>Fixture</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>')
     execFileSync('/usr/bin/codesign', ['--force', '--sign', '-', bundle], { stdio: 'pipe' })
     const binary = join(dir, 'seal-test')
     execFileSync('swiftc', ['../app/GmailVault.swift', '../app/NativeGoogleSession.swift', '../app/LinkPolicy.swift', 'tests/runtime-seal.swift', '-o', binary], { stdio: 'pipe' })
     assert.match(execFileSync(binary, [bundle], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), /checks passed/)
     const main = readFileSync('../app/main.swift', 'utf8')
     assert.ok(main.indexOf('try gmailVault.prepareForLaunch') < main.indexOf('try child.run()'))
-    assert.match(main, /KIER_NATIVE_VAULT"\] = bundled \? "1" : "0"/)
+    assert.match(main, /VAHTI_NATIVE_VAULT"\] = bundled \? "1" : "0"/)
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 
 test('native Google lifecycle keeps refresh credentials private with offline injected services', { skip: process.platform !== 'darwin' }, () => {
-  const dir = mkdtempSync(join(tmpdir(), 'kier-native-google-'))
+  const dir = mkdtempSync(join(tmpdir(), 'vahti-native-google-'))
   try {
     const binary = join(dir, 'native-google-test')
     execFileSync('swiftc', ['../app/NativeGoogleSession.swift', '../app/LinkPolicy.swift', 'tests/native-google.swift', '-o', binary], { stdio: 'pipe' })

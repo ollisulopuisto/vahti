@@ -4,13 +4,13 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-minute-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-minute-'))
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { tasks } = await import('../lib/tasks.mjs')
 
 // Minute-resolution messages are ordered by their insertion sequence.
 const t = Math.floor(now() / 60) * 60 - 600
-const db = open(join(process.env.KIER_DATA_DIR, 'kier.db'))
+const db = open(join(process.env.VAHTI_DATA_DIR, 'vahti.db'))
 addItems(db, [
   { id: 'a1', source: 'discord', thread: 'support', sender: 'Sam', fromMe: true, ts: t, text: 'na stolu su sve kocke' },
   { id: 'q1', source: 'discord', thread: 'support', sender: 'Borna', fromMe: false, ts: t, text: '@Sam jesi prebrojao plave kocke' },

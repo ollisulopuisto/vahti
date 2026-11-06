@@ -6,7 +6,7 @@ import { resolve } from 'node:path'
 import { dataDir, tmpDir } from './config.mjs'
 
 // Adult sites and searches are never kept, whichever app they come through. Private and incognito windows
-// keep no history of their own, and Kier.app skips what is copied in them.
+// keep no history of their own, and Vahti.app skips what is copied in them.
 const ADULT_SITES = [
   'pornhub.com', 'xvideos.com', 'xnxx.com', 'xhamster.com', 'redtube.com', 'youporn.com', 'tube8.com', 'spankbang.com',
   'eporner.com', 'beeg.com', 'tnaflix.com', 'empflix.com', 'drtuber.com', 'nuvid.com', 'upornia.com', 'txxx.com', 'hclips.com',
@@ -91,7 +91,7 @@ function remove(db, where, params) {
   return Number(db.prepare(`delete from items where ${where}`).run(...params).changes)
 }
 
-// One memory, or a whole chat, website or app; either way Kier also stops keeping it from now on.
+// One memory, or a whole chat, website or app; either way Vahti also stops keeping it from now on.
 export function forget(db, { id, source, thread }) {
   invalidateProfile()
   const at = Math.floor(Date.now() / 1000)
@@ -130,7 +130,7 @@ export function forget(db, { id, source, thread }) {
 function wipeAround() {
   const sweep = (dir, match) => { try { for (const f of readdirSync(dir)) if (match.test(f)) rmSync(resolve(dir, f), { force: true }) } catch {} }
   sweep(resolve(dataDir, 'briefs'), /\.txt$/)
-  sweep(tmpDir, /^(handoff-|open-|kier-codex-)/)
+  sweep(tmpDir, /^(handoff-|open-|vahti-codex-)/)
 }
 
 // Clears adult items saved before the filter existed, or before a site joined the list.

@@ -3,7 +3,7 @@ import { modelFetch } from './model-provider.mjs'
 import { aiProvider } from './ai-provider.mjs'
 // Search cards, events, files, messages and assistant sessions with words and semantic similarity.
 // A second pass interprets the query to narrow source, person and topic. Results open the
-// original item in its application or in Kier.
+// original item in its application or in Vahti.
 import { config } from './config.mjs'
 import { appLink, sessionRecords } from './handoff.mjs'
 import { embed, nearest, person, ready } from './meaning.mjs'
@@ -13,7 +13,7 @@ import { dayLabel, isoDay, plusDays, tasks, today } from './tasks.mjs'
 import { datesOf, plans, shows } from './plans.mjs'
 
 const N = 8
-const LABEL = { whatsapp: 'WhatsApp', imessage: 'iMessage', discord: 'Discord', mail: 'Mail', notifications: 'Notification', social: 'Reply', chat: 'Kier chat',
+const LABEL = { whatsapp: 'WhatsApp', imessage: 'iMessage', discord: 'Discord', mail: 'Mail', notifications: 'Notification', social: 'Reply', chat: 'Vahti chat',
   ai: 'Claude session', downloads: 'Download', browser: 'Web page', calendar: 'Calendar', calls: 'Call' }
 const APPS = { whatsapp: 'net.whatsapp.WhatsApp', imessage: 'com.apple.MobileSMS', discord: 'com.hnc.Discord' }
 // What the model may say a request is about, and the sources each covers.
@@ -168,7 +168,7 @@ export async function understood(db, q) {
   const read = JSON.parse(String(answer).match(/\{[\s\S]*\}/)?.[0] ?? 'null') || {}
   const kind = KINDS[read.kind] ? read.kind : read.kind === 'task' ? 'task' : 'any'
   // A person only counts when the vault knows them: "Claude" is the assistant, not someone in your chats.
-  const who = read.person && !/^(claude|codex|chatgpt|kier)$/i.test(read.person) && person(db, read.person.replace(/^\p{Ll}/u, (c) => c.toUpperCase())) ? read.person : null
+  const who = read.person && !/^(claude|codex|chatgpt|vahti)$/i.test(read.person) && person(db, read.person.replace(/^\p{Ll}/u, (c) => c.toUpperCase())) ? read.person : null
   const topic = clean(read.topic) || q
   // Use the full request for meaning so a short substring cannot displace the intended topic.
   let results = await rank(db, topic, { sources: KINDS[kind] || [], who, meant: q })

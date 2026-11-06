@@ -148,7 +148,7 @@ export function collect(db) {
       const { out, cur } = marked(c.ts, meta.messages, last.get(where.thread))
       if (cur) last.set(where.thread, cur)
       for (const m of out) {
-        // Already kept, from a capture before this one or before Kier read messages by their marks.
+        // Already kept, from a capture before this one or before Vahti read messages by their marks.
         if (known.get(src, where.thread, m.sender, m.ts - 60, m.ts + 60, m.text)) continue
         if (where.dm && m.sender !== where.dm && m.sender !== config.me) learn(app, m.sender)
         const { text } = redact(m.text)
@@ -190,7 +190,7 @@ export function collect(db) {
     if (cur) last.set(where.thread, cur)
     items.push(...mine.map(({ capture, ...i }) => i))
   }
-  // Whose lines are whose is settled last, once this round's DMs have taught Kier the owner's name.
+  // Whose lines are whose is settled last, once this round's DMs have taught Vahti the owner's name.
   for (const i of items) i.fromMe = owner(i.meta.app, i.sender)
   const added = addItems(db, items)
   if (captures.length) setCursor(db, source, captures.at(-1).rowid)

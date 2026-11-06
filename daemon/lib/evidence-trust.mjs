@@ -45,7 +45,7 @@ export function briefEvidence(b) {
   return sections.map(([label, rows]) => `${label}:\n${rows.map(r => evidenceLine(r, `${r.due || r.day || ''} ${r.summary || r.text || ''}`)).join('\n')}`).join('\n')
 }
 
-export const ownerCreated = row => ['kier', 'reminders'].includes(row.source) || evidenceMeta(row).ownerCreated === true
+export const ownerCreated = row => ['vahti', 'reminders'].includes(row.source) || evidenceMeta(row).ownerCreated === true
 export function evidenceRecord(row, text = row.text) {
   const meta = evidenceMeta(row)
   const clip = (value, limit) => String(value || '').slice(0, limit)

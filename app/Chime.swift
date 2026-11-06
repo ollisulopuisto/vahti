@@ -1,7 +1,7 @@
 import AVFoundation
 
-// Kier's "done" sound: two soft notes going up, made here rather than borrowed from macOS, so a thing getting done
-// sounds like Kier. Each note blooms quickly and fades over most of a second, with a quiet octave for shimmer.
+// Vahti's "done" sound: two soft notes going up, made here rather than borrowed from macOS, so a thing getting done
+// sounds like Vahti. Each note blooms quickly and fades over most of a second, with a quiet octave for shimmer.
 @MainActor
 enum Chime {
   private static let engine = AVAudioEngine()

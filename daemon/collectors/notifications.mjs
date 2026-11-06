@@ -14,10 +14,10 @@ import { APPLE_EPOCH, snapshot } from './util.mjs'
 export const source = 'notifications'
 const PATH = resolve(home, 'Library/Group Containers/group.com.apple.usernoted/db2/db')
 
-// Kier's own, and apps whose data Kier reads directly from their database, where each message comes with its chat
+// Vahti's own, and apps whose data Vahti reads directly from their database, where each message comes with its chat
 // around it. App ids are compared in lower case: WhatsApp reports itself as net.whatsapp.whatsapp, and the mixed case
 // spelling here let its notifications in as context-free duplicates.
-const SKIP = new Set(['com.getkier.kier', 'net.whatsapp.whatsapp', 'com.apple.mobilesms', 'com.apple.ical', 'com.apple.reminders', ...(config.notificationSkip || [])]
+const SKIP = new Set(['to.sulopuis.vahti', 'net.whatsapp.whatsapp', 'com.apple.mobilesms', 'com.apple.ical', 'com.apple.reminders', ...(config.notificationSkip || [])]
   .map((id) => id.toLowerCase()))
 export const skipNotificationApp = (id) => SKIP.has(String(id).toLowerCase())
 // Kinds of app whose notifications are kept for search but never turned into tasks.
@@ -59,7 +59,7 @@ export function collect(db) {
       const body = str(req.body)
       if (!title && !body) continue
       // The brief's own notification is posted through osascript, so macOS files it under Script Editor.
-      if (r.app === 'com.apple.scripteditor2' && /^Kier$/.test(title)) continue
+      if (r.app === 'com.apple.scripteditor2' && /^Vahti$/.test(title)) continue
       // GitHub mail about your own repositories ("[owner/repo] PR run failed", bot reviews) is automated: kept for
       // search, never a task. A person asking you something on GitHub writes from their own name, so this is narrow.
       const automated = /\[[\w.-]+\/[\w.-]+\]/.test(`${title} ${str(req.subt)} ${body}`) || /\[bot\]$/i.test(title)

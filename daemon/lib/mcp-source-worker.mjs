@@ -7,14 +7,14 @@ import { validateSource } from './mcp-source-config.mjs'
 import { mcpFetch } from './mcp-source-http.mjs'
 export function sourceEnvironment(explicit = {}) {
   const safe = childEnv(explicit)
-  for (const key of Object.keys(safe)) if (!['HOME', 'PATH', 'LANG', 'TMPDIR', 'KIER_WORKER_TAG'].includes(key) && !Object.hasOwn(explicit, key)) delete safe[key]
+  for (const key of Object.keys(safe)) if (!['HOME', 'PATH', 'LANG', 'TMPDIR', 'VAHTI_WORKER_TAG'].includes(key) && !Object.hasOwn(explicit, key)) delete safe[key]
   return safe
 }
 export async function runSource(value, mode = 'call') {
   const source = validateSource(value)
   const transport = source.url ? new StreamableHTTPClientTransport(new URL(source.url), { fetch: mcpFetch(source.url) })
     : new StdioClientTransport({ command: executable(source.command), args: source.args, env: sourceEnvironment(source.env), stderr: 'ignore', maxBufferSize: 2 * 1024 * 1024 })
-  const client = new Client({ name: 'kier-source', version: '1.0.0' }, { capabilities: {} })
+  const client = new Client({ name: 'vahti-source', version: '1.0.0' }, { capabilities: {} })
   try {
     await client.connect(transport)
     const tools = []; let cursor

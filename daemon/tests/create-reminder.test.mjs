@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-const dir = mkdtempSync(join(tmpdir(), 'kier-create-reminder-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-create-reminder-'))
+process.env.VAHTI_DATA_DIR = dir
 writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', languages: ['English'], timezone: 'Europe/Zagreb', online: false, workRoots: [] }))
 after(() => rmSync(dir, { recursive: true, force: true }))
 const { reminderRequest, createReminder } = await import('../lib/create-reminder.mjs')
@@ -48,7 +48,7 @@ test('Ask creates a redacted owner card immediately with Undo and normal Done fl
   assert.equal(r.actions[0].label, 'Undo')
   const card = tasks(db)[0]
   assert.equal(card.id, r.created)
-  assert.equal(card.source, 'kier')
+  assert.equal(card.source, 'vahti')
   assert.equal(card.from_me, true)
   assert.equal(card.confirmed, 1)
   assert.equal(card.maybe, false)
@@ -124,7 +124,7 @@ test('a title never keeps leading punctuation from the date it was split from', 
 test('answering the details question creates the reminder', async () => {
   const db = open(':memory:')
   try {
-    const r = await ask(db, 'call Jonas on Monday', 'kier', [{ q: 'can you create a reminder', a: ASK_DETAILS }])
+    const r = await ask(db, 'call Jonas on Monday', 'vahti', [{ q: 'can you create a reminder', a: ASK_DETAILS }])
     assert.match(r.out, /^Added: Call Jonas/)
     assert.ok(r.created)
   } finally { db.close() }

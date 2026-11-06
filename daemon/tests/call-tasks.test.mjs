@@ -4,8 +4,8 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-call-tasks-'))
-after(() => rmSync(process.env.KIER_DATA_DIR, { recursive: true, force: true }))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-call-tasks-'))
+after(() => rmSync(process.env.VAHTI_DATA_DIR, { recursive: true, force: true }))
 const { open, addItems, now, setCursor } = await import('../lib/db.mjs')
 const { tasks, brief, today, plusDays } = await import('../lib/tasks.mjs')
 const { config } = await import('../lib/config.mjs')

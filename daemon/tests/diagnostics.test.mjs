@@ -4,14 +4,14 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-diag-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-diag-'))
 const { open, addItems, now, recordRun } = await import('../lib/db.mjs')
 const { diagnostics, kindOf } = await import('../lib/diagnostics.mjs')
 
 // Everything personal a vault holds, and the places it leaks into: a failed read's error, the log, a Setup step's words.
 const fixtureHome = ['', 'home', 'fixture'].join('/')
 const t = now()
-const db = open(join(process.env.KIER_DATA_DIR, 'kier.db'))
+const db = open(join(process.env.VAHTI_DATA_DIR, 'vahti.db'))
 addItems(db, [
   { id: 'p1', source: 'whatsapp', thread: 'Secret Project Group', sender: 'Nika Example', fromMe: false, ts: t - 600,
     text: 'my booking reference is 5862, delivery to Example Lane 7', url: 'https://example.com/private?token=abc', meta: { group: true } },
@@ -19,10 +19,10 @@ addItems(db, [
 ])
 db.prepare("insert into tags (item_id, is_task, summary, card, model, tagged_at) values ('p1', 1, 'Send Nika the booking photos', 'todo', 'test', ?)").run(t)
 recordRun(db, 'whatsapp', { ok: false, error: `EACCES: permission denied, open '${fixtureHome}/Library/Group Containers/ChatStorage.sqlite' (nika@example.com)` })
-writeFileSync(join(process.env.KIER_DATA_DIR, 'kier.log'), [
+writeFileSync(join(process.env.VAHTI_DATA_DIR, 'vahti.log'), [
   '12:00:01 tag {"tagged":3,"failed":0}',
   '12:00:02 tag error: unreadable answer: Nika says the booking is in the cabinet',
-  `12:00:03 local model: Traceback (most recent call last): File "${fixtureHome}/kier/llm_server.py"`,
+  `12:00:03 local model: Traceback (most recent call last): File "${fixtureHome}/vahti/llm_server.py"`,
   '12:00:04 search index fetch failed',
   '12:00:05 second opinion stopped (0)',
 ].join('\n'))

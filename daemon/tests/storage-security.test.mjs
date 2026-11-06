@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, chmodSync, statSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-const dir = mkdtempSync(join(tmpdir(), 'kier-storage-test-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-storage-test-'))
+process.env.VAHTI_DATA_DIR = dir
 mkdirSync(join(dir, 'tmp'), { mode: 0o755 })
 chmodSync(dir, 0o755)
 const { open } = await import('../lib/db.mjs')

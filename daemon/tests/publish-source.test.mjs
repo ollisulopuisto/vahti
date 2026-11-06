@@ -16,10 +16,10 @@ const privateWord = () => 'qza' + [...randomBytes(10)].map(b => String.fromCharC
 const identities = available ? JSON.parse(readFileSync(publisher, 'utf8').match(/^IDENTITY_ALLOWLIST='(.+)'$/m)[1]) : {}
 
 function fixture(t) {
-  const dir = mkdtempSync(join(tmpdir(), 'kier-export-test-'))
+  const dir = mkdtempSync(join(tmpdir(), 'vahti-export-test-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const home = join(dir, 'home'), repo = join(dir, 'repo'), scan = join(dir, 'scan'), bin = join(dir, 'bin')
-  const word = privateWord(), names = join(home, '.config/kier-public/names.txt')
+  const word = privateWord(), names = join(home, '.config/vahti-public/names.txt')
   write(names, word + '\n'); mkdirSync(scan); mkdirSync(bin)
   for (const name of ['publish-source.sh', 'privacy-gate.py', 'release-validation.py', 'release-app.sh']) {
     write(join(repo, 'scripts', name), readFileSync(join(scripts, name)))
@@ -28,7 +28,7 @@ function fixture(t) {
   for (const name of ['gh', 'rsync', 'curl', 'hdiutil', 'xcrun']) {
     writeFileSync(join(bin, name), `#!/bin/sh\nprintf '%s\\n' '${name}' >> "$CALL_LOG"\nexit 97\n`, { mode: 0o755 })
   }
-  const env = { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}`, TMPDIR: dir, CALL_LOG: calls, KIER_PUBLIC_REPO: 'off', KIER_RELEASES_REPO: 'example/releases' }
+  const env = { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}`, TMPDIR: dir, CALL_LOG: calls, VAHTI_PUBLIC_REPO: 'off', VAHTI_RELEASES_REPO: 'example/releases' }
   const run = (command, args) => spawnSync(command, args, { env, encoding: 'utf8', cwd: repo })
   const git = (...args) => execFileSync('git', ['-C', repo, ...args], { env, stdio: 'pipe' })
   const check = () => run('python3', [join(scripts, 'privacy-gate.py'), '--identities', JSON.stringify(identities), '--scan', scan])
@@ -282,10 +282,10 @@ function releaseFixture(t) {
   write(join(f.repo, 'app/main.swift'), '// Sample app\n')
   write(join(f.repo, 'app/changelog.json'), JSON.stringify([{ version: '1.2.3', title: 'Sample update', notes: ['Sample change'] }]))
   write(join(f.repo, 'daemon/lib/sample.mjs'), 'export const sample = true')
-  write(join(f.repo, 'dist/Kier.app/Contents/Info.plist'), plist)
-  write(join(f.repo, 'dist/Kier.app/Contents/Resources/daemon/lib/sample.mjs'), 'export const sample = true')
-  write(join(f.repo, 'dist/Kier.app/Contents/Resources/changelog.json'), readFileSync(join(f.repo, 'app/changelog.json')))
-  for (const name of ['Kier.dmg', 'Kier-1.2.3.dmg']) write(join(f.repo, 'dist', name), 'fixture image')
+  write(join(f.repo, 'dist/Vahti.app/Contents/Info.plist'), plist)
+  write(join(f.repo, 'dist/Vahti.app/Contents/Resources/daemon/lib/sample.mjs'), 'export const sample = true')
+  write(join(f.repo, 'dist/Vahti.app/Contents/Resources/changelog.json'), readFileSync(join(f.repo, 'app/changelog.json')))
+  for (const name of ['Vahti.dmg', 'Vahti-1.2.3.dmg']) write(join(f.repo, 'dist', name), 'fixture image')
   // The external macOS tools are replaced by deterministic local doubles. No upload or mount occurs.
   write(join(f.repo, 'scripts/sparkle.sh'), '#!/bin/sh\nprintf "%s\\n" "$FAKE_SPARKLE"\n')
   execFileSync('chmod', ['+x', join(f.repo, 'scripts/sparkle.sh'), join(f.repo, 'scripts/publish-source.sh')])
@@ -299,15 +299,15 @@ if [[ "$1" == attach ]]; then
     shift
   done
   if [[ "$FIXTURE_ROOT" == external-link ]]; then
-    ln -s "$FIXTURE_APP" "$mountpoint/Kier.app"
+    ln -s "$FIXTURE_APP" "$mountpoint/Vahti.app"
   elif [[ "$FIXTURE_ROOT" == internal-link ]]; then
-    ln -s Applications "$mountpoint/Kier.app"
+    ln -s Applications "$mountpoint/Vahti.app"
   elif [[ "$FIXTURE_ROOT" == file ]]; then
-    printf 'fixture' > "$mountpoint/Kier.app"
+    printf 'fixture' > "$mountpoint/Vahti.app"
   else
-    cp -R "$FIXTURE_APP" "$mountpoint/Kier.app"
-    if [[ "$FIXTURE_ROOT" == mode ]]; then chmod 755 "$mountpoint/Kier.app"; fi
-    if [[ "$FIXTURE_ROOT" == directory-mode ]]; then chmod 755 "$mountpoint/Kier.app/Contents"; fi
+    cp -R "$FIXTURE_APP" "$mountpoint/Vahti.app"
+    if [[ "$FIXTURE_ROOT" == mode ]]; then chmod 755 "$mountpoint/Vahti.app"; fi
+    if [[ "$FIXTURE_ROOT" == directory-mode ]]; then chmod 755 "$mountpoint/Vahti.app/Contents"; fi
   fi
   ln -s /Applications "$mountpoint/Applications"
 fi
@@ -319,7 +319,7 @@ printf '%s\\n' "$*" >> "$CALL_LOG"
 if [ "$2" = view ]; then exit 1; fi
 `, { mode: 0o755 })
   f.env.FAKE_SPARKLE = sparkle
-  f.env.FIXTURE_APP = join(f.repo, 'dist/Kier.app')
+  f.env.FIXTURE_APP = join(f.repo, 'dist/Vahti.app')
   f.git('init', '-q'); f.git('add', 'app', 'daemon', 'scripts', 'README.md', 'LICENSE', 'SECURITY.md')
   f.release = () => f.run('bash', [join(f.repo, 'scripts/release-app.sh'), '--skip-build'])
   return f
@@ -329,9 +329,9 @@ test('every release input fails before upload even when public publication is of
   for (const kind of ['source', 'notes', 'changelog', 'appcast', 'bundle JS', 'bundle JSON', 'bundle HTML', 'bundle plist', 'Info.plist', 'missing artifact', 'mismatched image']) {
     await t.test(kind, t => {
       const f = releaseFixture(t)
-      const resource = 'dist/Kier.app/Contents/Resources/'
+      const resource = 'dist/Vahti.app/Contents/Resources/'
       if (kind === 'source') write(join(f.repo, 'app/main.swift'), f.word)
-      if (kind === 'notes') f.env.KIER_RELEASE_NOTES = f.word
+      if (kind === 'notes') f.env.VAHTI_RELEASE_NOTES = f.word
       if (kind === 'changelog') write(join(f.repo, 'app/changelog.json'), JSON.stringify([{ version: '1.2.3', title: f.word, notes: [] }]))
       if (kind === 'appcast') f.env.CAST_VALUE = f.word
       if (kind === 'bundle JS') write(join(f.repo, resource, 'daemon/lib/sample.mjs'), f.word)
@@ -339,11 +339,11 @@ test('every release input fails before upload even when public publication is of
       if (kind === 'bundle HTML') write(join(f.repo, resource, 'sample.html'), '<p>' + f.word + '</p>')
       if (kind === 'bundle plist') write(join(f.repo, resource, 'sample.plist'), '<plist><string>' + f.word + '</string></plist>')
       if (kind === 'Info.plist') {
-        const path = join(f.repo, 'dist/Kier.app/Contents/Info.plist')
+        const path = join(f.repo, 'dist/Vahti.app/Contents/Info.plist')
         write(path, readFileSync(path, 'utf8').replace('</dict>', '<key>Sample</key><string>' + f.word + '</string></dict>'))
       }
-      if (kind === 'missing artifact') rmSync(join(f.repo, 'dist/Kier-1.2.3.dmg'))
-      if (kind === 'mismatched image') write(join(f.repo, 'dist/Kier-1.2.3.dmg'), 'different')
+      if (kind === 'missing artifact') rmSync(join(f.repo, 'dist/Vahti-1.2.3.dmg'))
+      if (kind === 'mismatched image') write(join(f.repo, 'dist/Vahti-1.2.3.dmg'), 'different')
       const result = f.release()
       assert.notEqual(result.status, 0, kind)
       assert.ok(!existsSync(f.calls), 'an upload tool ran before validation')
@@ -374,7 +374,7 @@ test('release attaches only the frozen explicit list and detects subsequent tamp
   const prepared = result.stdout.match(/Validated release: (.+)/)[1]
   const calls = readFileSync(f.calls, 'utf8')
   assert.match(calls, /release create/)
-  for (const name of ['Kier.dmg', 'Kier-1.2.3.dmg', 'appcast.xml', 'release-notes.md']) assert.ok(calls.includes(join(prepared, 'artifacts', name)))
+  for (const name of ['Vahti.dmg', 'Vahti-1.2.3.dmg', 'appcast.xml', 'release-notes.md']) assert.ok(calls.includes(join(prepared, 'artifacts', name)))
   assert.ok(!calls.includes('unreviewed.txt'))
   assert.ok(!calls.includes(join(f.repo, 'dist')))
   assert.ok(!calls.includes('repo clone'), 'off still published public source')

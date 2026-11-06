@@ -1,10 +1,10 @@
 #!/bin/bash
-# Fetches Sparkle, the updater framework Kier ships with (app/Updater.swift), once into the build cache, checks it, and
+# Fetches Sparkle, the updater framework Vahti ships with (app/Updater.swift), once into the build cache, checks it, and
 # prints the folder holding Sparkle.framework and bin/ (sign_update, generate_keys).
 set -euo pipefail
 VERSION=2.10.1
 SUM=1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27
-CACHE="$HOME/Library/Caches/kier-build"
+CACHE="$HOME/Library/Caches/vahti-build"
 DIR="$CACHE/Sparkle-$VERSION"
 if [[ ! -d "$DIR/Sparkle.framework" ]]; then
   mkdir -p "$CACHE"

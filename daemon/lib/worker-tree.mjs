@@ -35,7 +35,7 @@ export class WorkerTree {
         let output = ''
         try { output = await ps(['eww', '-p', batch.map(r => r.pid).join(','), '-o', 'pid=,command=']) } catch {}
         for (const line of output.split('\n')) {
-          if (!line.includes(`KIER_WORKER_TAG=${this.tag}`)) continue
+          if (!line.includes(`VAHTI_WORKER_TAG=${this.tag}`)) continue
           const pid = Number(line.trim().match(/^\d+/)?.[0])
           const row = batch.find(r => r.pid === pid)
           if (row) found.push(row)

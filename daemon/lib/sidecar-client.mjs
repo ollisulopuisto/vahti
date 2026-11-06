@@ -1,4 +1,4 @@
-// Socket identity is checked before even the authentication header leaves Kier.
+// Socket identity is checked before even the authentication header leaves Vahti.
 import { lstatSync, realpathSync } from 'node:fs'
 import { request } from 'node:http'
 import { Readable } from 'node:stream'
@@ -20,7 +20,7 @@ export async function sidecarFetch(name, path, options = {}) {
   return new Promise((done, fail) => {
     const body = options.body
     const req = request({ socketPath, path, method: options.method || 'GET', agent: false,
-      signal: options.signal, headers: { ...sidecarHeaders(), host: 'kier-sidecar', ...(body != null && { 'content-length': Buffer.byteLength(body) }) } }, res => {
+      signal: options.signal, headers: { ...sidecarHeaders(), host: 'vahti-sidecar', ...(body != null && { 'content-length': Buffer.byteLength(body) }) } }, res => {
       // Never follow a redirect, and retain streaming and abort semantics.
       if (res.statusCode >= 300 && res.statusCode < 400) { res.destroy(); fail(Error('SIDECAR_REDIRECT')); return }
       done(new Response(Readable.toWeb(res), { status: res.statusCode, headers: res.headers }))

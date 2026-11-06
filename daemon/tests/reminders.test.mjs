@@ -4,13 +4,13 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-reminders-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-reminders-'))
 const { open, now } = await import('../lib/db.mjs')
 const { syncReminders } = await import('../lib/reminders.mjs')
 const { tasks, markTask, plusDays, today } = await import('../lib/tasks.mjs')
 const { phoneItems } = await import('../lib/phone.mjs')
 
-const db = open(join(process.env.KIER_DATA_DIR, 'kier.db'))
+const db = open(join(process.env.VAHTI_DATA_DIR, 'vahti.db'))
 const t = now()
 const due = plusDays(today(), 3)
 const workshop = { id: 'r1', title: 'Confirm Workshop details', due, time: null, list: 'Personal', created: t - 3600, done: false }
@@ -27,12 +27,12 @@ test('your reminders become cards, dated as in Reminders', () => {
   assert.equal(card('r1').open_app, 'com.apple.reminders')
 })
 
-test('owner confirmation in Kier is ticked off in Reminders', () => {
+test('owner confirmation in Vahti is ticked off in Reminders', () => {
   markTask(db, 'reminders:r1', 'done')
   assert.deepEqual(syncReminders(db, [workshop, call]).close, ['r1'])
 })
 
-test('ticked off in Reminders: done in Kier', () => {
+test('ticked off in Reminders: done in Vahti', () => {
   syncReminders(db, [workshop, { ...call, done: true, completed: now() }])
   assert.equal(card('r2').state, 'done')
   assert.equal(card('r2').reason, 'ticked off in Reminders')
@@ -45,7 +45,7 @@ test('put back here after it was ticked off: it opens there again, and stays ope
   assert.equal(card('r2').state, 'open')
 })
 
-test('deleted in Reminders: gone from Kier; an empty read deletes nothing', () => {
+test('deleted in Reminders: gone from Vahti; an empty read deletes nothing', () => {
   const lunch = { id: 'r3', title: 'Book lunch', due, time: null, list: 'Personal', created: t, done: false }
   syncReminders(db, [lunch])
   syncReminders(db, [])
@@ -54,10 +54,10 @@ test('deleted in Reminders: gone from Kier; an empty read deletes nothing', () =
   assert.equal(card('r3').state, 'dismissed')
 })
 
-test("Kier's list in Reminders never gets a copy of your own reminders", async () => {
+test("Vahti's list in Reminders never gets a copy of your own reminders", async () => {
   const { setSwitch } = await import('../lib/settings.mjs')
   setSwitch('phoneReminders', true)
-  // Call Borna is open and dated within the fortnight Kier's list covers, so only the rule keeps it out.
+  // Call Borna is open and dated within the fortnight Vahti's list covers, so only the rule keeps it out.
   assert.equal(card('r2').state, 'open')
   assert.ok(!phoneItems(db).items.some((i) => String(i.id).startsWith('reminders:')))
 })
@@ -76,7 +76,7 @@ test('"Mine" takes a doubted card out of Maybe yours for good', () => {
   assert.equal(doubted(), false)
 })
 
-test('Your reminders in Setup and in What Kier reads are one switch', async () => {
+test('Your reminders in Setup and in What Vahti reads are one switch', async () => {
   const { setSource, setSwitch, myReminders, off } = await import('../lib/settings.mjs')
   setSwitch('myReminders', true)
   assert.equal(myReminders(), true)
@@ -98,7 +98,7 @@ test('your own promise never waits under Maybe yours', () => {
 
 test('"rename this to …" in a card\'s chat names the new title', async () => {
   const { renameTo } = await import('../lib/ask.mjs')
-  assert.equal(renameTo('rename this to "Add ability to bring own model to Kier"'), 'Add ability to bring own model to Kier')
+  assert.equal(renameTo('rename this to "Add ability to bring own model to Vahti"'), 'Add ability to bring own model to Vahti')
   assert.equal(renameTo('Rename it to Send Nika the photos.'), 'Send Nika the photos')
   assert.equal(renameTo('call it Pay the hosting bill'), 'Pay the hosting bill')
   assert.equal(renameTo('change the title to Book the venue'), 'Book the venue')

@@ -24,12 +24,12 @@ export function nativeVault(input, output, { timeout = 200000 } = {}) {
     const id = randomBytes(16).toString('hex')
     const timer = setTimeout(() => { pending.delete(id); reject(Error('GMAIL_NATIVE_UNAVAILABLE')) }, timeout)
     pending.set(id, { resolve, reject, timer })
-    output.write(`KIER_VAULT ${JSON.stringify({ id, operation })}\n`, error => { if (error) fail() })
+    output.write(`VAHTI_VAULT ${JSON.stringify({ id, operation })}\n`, error => { if (error) fail() })
   })
 }
 let channel
 export function vaultCall(operation) {
-  if (process.env.KIER_NATIVE_VAULT !== '1' || process.argv[2] !== 'run') return Promise.reject(Error('GMAIL_NATIVE_UNAVAILABLE'))
+  if (process.env.VAHTI_NATIVE_VAULT !== '1' || process.argv[2] !== 'run') return Promise.reject(Error('GMAIL_NATIVE_UNAVAILABLE'))
   channel ??= nativeVault(process.stdin, process.stdout)
   return channel(operation)
 }

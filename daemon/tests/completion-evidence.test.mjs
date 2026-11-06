@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-const dir = mkdtempSync(join(tmpdir(), 'kier-completion-fixture-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-completion-fixture-'))
+process.env.VAHTI_DATA_DIR = dir
 writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', languages: ['English', 'Croatian'], online: false, workRoots: [], phoneReminders: true }))
 after(() => rmSync(dir, { recursive: true, force: true }))
 const { newlyWritten, completedAction, authoredText, matchesCompletedTask, canCompleteReminder } = await import('../lib/completion-evidence.mjs')
@@ -70,7 +70,7 @@ test('mail subjects never enter authored completion text', () => {
 test('old inferred owner-message authority is revoked while explicit confirmation survives', t => {
   const path = join(dir, 'old-completion.db'), db = open(path)
   db.prepare("delete from migrations where id = 'authored-completion-v3'").run()
-  addItems(db, ['inferred', 'confirmed'].map(id => ({ id, source: 'kier', ts: now(), text: 'Pay the invoice' })))
+  addItems(db, ['inferred', 'confirmed'].map(id => ({ id, source: 'vahti', ts: now(), text: 'Pay the invoice' })))
   db.exec("insert into task_state(item_id,status,changed_at,completion_origin) values ('inferred','handled',1,'owner-message'), ('confirmed','done',1,'owner')")
   db.close()
   const repaired = open(path); t.after(() => repaired.close())

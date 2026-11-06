@@ -8,8 +8,8 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
 test('speech pipes option-looking answers as text and cannot read an input file', async t => {
-  const dir = mkdtempSync(join(tmpdir(), 'kier-speech-test-'))
-  process.env.KIER_DATA_DIR = dir
+  const dir = mkdtempSync(join(tmpdir(), 'vahti-speech-test-'))
+  process.env.VAHTI_DATA_DIR = dir
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const { say, stop } = await import('../lib/speak.mjs')
   const { config } = await import('../lib/config.mjs')

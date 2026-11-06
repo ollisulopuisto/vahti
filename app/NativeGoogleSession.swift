@@ -111,7 +111,7 @@ private final class GoogleLoopback: @unchecked Sendable {
     let flow = GoogleLoopback()
     return try await flow.start(url, state)
   }
-  private let queue = DispatchQueue(label: "com.getkier.google-login")
+  private let queue = DispatchQueue(label: "to.sulopuis.vahti.google-login")
   private var listener: NWListener?
   private var completion: CheckedContinuation<String, Error>?
   private var timer: DispatchWorkItem?
@@ -165,7 +165,7 @@ private final class GoogleLoopback: @unchecked Sendable {
         fields.filter { $0.name == "code" }.count <= 1 && fields.filter { $0.name == "error" }.count <= 1 &&
         ((fields.contains { $0.name == "code" && !($0.value ?? "").isEmpty } && !fields.contains { $0.name == "error" }) ||
          (fields.contains { $0.name == "error" && $0.value == "access_denied" } && !fields.contains { $0.name == "code" }))
-      let body = valid ? "You can return to Kier." : "Invalid callback."
+      let body = valid ? "You can return to Vahti." : "Invalid callback."
       let response = "HTTP/1.1 \(valid ? "200 OK" : "400 Bad Request")\r\nConnection: close\r\nContent-Length: \(body.utf8.count)\r\n\r\n\(body)"
       connection.send(content: Data(response.utf8), completion: .contentProcessed { _ in connection.cancel() })
       if valid { self.finish(.success(base + target)) }

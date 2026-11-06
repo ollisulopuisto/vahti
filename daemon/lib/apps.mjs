@@ -1,5 +1,5 @@
 import { permitsItem } from './app-permissions.mjs'
-// What every installed app is for, and how Kier may read it. Facts macOS already has come first (the
+// What every installed app is for, and how Vahti may read it. Facts macOS already has come first (the
 // category each developer declares, whether it's built on Electron); d1 judges only what those leave open.
 // The rules at the bottom decide the route, and are never learned: some kinds of app are never read.
 import { execFileSync } from './child-process.mjs'
@@ -34,7 +34,7 @@ const CATEGORY = {
   'public.app-category.graphics-design': 'work', 'public.app-category.education': 'work', 'public.app-category.reference': 'work',
 }
 
-// Apps whose data Kier reads directly from their own database.
+// Apps whose data Vahti reads directly from their own database.
 const DATABASE = new Set(['net.whatsapp.WhatsApp', 'com.apple.MobileSMS', 'com.apple.iCal'])
 // Apps for talking to people, never left to a guess: WeChat and others declare "social networking", which d1 could
 // read as a feed and only take their notifications.
@@ -66,7 +66,7 @@ export function scan() {
 // A guess d1 isn't sure of counts as "other" (usage only). The never-read kinds take less certainty,
 // because wrongly reading a banking app costs more than wrongly ignoring a calculator.
 function route(kind, bundle, confidence) {
-  if (bundle === 'com.getkier.kier') return 'usage'
+  if (bundle === 'to.sulopuis.vahti') return 'usage'
   if (confidence != null && confidence < (NEVER.has(kind) ? 0.3 : 0.5)) return 'usage'
   if (NEVER.has(kind)) return 'never'
   if (DATABASE.has(bundle)) return 'database'
@@ -75,7 +75,7 @@ function route(kind, bundle, confidence) {
   return 'usage'
 }
 
-// Scans installed apps, classifies new ones and writes the lists Kier.app's eyes read.
+// Scans installed apps, classifies new ones and writes the lists Vahti.app's eyes read.
 export async function discover(db) {
   db.exec(`create table if not exists apps (bundle text primary key, name text, path text, category text, kind text,
     confidence real, electron integer, route text, checked_at integer)`)
@@ -111,7 +111,7 @@ export async function discover(db) {
   return { apps: found.length, classified: toAsk.filter((a) => a.kind).length, waiting: toAsk.filter((a) => !a.kind).length }
 }
 
-// Kier.app reads these: which windows it may read on screen, and where it must not watch the clipboard.
+// Vahti.app reads these: which windows it may read on screen, and where it must not watch the clipboard.
 export function writeLists(db) {
   const rows = db.prepare('select bundle, kind, route from apps').all()
   writeFileSync(resolve(dataDir, 'screen-apps.json'), JSON.stringify(rows.filter((r) => r.route === 'notifications+screen' && permitsItem({ source: 'screen', meta: { app: r.bundle } })).map((r) => r.bundle)))

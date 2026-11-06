@@ -4,7 +4,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-replies-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-replies-'))
 const { ownWords } = await import('../collectors/screenchats.mjs')
 
 // An invented accessible reply contains the reply's own "STIZEM" under the invite it answers.

@@ -4,7 +4,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-meaning-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-meaning-'))
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { pack, similarity, search } = await import('../lib/meaning.mjs')
 
@@ -17,14 +17,14 @@ test('a fingerprint kept at one byte a number compares almost exactly like the f
   assert.ok(Math.abs(similarity(a, pack(b)) - exact) < 0.01, `${similarity(a, pack(b))} vs ${exact}`)
   assert.equal(pack(b).length, 260)
   // Stored and read back, the way search does: SQLite returns the blob as a Uint8Array.
-  const db = open(join(process.env.KIER_DATA_DIR, 'kier.db'))
+  const db = open(join(process.env.VAHTI_DATA_DIR, 'vahti.db'))
   db.prepare('insert or replace into vectors (item_id, v) values (?, ?)').run('x', pack(b))
   const back = db.prepare('select v from vectors where item_id = ?').get('x').v
   assert.ok(Math.abs(similarity(a, back) - exact) < 0.01)
 })
 
 test('without the search model, words still find messages, and a named person narrows them to that chat', async () => {
-  const db = open(join(process.env.KIER_DATA_DIR, 'kier.db'))
+  const db = open(join(process.env.VAHTI_DATA_DIR, 'vahti.db'))
   const t = now()
   addItems(db, [
     { id: 'a1', source: 'whatsapp', thread: 'Nika', sender: 'Nika', fromMe: false, ts: t - 300, text: 'kad je launch?' },

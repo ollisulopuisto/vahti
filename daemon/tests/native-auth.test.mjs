@@ -8,7 +8,7 @@ import { promisify } from 'node:util'
 import { createServer } from 'node:http'
 import { requestMAC, responseMAC, openBody, verifier, signedHeaders, signedFetch, signResponse } from '../lib/http-auth.mjs'
 
-const dir = mkdtempSync(join(tmpdir(), 'kier-native-auth-'))
+const dir = mkdtempSync(join(tmpdir(), 'vahti-native-auth-'))
 chmodSync(dir, 0o700)
 after(() => rmSync(dir, { recursive: true, force: true }))
 const epoch = Date.parse('2027-01-15T12:00:00Z') / 1000
@@ -48,13 +48,13 @@ test('actual Swift transport rejects a fake listener and redirects, then recover
     calls++
     const chunks = []; for await (const c of req) chunks.push(c)
     const wire = Buffer.concat(chunks)
-    assert.equal(req.headers['x-kier-token'], undefined)
+    assert.equal(req.headers['x-vahti-token'], undefined)
     assert.equal(wire.includes(Buffer.from('PRIVATE_FIXTURE')), false)
     const requestNonce = verify(req.method, req.url, req.headers, wire)
     assert.ok(requestNonce)
     assert.equal(openBody(secret, wire).toString(), 'PRIVATE_FIXTURE')
     if (mode === 'redirect') { res.writeHead(307, { location: '/leak' }); return res.end() }
-    if (mode === 'fake') { res.setHeader('x-kier-response', '0'.repeat(64)); return res.end('{"on":true,"close":["fixture"]}') }
+    if (mode === 'fake') { res.setHeader('x-vahti-response', '0'.repeat(64)); return res.end('{"on":true,"close":["fixture"]}') }
     signResponse(res, secret, requestNonce)
     res.writeHead(200, { 'content-type': 'application/x-ndjson' })
     res.write('{"status":"fixture"}\n')

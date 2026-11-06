@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-const dir = mkdtempSync(join(tmpdir(), 'kier-mcp-source-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-mcp-source-'))
+process.env.VAHTI_DATA_DIR = dir
 process.env.AMBIENT_SECRET = 'fixture-secret'
 writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam', languages: ['English'], workRoots: [] }))
 after(() => rmSync(dir, { recursive: true, force: true }))
@@ -35,7 +35,7 @@ test('stdio lists only read tools, calls once and never follows returned instruc
 })
 test('controlled environment and URL rules refuse secrets, startup hooks and redirects', async () => {
   const env = sourceEnvironment({ OWNER_KEY: 'fixture', NODE_OPTIONS: '--inspect', PATH: '/bad' })
-  assert.equal(env.AMBIENT_SECRET, undefined); assert.equal(env.KIER_DATA_DIR, undefined); assert.equal(env.NODE_OPTIONS, undefined)
+  assert.equal(env.AMBIENT_SECRET, undefined); assert.equal(env.VAHTI_DATA_DIR, undefined); assert.equal(env.NODE_OPTIONS, undefined)
   assert.equal(env.OWNER_KEY, 'fixture'); assert.notEqual(env.PATH, '/bad')
   assert.deepEqual(commandLine('/usr/bin/node "file with spaces.mjs" --arg'), { command: '/usr/bin/node', args: ['file with spaces.mjs', '--arg'] })
   assert.throws(() => commandLine('node "broken'))
@@ -166,8 +166,8 @@ test('legacy MCP rows receive isolated keys and configured attribution on reopen
 
 
 test('source environment retains the supervisor marker and refuses source overrides', () => {
-  process.env.KIER_WORKER_TAG = 'fixture-supervisor-tag'
+  process.env.VAHTI_WORKER_TAG = 'fixture-supervisor-tag'
   try {
-    assert.equal(sourceEnvironment({ KIER_WORKER_TAG: 'spoofed' }).KIER_WORKER_TAG, 'fixture-supervisor-tag')
-  } finally { delete process.env.KIER_WORKER_TAG }
+    assert.equal(sourceEnvironment({ VAHTI_WORKER_TAG: 'spoofed' }).VAHTI_WORKER_TAG, 'fixture-supervisor-tag')
+  } finally { delete process.env.VAHTI_WORKER_TAG }
 })

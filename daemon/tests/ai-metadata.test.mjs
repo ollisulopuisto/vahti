@@ -4,8 +4,8 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const root = mkdtempSync(join(tmpdir(), 'kier-ai-meta-'))
-process.env.KIER_DATA_DIR = join(root, 'vault')
+const root = mkdtempSync(join(tmpdir(), 'vahti-ai-meta-'))
+process.env.VAHTI_DATA_DIR = join(root, 'vault')
 after(() => rmSync(root, { recursive: true, force: true }))
 const { claude, codex, codexApp, collect } = await import('../collectors/ai.mjs')
 const { open, now } = await import('../lib/db.mjs')

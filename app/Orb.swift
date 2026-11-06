@@ -3,7 +3,7 @@ import Carbon
 import Observation
 import SwiftUI
 
-// MARK: The companion: Kier's island at the right edge of the screen, a small sky over a calm sea with the chrome orb
+// MARK: The companion: Vahti's island at the right edge of the screen, a small sky over a calm sea with the chrome orb
 // floating in it. Click it or press Command-Option-K for the panel: what's waiting, each thing's own page, and a chat.
 
 // A borderless panel that can still take typing, for the Ask field.
@@ -24,11 +24,11 @@ final class OrbModel: ObservableObject {
   @Published var tucked = false { didSet { sync() } }
   // A nudge is waiting behind the tucked notch; the notch widens a little and breathes until you hover it.
   @Published var nudging = false { didSet { sync() } }
-  // Kier's panel is open beside the island; the orb turns toward it.
+  // Vahti's panel is open beside the island; the orb turns toward it.
   @Published var panel = false { didSet { sync() } }
   // When something new last came in; the rim runs wild for a few seconds after.
   @Published var burst = Date.distantPast { didSet { sync() } }
-  // When Kier last saw something done; a green ring ripples out from the orb.
+  // When Vahti last saw something done; a green ring ripples out from the orb.
   @Published var celebrated = Date.distantPast { didSet { sync() } }
   var center = NSPoint.zero { didSet { sync() } }
   weak var renderer: IslandRenderer? { didSet { sync() } }
@@ -99,7 +99,7 @@ enum Daylight {
   static var goal: SIMD3<Float> { aim() }
 
   private static func aim() -> SIMD3<Float> {
-    switch Appearance(rawValue: UserDefaults.standard.string(forKey: "kierAppearance") ?? "") ?? .hour {
+    switch Appearance(rawValue: UserDefaults.standard.string(forKey: "vahtiAppearance") ?? "") ?? .hour {
     case .light: return [0, 0, 0]
     case .dark: return [1, 0, 1]
     case .system: return NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? [1, 0, 1] : [0, 0, 0]
@@ -167,9 +167,9 @@ struct IslandShape: Shape {
   }
 }
 
-// Kier's mark inside its windows: a white disc with the icon's thin compass star cut out, the diagonals at half strength.
+// Vahti's mark inside its windows: a white disc with the icon's thin compass star cut out, the diagonals at half strength.
 // The chrome orb lives only in the island; everywhere else it's this, as on getkier.com.
-struct KierMark: View {
+struct VahtiMark: View {
   // Rotate the mark in quarter turns while working and finish square.
   var working = false
   @State private var turns = 0.0
@@ -179,7 +179,7 @@ struct KierMark: View {
       let s = min(size.width, size.height) / 24
       ctx.translateBy(x: (size.width - 24 * s) / 2, y: (size.height - 24 * s) / 2)
       ctx.scaleBy(x: s, y: s)
-      ctx.fill(Path(ellipseIn: CGRect(x: 0.8, y: 0.8, width: 22.4, height: 22.4)), with: .color(Kier.bright))
+      ctx.fill(Path(ellipseIn: CGRect(x: 0.8, y: 0.8, width: 22.4, height: 22.4)), with: .color(Vahti.bright))
       ctx.blendMode = .destinationOut
       ctx.fill(Self.star(rv: 5.6, rh: 5.6, waist: 0.75, turn: 45), with: .color(.black.opacity(0.55)))
       ctx.fill(Self.star(rv: 9.4, rh: 8.9, waist: 1.15, turn: 0), with: .color(.black))
@@ -210,7 +210,7 @@ struct KierMark: View {
       return true
     }
     image.isTemplate = true
-    image.accessibilityDescription = "Kier"
+    image.accessibilityDescription = "Vahti"
     return image
   }
 
@@ -349,7 +349,7 @@ final class IslandHost: NSView {
     guard let window else { return }
     let point = convert(window.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
     let inside = window.isVisible && containsIsland(point)
-    // Keep a drag that began on Kier until mouseUp, even outside its outline.
+    // Keep a drag that began on Vahti until mouseUp, even outside its outline.
     let ignore = !inside && start == nil
     if window.ignoresMouseEvents != ignore { window.ignoresMouseEvents = ignore }
     if model.hover != inside {
@@ -384,8 +384,8 @@ final class IslandHost: NSView {
 
 // Record slow event delivery and main-thread stalls in lag.log, without message content.
 enum Lag {
-  private static let queue = DispatchQueue(label: "Kier lag")
-  private static let url = URL(fileURLWithPath: NSHomeDirectory() + "/Library/Application Support/Kier/lag.log")
+  private static let queue = DispatchQueue(label: "Vahti lag")
+  private static let url = URL(fileURLWithPath: NSHomeDirectory() + "/Library/Application Support/Vahti/lag.log")
 
   static func note(_ line: String) {
     let stamp = Date().formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false).dateTimeSeparator(.space))
@@ -395,10 +395,10 @@ enum Lag {
     }
   }
 
-  // From the press itself to Kier seeing it: the window server and the main thread both have to let it through.
+  // From the press itself to Vahti seeing it: the window server and the main thread both have to let it through.
   static func input(_ what: String, _ event: NSEvent) {
     let ms = (ProcessInfo.processInfo.systemUptime - event.timestamp) * 1000
-    if ms > 60 { note("\(what) reached Kier \(Int(ms)) ms after the press") }
+    if ms > 60 { note("\(what) reached Vahti \(Int(ms)) ms after the press") }
   }
 
   // A thread of its own asks the main thread to answer twice a second and notes when it was too busy to.
@@ -410,11 +410,11 @@ enum Lag {
         DispatchQueue.main.async { answered.signal() }
         answered.wait()
         let ms = (CACurrentMediaTime() - sent) * 1000
-        if ms > 200 { note("Kier's main thread was stuck for \(Int(ms)) ms") }
+        if ms > 200 { note("Vahti's main thread was stuck for \(Int(ms)) ms") }
         Thread.sleep(forTimeInterval: 0.5)
       }
     }
-    t.name = "Kier lag watch"
+    t.name = "Vahti lag watch"
     t.qualityOfService = .utility
     t.start()
   }
@@ -428,9 +428,9 @@ struct Shortcut: Codable, Equatable {
 
   static let open = Shortcut(key: kVK_ANSI_K, modifiers: cmdKey | optionKey, label: "K")
   static let find = Shortcut(key: kVK_Space, modifiers: cmdKey | optionKey, label: "Space")
-  static let changed = Notification.Name("KierShortcutChanged")
+  static let changed = Notification.Name("VahtiShortcutChanged")
   // While one is being recorded the shortcuts let go, so pressing the current one records it instead of running it.
-  static let recording = Notification.Name("KierShortcutRecording")
+  static let recording = Notification.Name("VahtiShortcutRecording")
 
   var symbols: String {
     (modifiers & controlKey != 0 ? "⌃" : "") + (modifiers & optionKey != 0 ? "⌥" : "") + (modifiers & shiftKey != 0 ? "⇧" : "")
@@ -494,7 +494,7 @@ final class HotKey {
       }, 1, &spec, nil, nil)
     }
     let status = RegisterEventHotKey(UInt32(key), UInt32(modifiers), EventHotKeyID(signature: OSType(0x4B49_4552), id: id), GetApplicationEventTarget(), 0, &ref)
-    if status != noErr { NSLog("Kier: shortcut \(key) is taken by another app (\(status))") }
+    if status != noErr { NSLog("Vahti: shortcut \(key) is taken by another app (\(status))") }
   }
 
   deinit {
@@ -539,10 +539,10 @@ final class Companion: NSObject {
   private var seen: Set<String>?
 
   var mode: IslandMode {
-    get { IslandMode(rawValue: defaults.string(forKey: "kierIslandMode") ?? "") ?? (defaults.bool(forKey: "kierOrbHidden") ? .hidden : .always) }
-    set { defaults.set(newValue.rawValue, forKey: "kierIslandMode") }
+    get { IslandMode(rawValue: defaults.string(forKey: "vahtiIslandMode") ?? "") ?? (defaults.bool(forKey: "vahtiOrbHidden") ? .hidden : .always) }
+    set { defaults.set(newValue.rawValue, forKey: "vahtiIslandMode") }
   }
-  private var sound: Bool { defaults.object(forKey: "kierSound") as? Bool ?? true }
+  private var sound: Bool { defaults.object(forKey: "vahtiSound") as? Bool ?? true }
   private let panelSize = NSSize(width: 400, height: 580)
   // Nudges: at most one every half hour, in the daytime; overdue things come back after three hours, up to three times.
   private let gap: TimeInterval = 30 * 60
@@ -570,7 +570,7 @@ final class Companion: NSObject {
     island.model.tucked = mode == .hover
     place()
     apply()
-    NotificationCenter.default.addObserver(forName: .kierWindowShown, object: nil, queue: .main) { [weak self] _ in
+    NotificationCenter.default.addObserver(forName: .vahtiWindowShown, object: nil, queue: .main) { [weak self] _ in
       MainActor.assumeIsolated { if self?.chatPanel?.isVisible == true { self?.closeChat() } }
     }
     // The mode can also be changed on the Setup page.
@@ -610,8 +610,8 @@ final class Companion: NSObject {
 
   // The menu bar's Show/Hide: hidden, or back to how it was shown before.
   func toggleOrb() {
-    if mode == .hidden { mode = IslandMode(rawValue: defaults.string(forKey: "kierIslandShown") ?? "") ?? .always }
-    else { defaults.set(mode.rawValue, forKey: "kierIslandShown"); mode = .hidden }
+    if mode == .hidden { mode = IslandMode(rawValue: defaults.string(forKey: "vahtiIslandShown") ?? "") ?? .always }
+    else { defaults.set(mode.rawValue, forKey: "vahtiIslandShown"); mode = .hidden }
     apply()
   }
 
@@ -695,8 +695,8 @@ final class Companion: NSObject {
   // Its middle is what's remembered, so growing out of the notch and back never moves it.
   private func place() {
     let s = screen
-    let mid = defaults.double(forKey: "kierIslandMid")
-    let old = defaults.double(forKey: "kierIslandY")
+    let mid = defaults.double(forKey: "vahtiIslandMid")
+    let old = defaults.double(forKey: "vahtiIslandY")
     let center = mid > 0 ? mid : old > 0 ? old + 52 : s.minY + s.height * 0.3
     let y = min(max(center - size.height / 2, s.minY + 4), s.maxY - size.height - 4)
     islandPanel.setFrame(NSRect(x: s.maxX - size.width, y: y, width: size.width, height: size.height), display: true)
@@ -714,7 +714,7 @@ final class Companion: NSObject {
     var f = islandPanel.frame
     f.origin.y = min(max(f.origin.y + dy, screen.minY + 4), screen.maxY - size.height - 4)
     islandPanel.setFrame(f, display: true)
-    defaults.set(f.midY, forKey: "kierIslandMid")
+    defaults.set(f.midY, forKey: "vahtiIslandMid")
     island.track()
     if let p = chatPanel, p.isVisible { beside(p, size: p.frame.size) }
     if let b = bubble, b.isVisible { beside(b, size: b.frame.size) }
@@ -732,14 +732,14 @@ final class Companion: NSObject {
       add(option.title) { [weak self] in self?.mode = option; self?.apply() }
       m.items.last?.state = option == mode ? .on : .off
     }
-    add("Ting when something new comes in") { [weak self] in self?.defaults.set(!(self?.sound ?? true), forKey: "kierSound") }
+    add("Ting when something new comes in") { [weak self] in self?.defaults.set(!(self?.sound ?? true), forKey: "vahtiSound") }
     m.items.last?.state = sound ? .on : .off
     m.addItem(.separator())
-    add("Open Kier") { viewer.show("/") }
+    add("Open Vahti") { viewer.show("/") }
     add("What's New") { [weak self] in self?.openNotes() }
-    if let u = updater { add(u.pending.map { "Update to Kier \($0)" } ?? "Check for Updates…") { u.checkNow() } }
+    if let u = updater { add(u.pending.map { "Update to Vahti \($0)" } ?? "Check for Updates…") { u.checkNow() } }
     m.addItem(.separator())
-    add("Quit Kier") { viewer.quit() }
+    add("Quit Vahti") { viewer.quit() }
     return m
   }
 
@@ -799,7 +799,7 @@ final class Companion: NSObject {
     p.setFrame(NSRect(x: area.midX - size.width / 2, y: top - size.height, width: size.width, height: size.height), display: true)
   }
 
-  // Where each result lives: a card or an event in Kier's panel, a session in the Claude app, a file in Finder, a page
+  // Where each result lives: a card or an event in Vahti's panel, a session in the Claude app, a file in Finder, a page
   // or a message in its app.
   private func openFound(_ r: FindResult) {
     closeFind()
@@ -812,11 +812,11 @@ final class Companion: NSObject {
     }
   }
 
-  // ⌘Return: the request as a question to Kier, answered in a new chat in the panel.
+  // ⌘Return: the request as a question to Vahti, answered in a new chat in the panel.
   private func askFound(_ q: String) {
     closeFind()
     let key = store.newChatKey()
-    store.ask(q, agent: "kier", key: key)
+    store.ask(q, agent: "vahti", key: key)
     store.showChat = key
     if chatPanel?.isVisible != true { toggleChat() }
   }
@@ -856,7 +856,7 @@ final class Companion: NSObject {
       let ms = (CACurrentMediaTime() - shown) * 1000
       if ms > 60 { Lag.note("The panel took \(Int(ms)) ms to open") }
     }
-    // A click anywhere else, in another app or in Kier's own window, or Escape, puts the panel away.
+    // A click anywhere else, in another app or in Vahti's own window, or Escape, puts the panel away.
     let outside: (NSEvent) -> Void = { [weak self] _ in MainActor.assumeIsolated { self?.closeChat() } }
     let inside: (NSEvent) -> NSEvent? = { [weak self] event in MainActor.assumeIsolated { self?.handle(event) ?? event } }
     var added: [Any] = []
@@ -921,8 +921,8 @@ final class Companion: NSObject {
   // MARK: Nudges
 
   private var nudges: [String: [Double]] {
-    get { (defaults.dictionary(forKey: "kierNudges") as? [String: [Double]]) ?? [:] }
-    set { defaults.set(newValue, forKey: "kierNudges") }
+    get { (defaults.dictionary(forKey: "vahtiNudges") as? [String: [Double]]) ?? [:] }
+    set { defaults.set(newValue, forKey: "vahtiNudges") }
   }
 
   // Overdue first, then due today, then waiting; each once, and an overdue one again after a few hours if it's still there.
@@ -944,14 +944,14 @@ final class Companion: NSObject {
       let cards = b.panel
       // Work a session left behind hasn't just arrived: it waits for a quiet nudge instead of a ting.
       if let seen, mode != .hidden, let fresh = cards.filter({ !seen.contains($0.id) && $0.card != "stalled" }).max(by: { $0.ts < $1.ts }) { arrived(fresh) }
-      // A card that left the list because Kier saw it done (not one you ticked yourself) gets its own moment.
+      // A card that left the list because Vahti saw it done (not one you ticked yourself) gets its own moment.
       else if let seen, mode != .hidden, chatPanel?.isVisible != true,
               let gone = (b.done ?? []).filter({ $0.state == "handled" && seen.contains($0.id) && !cards.map(\.id).contains($0.id) && $0.reason?.hasPrefix("Merged into") != true })
                 .max(by: { $0.ts < $1.ts }) { closed(gone) }
       // Someone you owe something wrote again: what you owe them comes out, once per message.
       else if seen != nil, mode != .hidden, chatPanel?.isVisible != true, let o = (b.owed ?? []).first(where: { !owedSeen($0) }) { remindOwed(o) }
       // The morning and evening brief, once each.
-      else if seen != nil, mode != .hidden, chatPanel?.isVisible != true, let m = b.moment, defaults.integer(forKey: "kierBriefSeen") != m.at { remindBrief(m) }
+      else if seen != nil, mode != .hidden, chatPanel?.isVisible != true, let m = b.moment, defaults.integer(forKey: "vahtiBriefSeen") != m.at { remindBrief(m) }
       seen = Set(cards.map(\.id))
       guard islandPanel.isVisible else { return }
       offerNotes()
@@ -961,7 +961,7 @@ final class Companion: NSObject {
       let next = due(b)
       island.model.attention = next != nil ? 1 : 0
       let hour = Calendar.current.component(.hour, from: Date())
-      guard let next, hour >= 9, hour < 21, Date().timeIntervalSince1970 - defaults.double(forKey: "kierLastNudge") > gap,
+      guard let next, hour >= 9, hour < 21, Date().timeIntervalSince1970 - defaults.double(forKey: "vahtiLastNudge") > gap,
             chatPanel?.isVisible != true else { return }
       nudge(next, overdue: b.forgotten.contains { $0.id == next.id })
     }
@@ -979,21 +979,21 @@ final class Companion: NSObject {
   // while something else is out; on a fresh install it's only marked seen.
   private func offerNotes() {
     let version = Changelog.current
-    guard !version.isEmpty, defaults.string(forKey: "kierNotesSeen") != version else { return }
+    guard !version.isEmpty, defaults.string(forKey: "vahtiNotesSeen") != version else { return }
     guard Changelog.updated, let release = Changelog.all.first(where: { $0.version == version }) else {
-      defaults.set(version, forKey: "kierNotesSeen")
+      defaults.set(version, forKey: "vahtiNotesSeen")
       return
     }
     guard mode != .hidden, bubble?.isVisible != true, chatPanel?.isVisible != true, updater?.pending == nil else { return }
-    defaults.set(version, forKey: "kierNotesSeen")
+    defaults.set(version, forKey: "vahtiNotesSeen")
     waiting = nil
     toastCard = nil
     toastSeen = true
     glanceOut = false
     let model = ToastModel()
     toast = model
-    // Said as what it is: under a bare "Kier 0.4.1", the release title in the nudge's place read as a task.
-    let host = FirstClickHost(rootView: NudgeView(model: model, line: "What's new in Kier \(version)", text: release.title, actions: [
+    // Said as what it is: under a bare "Vahti 0.4.1", the release title in the nudge's place read as a task.
+    let host = FirstClickHost(rootView: NudgeView(model: model, line: "What's new in Vahti \(version)", text: release.title, actions: [
       .init(symbol: "doc.text", help: "What's new") { [weak self] in self?.hideToast(); self?.openNotes() },
       .init(symbol: "xmark", help: "Later, from the island's menu") { [weak self] in self?.hideToast() },
     ], open: { [weak self] in self?.hideToast(); self?.openNotes() }, hovered: { [weak self] inside in self?.toastHovered(inside) }))
@@ -1004,21 +1004,21 @@ final class Companion: NSObject {
   private func offerOwnModel() {
     let now = Date().timeIntervalSince1970
     let hour = Calendar.current.component(.hour, from: Date())
-    guard !defaults.bool(forKey: "kierModelOffered"), mode != .hidden, hour >= 9, hour < 21, now - lastOffer > 600,
+    guard !defaults.bool(forKey: "vahtiModelOffered"), mode != .hidden, hour >= 9, hour < 21, now - lastOffer > 600,
           bubble?.isVisible != true, chatPanel?.isVisible != true, updater?.pending == nil else { return }
     lastOffer = now
     Task {
       await store.loadSetup()
       guard let action = store.steps.first(where: { $0.id == "model" })?.action, action.id == "mlx",
             bubble?.isVisible != true, chatPanel?.isVisible != true else { return }
-      defaults.set(true, forKey: "kierModelOffered")
+      defaults.set(true, forKey: "vahtiModelOffered")
       waiting = nil
       toastCard = nil
       toastSeen = true
       glanceOut = false
       let model = ToastModel()
       toast = model
-      let host = FirstClickHost(rootView: NudgeView(model: model, line: "Kier's own AI", text: "Run it inside Kier: half the memory, no Ollama. A 6 GB download.", actions: [
+      let host = FirstClickHost(rootView: NudgeView(model: model, line: "Vahti's own AI", text: "Run it inside Vahti: half the memory, no Ollama. A 6 GB download.", actions: [
         .init(symbol: "arrow.down", help: "Download") { [weak self] in self?.store.act(action); self?.hideToast() },
         .init(symbol: "xmark", help: "Later, from Setup") { [weak self] in self?.hideToast() },
       ], open: { [weak self] in self?.hideToast(); viewer.show("/setup") }, hovered: { [weak self] inside in self?.toastHovered(inside) }))
@@ -1033,7 +1033,7 @@ final class Companion: NSObject {
     var n = nudges
     n[card.id] = [(n[card.id]?[0] ?? 0) + 1, now]
     nudges = n
-    defaults.set(now, forKey: "kierLastNudge")
+    defaults.set(now, forKey: "vahtiLastNudge")
   }
 
   private func nudge(_ card: Card, overdue: Bool) {
@@ -1096,12 +1096,12 @@ final class Companion: NSObject {
 
   // The toast fades in beside the island and sits against it; hovering it keeps it, and it fades away after
   // `linger` seconds, or as soon as you leave it when it came out of the notch.
-  private func owedSeen(_ o: Owed) -> Bool { (defaults.stringArray(forKey: "kierOwedSeen") ?? []).contains("\(o.card.id)@\(o.at)") }
+  private func owedSeen(_ o: Owed) -> Bool { (defaults.stringArray(forKey: "vahtiOwedSeen") ?? []).contains("\(o.card.id)@\(o.at)") }
 
   // Show the relevant card with Done and Later when a reminder matters. Scheduled briefs use
-  // the island too; osascript notifications would open Script Editor instead of Kier.
+  // the island too; osascript notifications would open Script Editor instead of Vahti.
   private func remindBrief(_ m: BriefMoment) {
-    defaults.set(m.at, forKey: "kierBriefSeen")
+    defaults.set(m.at, forKey: "vahtiBriefSeen")
     island.model.burst = Date()
     waiting = nil
     toastCard = nil
@@ -1117,7 +1117,7 @@ final class Companion: NSObject {
   }
 
   private func remindOwed(_ o: Owed) {
-    defaults.set(Array(((defaults.stringArray(forKey: "kierOwedSeen") ?? []) + ["\(o.card.id)@\(o.at)"]).suffix(200)), forKey: "kierOwedSeen")
+    defaults.set(Array(((defaults.stringArray(forKey: "vahtiOwedSeen") ?? []) + ["\(o.card.id)@\(o.at)"]).suffix(200)), forKey: "vahtiOwedSeen")
     island.model.burst = Date()
     let line = "\(o.who) just wrote. You still owe this"
     if mode == .hover { setTucked(false); showToast(o.card, overdue: false, linger: nil, line: line); tuckSoon(after: 8) }
@@ -1144,8 +1144,8 @@ final class Companion: NSObject {
     present(host, linger: linger)
   }
 
-  // Kier ticked something off on its own: its chime, a green ripple from the orb, and a toast where the check draws
-  // itself and the task is struck through, with how Kier knows and a way to undo it.
+  // Vahti ticked something off on its own: its chime, a green ripple from the orb, and a toast where the check draws
+  // itself and the task is struck through, with how Vahti knows and a way to undo it.
   private func closed(_ card: Card) {
     let hour = Calendar.current.component(.hour, from: Date())
     if sound, hour >= 8, hour < 22 { Chime.done() }
@@ -1163,8 +1163,8 @@ final class Companion: NSObject {
     present(host, linger: mode == .hover ? nil : 5)
   }
 
-  // A newer Kier (Updater.swift), out beside the island like a nudge. Unanswered, it slides back after half a minute and
-  // comes out again on hover; once Update is clicked it stays until Kier restarts.
+  // A newer Vahti (Updater.swift), out beside the island like a nudge. Unanswered, it slides back after half a minute and
+  // comes out again on hover; once Update is clicked it stays until Vahti restarts.
   func showUpdate() {
     guard let u = updater, chatPanel?.isVisible != true || u.offer.phase != .available else { return }
     waiting = nil
@@ -1281,7 +1281,7 @@ func howDone(_ reason: String?) -> String? {
 }
 
 // The toast for something done: a green circle blooms, the tick draws itself, the task is struck through, and under
-// it how Kier knows. Only Undo, since there's nothing else to do; it slides away on its own.
+// it how Vahti knows. Only Undo, since there's nothing else to do; it slides away on its own.
 struct DoneView: View {
   @ObservedObject var model: ToastModel
   let headline: String
@@ -1445,7 +1445,7 @@ enum Screen: Equatable {
   case notes
 }
 
-// What changed in each version, newest first: app/changelog.json, the same file getkier.com/changelog and the update's
+// What changed in each version, newest first: app/changelog.json, the same file the repository's releases and the update's
 // description are made from.
 struct Release: Codable, Identifiable {
   let version: String
@@ -1461,9 +1461,9 @@ enum Changelog {
     return (try? JSONDecoder().decode([Release].self, from: data)) ?? []
   }()
   static var current: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
-  // Kier was on this Mac before this version: its vault is older than a few hours. A fresh install has nothing new to tell.
+  // Vahti was on this Mac before this version: its vault is older than a few hours. A fresh install has nothing new to tell.
   static var updated: Bool {
-    let vault = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Kier/kier.db")
+    let vault = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Vahti/vahti.db")
     guard let made = (try? FileManager.default.attributesOfItem(atPath: vault.path))?[.creationDate] as? Date else { return false }
     return Date().timeIntervalSince(made) > 6 * 3600
   }
@@ -1475,8 +1475,8 @@ struct CompanionView: View {
   @State private var screen: Screen = .home
   // Cards asked for by id that the lists don't hold, fetched once.
   @State private var fetched: [String: Card] = [:]
-  @AppStorage("kierAgent") private var agent = "claude"
-  @AppStorage("kierShowDone") private var showDone = false
+  @AppStorage("vahtiAgent") private var agent = "claude"
+  @AppStorage("vahtiShowDone") private var showDone = false
 
   private var waiting: [Card] {
     guard let b = store.brief else { return [] }
@@ -1486,8 +1486,8 @@ struct CompanionView: View {
   // The ones the second opinion doubts: listed quietly under the rest, so nothing real goes missing.
   private var maybe: [Card] { Array((store.brief?.maybe ?? []).prefix(6)) }
 
-  // What Kier ticked off on its own lately, so a toast you missed can be read again, and undone.
-  private var doneByKier: [Card] { Array((store.brief?.done ?? []).prefix(5)) }
+  // What Vahti ticked off on its own lately, so a toast you missed can be read again, and undone.
+  private var doneByVahti: [Card] { Array((store.brief?.done ?? []).prefix(5)) }
   // The calendar's side of the Today card: events and timed reminders still ahead today, tomorrow's worth knowing, the
   // next one after; each opens its page (they showed on the card but led nowhere).
   private var comingUp: [DayLine] { (store.brief?.day ?? []).filter { $0.card == nil && $0.id != nil } }
@@ -1502,7 +1502,7 @@ struct CompanionView: View {
       switch screen {
       case .home: home.transition(.move(edge: .leading).combined(with: .opacity))
       case .item(let id):
-        if let c = (waiting + maybe + doneByKier).first(where: { $0.id == id }) ?? fetched[id] { ItemPage(card: c, agent: $agent, back: { go(.home) }).transition(.move(edge: .trailing)) }
+        if let c = (waiting + maybe + doneByVahti).first(where: { $0.id == id }) ?? fetched[id] { ItemPage(card: c, agent: $agent, back: { go(.home) }).transition(.move(edge: .trailing)) }
         // Fetch cards missing from the current lists by id, including distant dates and search results.
         else { Color.clear.task(id: id) { if let c = await store.card(id) { fetched[id] = c } else { go(.home) } } }
       case .event(let id): EventPage(id: id, agent: $agent, back: { go(.home) }).transition(.move(edge: .trailing))
@@ -1534,9 +1534,9 @@ struct CompanionView: View {
   private var home: some View {
     VStack(spacing: 0) {
       HStack(spacing: 10) {
-        KierMark().frame(width: 28, height: 28)
+        VahtiMark().frame(width: 28, height: 28)
         VStack(alignment: .leading, spacing: 0) {
-          Text("Kier").font(.headline)
+          Text("Vahti").font(.headline)
           Text(waiting.isEmpty ? "Nothing waiting" : "\(waiting.count) waiting on you").font(.caption).foregroundStyle(.secondary)
         }
         Spacer()
@@ -1545,9 +1545,9 @@ struct CompanionView: View {
             Button { store.checkNow() } label: { Label(store.checking ? "Checking…" : "Refresh", systemImage: "arrow.clockwise") }
               .disabled(store.checking)
             Button { viewer.show("/setup") } label: { Label("Settings", systemImage: "gearshape") }
-            Button { viewer.show("/") } label: { Label("Open Kier", systemImage: "macwindow") }
+            Button { viewer.show("/") } label: { Label("Open Vahti", systemImage: "macwindow") }
             Divider()
-            Button { viewer.quit() } label: { Label("Quit Kier", systemImage: "power") }
+            Button { viewer.quit() } label: { Label("Quit Vahti", systemImage: "power") }
           } label: { Image(systemName: "ellipsis").frame(width: 24, height: 24).contentShape(Rectangle()) }
           .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
           .accessibilityLabel("More options").help("More options")
@@ -1562,13 +1562,13 @@ struct CompanionView: View {
       ScrollView {
         VStack(spacing: 2) {
           ForEach(store.conversations) { c in
-            HomeRow(icon: "bubble.left.and.bubble.right", kicker: "Your chat with Kier, \(dateLabel(c.last)) \(timeLabel(c.last))", title: c.q ?? "",
+            HomeRow(icon: "bubble.left.and.bubble.right", kicker: "Your chat with Vahti, \(dateLabel(c.last)) \(timeLabel(c.last))", title: c.q ?? "",
                     done: { store.archive(c.key) }, doneHelp: "Put this chat away") { go(.chat(c.key)) }
           }
           ForEach(waiting) { c in
             HomeRow(icon: Kind.of(c.card).symbol, brand: c.brand, kicker: c.kicker, title: c.headline, done: { store.mark(c, c.confirmStatus) }, doneHelp: c.needsConfirmation ? "Confirm" : "Mark done", evidence: c.needsConfirmation ? c.reason : nil) { go(.item(c.id)) }
           }
-          if waiting.isEmpty { AllClear(done: doneByKier.filter { $0.state == "handled" }.count, next: comingUp.isEmpty ? nextEvent : nil) }
+          if waiting.isEmpty { AllClear(done: doneByVahti.filter { $0.state == "handled" }.count, next: comingUp.isEmpty ? nextEvent : nil) }
           if !comingUp.isEmpty {
             Text("Coming up").font(.caption.weight(.medium)).foregroundStyle(.secondary)
               .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8).padding(.top, 14).padding(.bottom, 2)
@@ -1586,13 +1586,13 @@ struct CompanionView: View {
                 .opacity(0.75)
             }
           }
-          // Folded away by default: one quiet row that opens the list of what Kier ticked off.
-          if !doneByKier.isEmpty {
+          // Folded away by default: one quiet row that opens the list of what Vahti ticked off.
+          if !doneByVahti.isEmpty {
             Button { withAnimation(.easeOut(duration: 0.18)) { showDone.toggle() } } label: {
               HStack(spacing: 6) {
                 Image(systemName: "checkmark.circle").foregroundStyle(Color(red: 0.45, green: 0.95, blue: 0.62).opacity(0.8))
                 Text("Done").font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                Text("\(doneByKier.count)").font(.caption).foregroundStyle(.tertiary)
+                Text("\(doneByVahti.count)").font(.caption).foregroundStyle(.tertiary)
                 Spacer()
                 Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary).rotationEffect(.degrees(showDone ? 90 : 0))
               }
@@ -1600,12 +1600,12 @@ struct CompanionView: View {
             }
             .buttonStyle(.plain).focusable(false).padding(.top, 10)
             if showDone {
-              ForEach(doneByKier) { c in DoneRow(card: c, undo: { store.mark(c, "open") }) { go(.item(c.id)) } }
+              ForEach(doneByVahti) { c in DoneRow(card: c, undo: { store.mark(c, "open") }) { go(.item(c.id)) } }
               Button("View more") { viewer.show("/done") }
                 .buttonStyle(.borderless).font(.caption.weight(.medium))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 8).padding(.vertical, 8)
-                .help("Open the full Done list in Kier")
+                .help("Open the full Done list in Vahti")
             }
           }
         }
@@ -1613,7 +1613,7 @@ struct CompanionView: View {
       }
 
       // A question from here starts a new conversation; inside a chat, the box continues that one.
-      InputBar(placeholder: "Ask Kier anything…", agent: $agent) { q in
+      InputBar(placeholder: "Ask Vahti anything…", agent: $agent) { q in
         let key = store.newChatKey()
         go(.chat(key))
         store.ask(q, agent: agent, key: key)
@@ -1623,7 +1623,7 @@ struct CompanionView: View {
   }
 }
 
-// Nothing waiting: a calm tick in the orb's colours, what Kier already handled, and what's next on the calendar.
+// Nothing waiting: a calm tick in the orb's colours, what Vahti already handled, and what's next on the calendar.
 struct AllClear: View {
   let done: Int
   let next: Event?
@@ -1631,16 +1631,16 @@ struct AllClear: View {
   var body: some View {
     VStack(spacing: 10) {
       Image(systemName: "checkmark")
-        .font(.system(size: 18, weight: .medium)).foregroundStyle(Kier.periLight)
+        .font(.system(size: 18, weight: .medium)).foregroundStyle(Vahti.periLight)
         .frame(width: 48, height: 48)
-        .background(Circle().fill(Kier.peri.opacity(0.10)))
-        .overlay(Circle().strokeBorder(LinearGradient(colors: [Kier.periLight, Kier.lavender.opacity(0.35)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.5))
+        .background(Circle().fill(Vahti.peri.opacity(0.10)))
+        .overlay(Circle().strokeBorder(LinearGradient(colors: [Vahti.periLight, Vahti.lavender.opacity(0.35)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.5))
       Text("All clear").font(.system(size: 20, weight: .medium)).tracking(-0.4)
-      Text(done > 0 ? "Nothing is waiting on you, and Kier ticked off \(done) for you." : "Nothing is waiting on you. Kier taps the orb when something needs you.")
-        .font(.system(size: 13)).foregroundStyle(Kier.dim).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+      Text(done > 0 ? "Nothing is waiting on you, and Vahti ticked off \(done) for you." : "Nothing is waiting on you. Vahti taps the orb when something needs you.")
+        .font(.system(size: 13)).foregroundStyle(Vahti.dim).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
       if let next {
         Label("Next: \(next.text), \(next.allDay == true ? dayLabel(next.day) : (dayLabel(next.day) == "Today" ? timeLabel(next.ts) : "\(dayLabel(next.day)) \(timeLabel(next.ts))"))", systemImage: "calendar")
-          .font(.system(size: 12)).foregroundStyle(Kier.faint).lineLimit(1)
+          .font(.system(size: 12)).foregroundStyle(Vahti.faint).lineLimit(1)
           .padding(.horizontal, 11).padding(.vertical, 5)
           .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
           .padding(.top, 4)
@@ -1651,7 +1651,7 @@ struct AllClear: View {
   }
 }
 
-// Something Kier ticked off: struck through, with how it knows, and a way to put it back.
+// Something Vahti ticked off: struck through, with how it knows, and a way to put it back.
 struct DoneRow: View {
   let card: Card
   let undo: () -> Void
@@ -1760,7 +1760,7 @@ struct NotesPage: View {
       HStack {
         Button(action: back) { Label("Back", systemImage: "chevron.left") }.buttonStyle(.borderless).focusable(false)
         Spacer()
-        Button("All changes") { if let url = URL(string: "https://getkier.com/changelog/") { LinkPolicy.open(url) } }
+        Button("All changes") { if let url = URL(string: "https://github.com/ollisulopuisto/vahti/releases") { LinkPolicy.open(url) } }
           .buttonStyle(.borderless).focusable(false)
       }
       .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
@@ -1770,7 +1770,7 @@ struct NotesPage: View {
           Text("What's new").font(.title3.weight(.medium))
           ForEach(Changelog.all.prefix(6)) { r in
             VStack(alignment: .leading, spacing: 6) {
-              Text("Kier \(r.version), \(day(r.date))").font(.caption).foregroundStyle(.secondary)
+              Text("Vahti \(r.version), \(day(r.date))").font(.caption).foregroundStyle(.secondary)
               Text(r.title).font(.callout.weight(.medium)).fixedSize(horizontal: false, vertical: true)
               ForEach(r.notes, id: \.self) { note in
                 Text(note).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -1883,12 +1883,12 @@ struct ItemPage: View {
   @FocusState private var titleFocused: Bool
   // Finished, whoever finished it: a card you marked done or not yours offered "Mark done" again.
   private var ticked: Bool { ["handled", "done", "dismissed"].contains(card.state ?? "") }
-  // Show whether the owner or Kier closed a card, and the supporting evidence when Kier closed it.
+  // Show whether the owner or Vahti closed a card, and the supporting evidence when Vahti closed it.
   private var closedBy: String {
     if card.reason == "marked in the timeline" { return card.state == "dismissed" ? "You marked it not yours" : "You marked it done" }
     if card.reason == "ticked off in Reminders" { return "You ticked it off in Reminders" }
     if card.reason == "deleted in Reminders" { return "You deleted it in Reminders" }
-    return howDone(card.reason).map { "Kier saw it done: \($0)" } ?? "Done"
+    return howDone(card.reason).map { "Vahti saw it done: \($0)" } ?? "Done"
   }
   @State private var copied = false
   @State private var handed: String?
@@ -1939,7 +1939,7 @@ struct ItemPage: View {
                 Button(card.looksUnneeded ? "Keep" : "Not done") { store.mark(card, "open"); back() }.buttonStyle(.borderless)
               }
             }
-            // Ticked off by Kier: how it knows, and the proof itself when it's a link (a commit, a pull request).
+            // Ticked off by Vahti: how it knows, and the proof itself when it's a link (a commit, a pull request).
             if ticked {
               HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Color(red: 0.45, green: 0.95, blue: 0.62))
@@ -2035,7 +2035,7 @@ struct ItemPage: View {
       // The note works in any agent's chat; paste it wherever you want the work done.
       Button("Copy a note for any agent") { if let h { store.copy(h.short); copied = true } }.disabled(h == nil)
       Button("Copy the full brief") { Task { if await store.copyFullBrief(card.id) { copied = true } } }
-      // Only what Kier does in a running session itself needs to know which one.
+      // Only what Vahti does in a running session itself needs to know which one.
       if let h, let s = h.session {
         Divider()
         if s.codex || s.provider == "chatgpt", s.opensIn == "app" {
@@ -2051,14 +2051,14 @@ struct ItemPage: View {
         Text("Finding the session it belongs to…")
       }
       Divider()
-      Button("Show in Kier") { viewer.show("/"); store.select(card) }
+      Button("Show in Vahti") { viewer.show("/"); store.select(card) }
     } label: {
       Label(handed ?? (copied ? "Copied, paste with ⌘V" : "Hand off"), systemImage: handed != nil || copied ? "checkmark" : "arrow.up.forward")
     } primaryAction: {
       store.startSession(card.id, agent: "claude")
     }
     .fixedSize()
-    .help(handedWhy ?? h?.session.map { "Starts a new Claude session with everything Kier knows. Probably belongs to “\($0.title)”." } ?? "Starts a new Claude session with everything Kier knows about this.")
+    .help(handedWhy ?? h?.session.map { "Starts a new Claude session with everything Vahti knows. Probably belongs to “\($0.title)”." } ?? "Starts a new Claude session with everything Vahti knows about this.")
     .onChange(of: copied) { if copied { Task { try? await Task.sleep(for: .seconds(4)); copied = false } } }
     .onChange(of: handed) { if handed != nil { Task { try? await Task.sleep(for: .seconds(7)); handed = nil; handedWhy = nil } } }
   }
@@ -2083,14 +2083,14 @@ struct ChatPage: View {
       .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
       ScrollViewReader { scroll in
         ScrollView {
-          ChatThread(key: key, empty: "Ask about your day, a person, a promise, a chat. Claude and Codex search your vault; Kier answers from today's brief, and about an item from everything the vault shows about it.")
+          ChatThread(key: key, empty: "Ask about your day, a person, a promise, a chat. Claude and Codex search your vault; Vahti answers from today's brief, and about an item from everything the vault shows about it.")
             .padding(.horizontal, 16)
         }
         .onChange(of: store.chats[key]?.count ?? 0) { withAnimation { scroll.scrollTo("end", anchor: .bottom) } }
         .onChange(of: store.asking.contains(key)) { withAnimation { scroll.scrollTo("end", anchor: .bottom) } }
         .onChange(of: store.partial[key]?.count ?? 0) { scroll.scrollTo("end", anchor: .bottom) }
       }
-      InputBar(placeholder: "Ask Kier…", agent: $agent) { q in store.ask(q, agent: agent, key: key) }.padding(12)
+      InputBar(placeholder: "Ask Vahti…", agent: $agent) { q in store.ask(q, agent: agent, key: key) }.padding(12)
     }
     .task(id: key) { await store.loadChat(key) }
   }
@@ -2098,7 +2098,7 @@ struct ChatPage: View {
 
 // MARK: Chat
 
-// A conversation: your questions on the right, Kier's answers on the left beside the orb, and dots while it thinks.
+// A conversation: your questions on the right, Vahti's answers on the left beside the orb, and dots while it thinks.
 struct ChatThread: View {
   @Environment(Store.self) var store
   let key: String
@@ -2114,7 +2114,7 @@ struct ChatThread: View {
         VStack(alignment: .leading, spacing: 8) {
           mine(turn.q)
           HStack(alignment: .top, spacing: 8) {
-            KierMark().frame(width: 22, height: 22).padding(.top, 2)
+            VahtiMark().frame(width: 22, height: 22).padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
               Text(markdown(turn.a))
                 .font(.callout)
@@ -2128,7 +2128,7 @@ struct ChatThread: View {
               }
               .padding(.leading, 4)
               if let note = turn.note {
-                Label("Kier will remember: \(note)", systemImage: "person.text.rectangle").font(.caption2).foregroundStyle(.teal).padding(.leading, 4)
+                Label("Vahti will remember: \(note)", systemImage: "person.text.rectangle").font(.caption2).foregroundStyle(.teal).padding(.leading, 4)
                   .help("Saved to Who you are on the Setup page, where you can change it")
               }
             }
@@ -2141,7 +2141,7 @@ struct ChatThread: View {
         // The answer grows in place as it's written; until the first words, dots and what it's doing.
         if let text = store.partial[key], !text.isEmpty {
           HStack(alignment: .top, spacing: 8) {
-            KierMark().frame(width: 22, height: 22).padding(.top, 2)
+            VahtiMark().frame(width: 22, height: 22).padding(.top, 2)
             Text(markdown(text))
               .font(.callout)
               .padding(.horizontal, 12).padding(.vertical, 8)
@@ -2150,7 +2150,7 @@ struct ChatThread: View {
           }
         } else {
           HStack(alignment: .center, spacing: 8) {
-            KierMark().frame(width: 22, height: 22)
+            VahtiMark().frame(width: 22, height: 22)
             TypingDots()
               .padding(.horizontal, 12).padding(.vertical, 10)
               .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
@@ -2207,10 +2207,10 @@ struct InputBar: View {
     HStack(spacing: 8) {
       Menu {
         Button("Claude") { agent = "claude" }
-        Button("Codex unavailable: access cannot be limited to Kier") {}.disabled(true)
-        Button("Kier, on this Mac") { agent = "kier" }
+        Button("Codex unavailable: access cannot be limited to Vahti") {}.disabled(true)
+        Button("Vahti, on this Mac") { agent = "vahti" }
       } label: {
-        Text(["claude": "Claude", "codex": "Codex"][agent] ?? "Kier").font(.caption.weight(.medium))
+        Text(["claude": "Claude", "codex": "Codex"][agent] ?? "Vahti").font(.caption.weight(.medium))
       }
       .onAppear { if agent == "codex" { agent = "claude" } }
       .menuStyle(.borderlessButton)

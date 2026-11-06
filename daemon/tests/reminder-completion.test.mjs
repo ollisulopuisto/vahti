@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
-const dir = mkdtempSync(join(tmpdir(), 'kier-reminder-completion-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-reminder-completion-'))
+process.env.VAHTI_DATA_DIR = dir
 writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam', online: false, workRoots: [] }))
 after(() => rmSync(dir, { recursive: true, force: true }))
 const { open, addItems, now } = await import('../lib/db.mjs')

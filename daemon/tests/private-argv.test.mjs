@@ -7,8 +7,8 @@ import { PassThrough } from 'node:stream'
 import { mkdtempSync, writeFileSync, readFileSync, statSync, existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-const dir = mkdtempSync(join(tmpdir(), 'kier-argv-fixture-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-argv-fixture-'))
+process.env.VAHTI_DATA_DIR = dir
 writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam' }))
 const { claude, events } = await import('../lib/ask.mjs')
 const { ask: doubleCheck } = await import('../lib/doublecheck.mjs')

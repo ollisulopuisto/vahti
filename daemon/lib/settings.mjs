@@ -1,5 +1,5 @@
 // What the owner switches on and off in Setup, kept in config.json with the rest and applied straight away: a source
-// switched off is no longer read or stored, its cards leave the brief, and no AI can read it through Kier.
+// switched off is no longer read or stored, its cards leave the brief, and no AI can read it through Vahti.
 import { existsSync, readFileSync, writeFileSync, renameSync, rmSync } from 'node:fs'
 import { config, configPath } from './config.mjs'
 import { invalidateProfile } from './profile-state.mjs'
@@ -13,7 +13,7 @@ export const SOURCES = [
   { id: 'discord', label: 'Discord', detail: 'Read from its window through Accessibility, in front or not' },
   { id: 'notifications', label: 'Notifications', detail: 'Mail and other apps, from Notification Center' },
   { id: 'calendar', label: 'Calendar' },
-  { id: 'reminders', label: 'Your reminders', detail: 'Your own reminders with a date, from Reminders. Kier ticks one off there once it sees it done' },
+  { id: 'reminders', label: 'Your reminders', detail: 'Your own reminders with a date, from Reminders. Vahti ticks one off there once it sees it done' },
   { id: 'calls', label: 'Calls' },
   { id: 'ai', label: 'Claude and Codex sessions' },
   { id: 'git', label: 'Your commits' },
@@ -65,7 +65,7 @@ export const phoneCalendar = () => config.phoneCalendar ?? config.phone === true
 export const phoneReminders = () => config.phoneReminders ?? config.phone === true
 export const myReminders = () => config.myReminders === true
 export function setSwitch(key, on) {
-  // "Your reminders" in Setup and in What Kier reads are one switch: off, Kier stops reading them and their cards go.
+  // "Your reminders" in Setup and in What Vahti reads are one switch: off, Vahti stops reading them and their cards go.
   if (key !== 'myReminders') return save({ [key]: on === true })
   const now = new Set(existsSync(configPath) ? JSON.parse(readFileSync(configPath, 'utf8')).off || [] : off())
   if (!on) invalidateProfile()
@@ -74,8 +74,8 @@ export function setSwitch(key, on) {
   save({ myReminders: on === true, off: [...now] })
 }
 
-// Everything Kier itself hands to Claude or Codex, counted for "On this Mac": chats with them, hand-offs, the Claude
-// double-check and what they read through Kier. Only sizes are kept, never the text.
+// Everything Vahti itself hands to Claude or Codex, counted for "On this Mac": chats with them, hand-offs, the Claude
+// double-check and what they read through Vahti. Only sizes are kept, never the text.
 export function sent(db, kind, agent, text) {
   const bytes = Buffer.byteLength(String(text || ''))
   if (bytes) db.prepare('insert into outbound (ts, kind, agent, bytes) values (?, ?, ?, ?)').run(now(), kind, agent, bytes)

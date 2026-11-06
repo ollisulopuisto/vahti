@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { WorkerTree } from './worker-tree.mjs'
 const [command, ...args] = process.argv.slice(2)
 const tag = randomUUID()
-const worker = spawn(command, args, { env: { ...process.env, KIER_WORKER_TAG: tag }, stdio: 'inherit', detached: true })
+const worker = spawn(command, args, { env: { ...process.env, VAHTI_WORKER_TAG: tag }, stdio: 'inherit', detached: true })
 const tree = new WorkerTree(worker.pid, tag)
 let stopping = false, scanning = false, terminationSignal = null
 const poll = setInterval(async () => {

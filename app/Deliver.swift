@@ -4,7 +4,7 @@ import ApplicationServices
 // Puts a hand-off note into a running Claude session and sends it. Claude comes forward, the session is opened from
 // its sidebar if another one is showing, and the note is pasted and sent only once that exact session is open and its
 // message box is empty, so a draft of yours is never sent along. Anything less and the note stays on the clipboard,
-// with the reason. Uses the Accessibility access Kier already has for reading the screen.
+// with the reason. Uses the Accessibility access Vahti already has for reading the screen.
 enum Deliver {
   static let claude = "com.anthropic.claudefordesktop"
 

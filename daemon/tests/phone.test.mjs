@@ -4,7 +4,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-phone-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-phone-'))
 const { clockOf } = await import('../lib/tasks.mjs')
 
 test('a time in the task\'s words is its reminder time; a date with dots is not a time', () => {

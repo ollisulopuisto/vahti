@@ -4,12 +4,12 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-quiet-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-quiet-'))
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { brief } = await import('../lib/tasks.mjs')
 
 const t = now()
-const db = open(join(process.env.KIER_DATA_DIR, 'kier.db'))
+const db = open(join(process.env.VAHTI_DATA_DIR, 'vahti.db'))
 addItems(db, [
   { id: 'g1', source: 'whatsapp', thread: 'Sample group', sender: 'Filip', fromMe: false, ts: t - 600, text: 'ej, jel ova kutija za plave kocke?', meta: { group: true } },
   { id: 'g2', source: 'whatsapp', thread: 'Sample group', sender: 'Filip', fromMe: false, ts: t - 300, text: 'Sam mozes sloziti kocke?', meta: { group: true } },

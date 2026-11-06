@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-const dir = mkdtempSync(join(tmpdir(), 'kier-evidence-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-evidence-'))
+process.env.VAHTI_DATA_DIR = dir
 writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam', online: false, workRoots: [], languages: ['English'], mcpSources: [{ id: 'fixture', name: 'Puzzle club', command: '/usr/bin/true', enabled: true, tool: 'recent' }] }))
 after(() => rmSync(dir, { recursive: true, force: true }))
 const { sourceItems } = await import('../lib/mcp-sources.mjs')
@@ -68,7 +68,7 @@ test('Ask keeps retrieved item text out of system prompts and inside a marked us
     return new Response(JSON.stringify({ message: { content: 'Fixture answer' }, done: true }) + '\n')
   }
   t.after(() => { globalThis.fetch = original })
-  await ask(db, 'What does this item say?', 'kier', [], item.id)
+  await ask(db, 'What does this item say?', 'vahti', [], item.id)
   assert.ok(messages)
   assert.doesNotMatch(messages.find(m => m.role === 'system').content, /TRUST_FIXTURE|Puzzle club|END_UNTRUSTED_EVIDENCE/)
   const user = messages.find(m => m.role === 'user').content
@@ -83,7 +83,7 @@ test('structured judge retains recipients, PR descriptions and AI request/latest
   await modelFixture({ decision: false })
   const { evidence, judge } = await import('../lib/resolve.mjs')
   const db = open(':memory:'); t.after(() => db.close())
-  const task = { id: 'task', source: 'kier', thread: 'Reminders', from_me: 1, summary: 'Send the contract to Nika', text: 'Send the contract to Nika', ts: now() - 600 }
+  const task = { id: 'task', source: 'vahti', thread: 'Reminders', from_me: 1, summary: 'Send the contract to Nika', text: 'Send the contract to Nika', ts: now() - 600 }
   addItems(db, [task,
     { id: 'mail', source: 'mail', fromMe: true, sender: 'Sam', thread: 'Contract', ts: now() - 300,
       text: 'I sent the contract.', meta: { ownerSent: true, bodyKind: 'plain', body: 'I sent the contract.',

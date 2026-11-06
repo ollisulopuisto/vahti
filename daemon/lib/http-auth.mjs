@@ -34,12 +34,12 @@ export function verifier(secret, clock = () => Date.now(), replayPath) {
     } catch (e) { if (e.code !== 'ENOENT') throw e }
   }
   return (method, target, headers, body) => {
-    const timestamp = headers['x-kier-time'], nonce = headers['x-kier-nonce']
+    const timestamp = headers['x-vahti-time'], nonce = headers['x-vahti-nonce']
     const now = Math.floor(clock() / 1000)
     for (const [key, expiry] of seen) if (expiry < now) seen.delete(key)
     if (typeof timestamp !== 'string' || !/^\d{10}$/.test(timestamp) || Math.abs(now - Number(timestamp)) > 60 ||
         typeof nonce !== 'string' || !/^[a-f0-9]{32}$/.test(nonce) || seen.has(nonce) || seen.size >= 10000 ||
-        !equalMAC(headers['x-kier-signature'], requestMAC(secret, method, target, timestamp, nonce, body))) return null
+        !equalMAC(headers['x-vahti-signature'], requestMAC(secret, method, target, timestamp, nonce, body))) return null
     // A future-dated request stays replay-protected until its entire acceptance window ends.
     seen.set(nonce, Number(timestamp) + 60)
     // Persist before dispatch so a daemon restart cannot make a captured write reusable.
@@ -52,7 +52,7 @@ export function verifier(secret, clock = () => Date.now(), replayPath) {
   }
 }
 
-const bodyKey = secret => Buffer.from(mac(secret, 'kier-request-body-v1'), 'hex')
+const bodyKey = secret => Buffer.from(mac(secret, 'vahti-request-body-v1'), 'hex')
 export function sealBody(secret, body) {
   const iv = randomBytes(12), cipher = createCipheriv('aes-256-gcm', bodyKey(secret), iv)
   return Buffer.concat([iv, cipher.update(body), cipher.final(), cipher.getAuthTag()])
@@ -65,7 +65,7 @@ export function openBody(secret, body) {
 }
 
 export function signedHeaders(secret, method, target, body = Buffer.alloc(0), timestamp = String(Math.floor(Date.now() / 1000)), nonce = randomBytes(16).toString('hex')) {
-  return { 'x-kier-time': timestamp, 'x-kier-nonce': nonce, 'x-kier-signature': requestMAC(secret, method, target, timestamp, nonce, body) }
+  return { 'x-vahti-time': timestamp, 'x-vahti-nonce': nonce, 'x-vahti-signature': requestMAC(secret, method, target, timestamp, nonce, body) }
 }
 
 // CLI callers authenticate the daemon before trusting tickets or any response data.
@@ -73,10 +73,10 @@ export async function signedFetch(secret, url, { method = 'GET', body, ...option
   const u = new URL(url), wire = body == null ? Buffer.alloc(0) : sealBody(secret, Buffer.from(body))
   const headers = signedHeaders(secret, method, u.pathname + u.search, wire)
   const response = await fetch(url, { ...options, method, redirect: 'error',
-    headers: { ...options.headers, ...headers, ...(body != null && { 'content-type': 'application/json', 'x-kier-body': 'aes-gcm-v1' }) },
+    headers: { ...options.headers, ...headers, ...(body != null && { 'content-type': 'application/json', 'x-vahti-body': 'aes-gcm-v1' }) },
     ...(body != null && { body: wire }) })
   const data = Buffer.from(await response.arrayBuffer())
-  if (!equalMAC(response.headers.get('x-kier-response'), responseMAC(secret, headers['x-kier-nonce'], response.status, data))) throw Error('DAEMON_UNAVAILABLE')
+  if (!equalMAC(response.headers.get('x-vahti-response'), responseMAC(secret, headers['x-vahti-nonce'], response.status, data))) throw Error('DAEMON_UNAVAILABLE')
   return new Response(data, { status: response.status, headers: response.headers })
 }
 
@@ -92,7 +92,7 @@ export function signResponse(res, secret, nonce) {
   res.end = chunk => {
     if (chunk) chunks.push(Buffer.from(chunk))
     const body = Buffer.concat(chunks)
-    res.setHeader('x-kier-response', responseMAC(secret, nonce, res.statusCode, body))
+    res.setHeader('x-vahti-response', responseMAC(secret, nonce, res.statusCode, body))
     head(res.statusCode)
     return end(body)
   }

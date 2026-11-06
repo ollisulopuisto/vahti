@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kier vault</title>
+<title>Vahti vault</title>
 <style>
   :root { --bg: #fbfbfa; --text: #1c1c1e; --muted: #6e6e73; --faint: #a1a1a6; --line: rgba(0,0,0,.08); --accent: #0a66c2; --warn: #b42318; color-scheme: light; }
   @media (prefers-color-scheme: dark) { :root { --bg: #161618; --text: #f2f2f4; --muted: #a1a1a6; --faint: #6e6e73; --line: rgba(255,255,255,.1); --accent: #5aa9ff; --warn: #ff8a80; color-scheme: dark; } }
@@ -49,7 +49,7 @@
   </header>
   <p class="lede" id="lede"></p>
 
-  <h2>What Kier keeps</h2>
+  <h2>What Vahti keeps</h2>
   <section id="sources"></section>
 
   <h2>Never kept</h2>
@@ -58,7 +58,7 @@
     <li>Banking, password and health apps, not even their notifications.</li>
     <li>Adult sites, searches, downloads and copies.</li>
     <li>Private and incognito windows.</li>
-    <li>What you type in text fields. Kier never logs keystrokes.</li>
+    <li>What you type in text fields. Vahti never logs keystrokes.</li>
     <li id="forgotten">Things you forget here.</li>
   </ul>
 
@@ -105,7 +105,7 @@ async function load() {
     <p class="keeps">${KEEPS[s.source] || ''}</p>
     <div class="threads">${(v.threads[s.source] || []).map((t) => `<span class="thread">${esc(t.thread)}<span>${t.n}</span>
       <button class="forget" data-source="${esc(s.source)}" data-thread="${esc(t.thread)}" title="Forget ${esc(t.thread)} and stop keeping it">×</button></span>`).join('')}</div></div>`).join('')
-  $('#forgotten').textContent = v.forgotten ? `Things you forgot here: ${v.forgotten}. Kier keeps only a one-way fingerprint of each, so even this page can't say what they were.` : 'Things you forget here. Kier keeps only a one-way fingerprint, so even this page can\'t say what they were.'
+  $('#forgotten').textContent = v.forgotten ? `Things you forgot here: ${v.forgotten}. Vahti keeps only a one-way fingerprint of each, so even this page can't say what they were.` : 'Things you forget here. Vahti keeps only a one-way fingerprint, so even this page can\'t say what they were.'
   $('#reads').innerHTML = v.reads.recent.length
     ? `<div class="empty">${v.reads.week} reads in the last 7 days.</div>` + v.reads.recent.map((r) => `<div class="row"><span class="time">${when(r.ts)}</span><div class="what">
         <div>${esc(r.client || 'An AI')} used ${esc(r.tool)}</div><div class="meta">${esc(r.args || '')}, ${r.rows ?? 0} items</div></div></div>`).join('')
@@ -129,7 +129,7 @@ document.addEventListener('click', async (e) => {
   const b = e.target.closest('button.forget')
   if (!b) return
   const { id, source, thread } = b.dataset
-  if (!confirm(id ? 'Forget this? It is deleted now.' : `Forget everything from ${thread}? It is deleted now, and Kier stops keeping it from now on.`)) return
+  if (!confirm(id ? 'Forget this? It is deleted now.' : `Forget everything from ${thread}? It is deleted now, and Vahti stops keeping it from now on.`)) return
   if (id) {
     await post('/api/forget', { id })
     b.closest('.row').remove()
