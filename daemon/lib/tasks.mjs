@@ -7,7 +7,7 @@ import { authoredText, ownerCompletion, ownerCompletionClaim } from './completio
 import { now } from './db.mjs'
 import { planEvents } from './plans.mjs'
 import { SECOND } from './second.mjs'
-import { actionCard, actionTitle, priorityStatement, replyQuestion } from './owner-action.mjs'
+import { actionCard, actionTitle, owner, priorityStatement, replyQuestion } from './owner-action.mjs'
 import { isOff, offClause } from './settings.mjs'
 
 const pad = (n) => String(n).padStart(2, '0')
@@ -90,11 +90,15 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
   // Include later rows from the same minute: some sources provide minute-resolution timestamps.
   const replied = db.prepare('select ts from items where source = ? and thread = ? and from_me = 1 and (ts > ? or (ts = ? and rowid > ?)) and ts < ? order by ts, rowid limit 1')
   const replies = db.prepare('select * from items where source = ? and thread = ? and from_me = 1 and (ts > ? or (ts = ? and rowid > ?)) and ts < ? order by ts, rowid limit 30')
+  // A callback task's linked promise is looked up per row; prepare once instead of per iteration.
+  const promiseSource = db.prepare('select source from items where id = ?')
+  const me = owner()
   return rows.filter(r => r.confirmed === 1 || r.status || !priorityStatement(r)).map((r) => {
     // old tags get the same wording and card rule without rewriting the vault.
-    r.summary = actionTitle(r.summary, r)
-    if (replyQuestion(r)) r.card = 'reply'
-    r.card = actionCard(r.card, r)
+    const asked = replyQuestion(r, me)
+    r.summary = actionTitle(r.summary, r, me, asked)
+    if (asked) r.card = 'reply'
+    r.card = actionCard(r.card, r, me, asked)
     if (r.card === 'reply' && WORK.test(r.summary || '')) r.card = 'todo'
     let state = r.status || 'open'
     let reason = r.reason || null
@@ -107,7 +111,7 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
     const phoneTask = r.card === 'callback' || callIntent(r)
     // Switching a chat source off also hides the wording/timing it contributed to a call card.
     if (r.card === 'callback' && callback.promiseId) {
-      const promise = db.prepare('select source from items where id = ?').get(callback.promiseId)
+      const promise = promiseSource.get(callback.promiseId)
       if (!promise || isOff(promise.source)) {
         r.text = r.raw_text; r.due = ''; r.when_words = ''; r.quiet = 1
         delete callback.promiseId; delete callback.promiseTs
