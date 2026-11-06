@@ -15,6 +15,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 # Optional settings on the release machine; never part of the public export.
 [ ! -f scripts/local.env ] || . ./scripts/local.env
+export VAHTI_LANGUAGES="${VAHTI_LANGUAGES:-en,hr}"
 ROOT="$(pwd)"
 RELEASE=false
 [[ "${1:-}" == "--release" ]] && RELEASE=true

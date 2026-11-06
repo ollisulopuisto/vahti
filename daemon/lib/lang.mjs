@@ -6,7 +6,8 @@ import { config } from './config.mjs'
 
 const CODES = { english: 'en', croatian: 'hr', serbian: 'hr', bosnian: 'hr', montenegrin: 'hr', german: 'de', spanish: 'es', french: 'fr',
   italian: 'it', portuguese: 'pt', dutch: 'nl' }
-export const langs = [...new Set(['en', ...config.languages.map((l) => CODES[String(l).toLowerCase().split(/[\s(]/)[0]]).filter(Boolean)])]
+const envLangs = (process.env.VAHTI_LANGUAGES || '').split(',').map((s) => CODES[s.trim().toLowerCase()] || s.trim().toLowerCase()).filter(Boolean)
+export const langs = [...new Set(['en', ...envLangs, ...config.languages.map((l) => CODES[String(l).toLowerCase().split(/[\s(]/)[0]]).filter(Boolean)])]
 export const speaks = (code) => langs.includes(code)
 
 const WORDS = {

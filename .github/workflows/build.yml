@@ -16,6 +16,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  VAHTI_LANGUAGES: 'en,hr'
 
 jobs:
   build:
@@ -37,6 +38,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Configure test environment
+        run: |
+          defaults write -g AppleLanguages -array "en" "hr"
 
       - name: Install daemon dependencies
         run: |
