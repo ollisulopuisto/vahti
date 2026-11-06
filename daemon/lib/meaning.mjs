@@ -54,19 +54,21 @@ export async function indexPending(db, limit = 48) {
 
 // The k messages closest in meaning to the question, optionally within `where` (SQL on items i, with its params).
 // `readyCheck` and `embedFn` are injected for tests; they default to the module's embedding functions.
-// Instead of scoring every vector and sorting all n (O(n log n)), a min-heap keeps only the top k
-// (O(n log k) time, O(k) memory). Search results are identical because only the relative order matters.
+// Rows are streamed via .iterate() instead of materialized with .all(), and a min-heap keeps only
+// the top k (O(n log k) time, O(k) memory). Search results are identical because only the relative
+// order matters.
 export async function nearest(db, question, { k = 25, where = '', params = [], auth = localAuthorization(), readyCheck = ready, embedFn = embed } = {}) {
   db = readScope(db, auth)
   if (!readyCheck()) return []
   const [q] = await embedFn([question], { query: true })
-  const rows = db.prepare(`select v.item_id id, v.v from vectors v join items i on i.id = v.item_id where 1 = 1 ${where} ${offClause()}`).all(...params)
-  return topK(rows, q, k)
+  const stmt = db.prepare(`select v.item_id id, v.v from vectors v join items i on i.id = v.item_id where 1 = 1 ${where} ${offClause()}`)
+  return topK(stmt.iterate(...params), q, k)
 }
 
 // Min-heap of the k most similar vectors. The smallest score sits at index 0, so a new vector
 // displaces it only when it is more similar. At the end the heap holds exactly the top k,
-// sorted descending by score. Avoids allocating n scored rows and sorting all of them.
+// sorted descending by score. Streaming rows through .iterate() avoids allocating n scored rows
+// and sorting all of them.
 function topK(rows, q, k) {
   const heap = []
   for (const r of rows) {
