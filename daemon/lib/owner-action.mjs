@@ -8,6 +8,7 @@ const plain = s => clean(s).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase(
 const literal = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const sources = new Set(['whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'chat', 'social'])
 const owner = () => [...names(), config.fullName, ...Object.values(handles()).flat()].filter(Boolean)
+export { owner }
 const people = me => [...new Set(me.map(clean).filter(Boolean))].sort((a, b) => b.length - a.length).map(literal).join('|')
 const message = item => {
   const discord = discordMessage(item)
@@ -54,10 +55,10 @@ export function replyQuestion(item, me = owner()) {
 }
 
 // quote the question so an unfamiliar feature cannot become an invented event.
-export function actionTitle(summary, item, me = owner()) {
+export function actionTitle(summary, item, me = owner(), precomputedAsked = null) {
   if (item.from_me || !sources.has(item.source)) return summary
   const { sender } = message(item)
-  const asked = replyQuestion(item, me)
+  const asked = precomputedAsked ?? replyQuestion(item, me)
   if (asked && sender) {
     const prefix = `Answer ${sender}: "`
     const room = Math.max(0, 199 - prefix.length)
@@ -76,10 +77,11 @@ const arrangement = /\b(?:meet|meeting|appointment|call|visit|join|attend|come|d
 const timing = /\b(?:today|tomorrow|tonight|yesterday|now|later|noon|midnight|morning|afternoon|evening|monday|tuesday|wednesday|thursday|friday|saturday|sunday|danas|denes|sutra|zutra|prekosutra|preksutra|naksutra|jutri|veceras|navecer|jutro|vjutro|podne|ponoc|sad|sada|kasnije|ponedjeljak|ponedeljak|utorak|srijed[a-z]*|sred[a-z]*|cetvrtak|petak|petek|subot[a-z]*|nedjelj[a-z]*|nedelj[a-z]*)\b|\b(?:this|next)\s+(?:week|month|weekend)\b|\b(?:u|v|at|ob)\s+(?:\d{1,2}|pon|uto|sri|cet|pet|sub|ned|jedan|dva|tri|cetiri|pet|sest|sedam|osam|devet|deset|jedanaest|dvanaest)\b|\b\d{1,2}(?::\d{2}|\.\d{1,2}\b)|\b\d{1,2}\s*(?:am|pm)\b|\b\d{4}-\d{2}-\d{2}\b/
 const arrangementEvidence = text => arrangement.test(text.replace(/\bcome\s+(?:first|last)\b/g, '')) || timing.test(text)
 
-export function actionCard(card, item) {
+export function actionCard(card, item, me = owner(), precomputedAsked = null) {
   if (card !== 'appointment' || !sources.has(item.source)) return card
   if (arrangementEvidence(plain(message(item).text))) return card
-  return replyQuestion(item) ? 'reply' : 'todo'
+  const asked = precomputedAsked ?? replyQuestion(item, me)
+  return asked ? 'reply' : 'todo'
 }
 
 // A colleague can describe a product order without assigning any of it to the owner.
