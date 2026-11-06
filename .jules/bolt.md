@@ -23,3 +23,9 @@
 **App Nap:** Considered macOS App Nap for background resource throttling, but it's primarily an energy/CPU feature (not memory), requires new native bindings/`osascript` (a dependency + architectural change needing approval), and doesn't address the vector materialization. Skip without owner approval.
 
 **Action:** Benchmark memory with varied vector counts (10K-500K). The heap+iterate change is correct: with deterministic ORDER BY, top-k IDs match `.all().map().sort().slice()` exactly. Without ORDER BY, tie-breaking was already non-deterministic in the original (no ORDER BY), so no correctness regression.
+
+## 2026-11-07 - Precompute people(me) once per tasks() call; fix null-?? re-call bug
+
+**Learning:** The earlier "cache replyQuestion in db.tasks()" optimization was ineffective: `precomputedAsked = null` combined with `null ?? replyQuestion()` always re-ran `replyQuestion` (null is nullish). Worse, `people(me)` (clean + Set + sort + join) was rebuilt inside `replyQuestion`, `actionTitle` and `priorityStatement` for every row — up to 5 `people()` calls plus 3 redundant `replyQuestion()` calls per row in `tasks()`. Fix: export `people` and `plain` from `owner-action.mjs`, precompute `people(me)` and `people(me.map(plain))` once in `tasks()`, pass them through, and replace `null` default with a `Symbol()` sentinel so an explicitly-computed `null` result isn't misread as "not provided".
+
+**Action:** ~15-22% faster at 5K tasks (interleaved baseline ~512ms → ~436ms mean). All 746 passing tests unchanged; 8 pre-existing date-related failures unaffected by this change.
