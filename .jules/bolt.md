@@ -15,3 +15,11 @@
 **Learning:** `db.tasks()` called `replyQuestion(r)` 2-3 times per row: once inside `actionTitle()` (which calls it internally), once directly at `if (replyQuestion(r))`, and once inside `actionCard()` when card is 'appointment'. `owner()` was also called 1-3 times per row via default parameters. Caching `replyQuestion(r)` once per row and passing `me`/`asked` to `actionTitle()`/`actionCard()` eliminates redundant regex matching and `owner()` array operations.
 
 **Action:** ~28% faster at 2K tasks (181→130ms). Export `owner()` from `owner-action.mjs` for use in `tasks.mjs`. Add optional `precomputedAsked` parameter to `actionTitle()` and optional `me`/`precomputedAsked` to `actionCard()` (backwards-compatible). Move `db.prepare('select source from items where id = ?')` outside the per-row loop.
+
+## 2026-11-06 - Stream vectors via .iterate() + min-heap in meaning.nearest() (memory)
+
+**Learning:** `meaning.nearest()` used `.all()` which materializes ALL n vector rows + their 260-byte quantized blobs in memory (O(n)) before selecting top k. At 100K vectors this peaked at ~185 MB heap. Switching to `.iterate()` (streams one row at a time) + a min-heap of size k (O(k) memory held at once) cut peak heap to ~26 MB — an ~86% memory reduction. Time also improves O(n log n)→O(n log k).
+
+**App Nap:** Considered macOS App Nap for background resource throttling, but it's primarily an energy/CPU feature (not memory), requires new native bindings/`osascript` (a dependency + architectural change needing approval), and doesn't address the vector materialization. Skip without owner approval.
+
+**Action:** Benchmark memory with varied vector counts (10K-500K). The heap+iterate change is correct: with deterministic ORDER BY, top-k IDs match `.all().map().sort().slice()` exactly. Without ORDER BY, tie-breaking was already non-deterministic in the original (no ORDER BY), so no correctness regression.
