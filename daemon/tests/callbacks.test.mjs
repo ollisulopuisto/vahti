@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-callbacks-'))
-after(() => rmSync(process.env.KIER_DATA_DIR, { recursive: true, force: true }))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-callbacks-'))
+after(() => rmSync(process.env.VAHTI_DATA_DIR, { recursive: true, force: true }))
 const { open, addItems, setCursor, cursor } = await import('../lib/db.mjs')
 const { config } = await import('../lib/config.mjs')
 const { syncCallbacks, callIntent, callCompletion, initializeCallbacks, CALLBACKS_SINCE } = await import('../lib/callbacks.mjs')

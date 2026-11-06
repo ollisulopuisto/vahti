@@ -6,7 +6,7 @@ import { forgotten, keep } from '../lib/privacy.mjs'
 import { APPLE_EPOCH, minutes, snapshot } from './util.mjs'
 
 // The iPhone's phone and FaceTime recents sync to the Mac when "Calls on Other Devices" is on; WhatsApp
-// calls don't. This is what tells Kier a call actually happened.
+// calls don't. This is what tells Vahti a call actually happened.
 export const source = 'calls'
 const PATH = resolve(home, 'Library/Application Support/CallHistoryDB/CallHistory.storedata')
 const APPS = { 'com.apple.Telephony': 'phone', 'com.apple.FaceTime': 'FaceTime', 'net.whatsapp.WhatsApp': 'WhatsApp', 'com.viber': 'Viber' }

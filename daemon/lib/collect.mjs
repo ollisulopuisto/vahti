@@ -42,12 +42,12 @@ export async function collectAll(db, only) {
 }
 
 // Collectors block while they copy databases (or while macOS shows a permission prompt), so the daemon runs
-// them in a child process and the timeline stays responsive. The child keeps Kier as its responsible app.
-const SCRIPT = fileURLToPath(new URL('../bin/kier.mjs', import.meta.url))
+// them in a child process and the timeline stays responsive. The child keeps Vahti as its responsible app.
+const SCRIPT = fileURLToPath(new URL('../bin/vahti.mjs', import.meta.url))
 export async function collectInChild(only) {
   // Gmail is asynchronous and needs the native parent's private channel.
   let gmailReport = {}
-  if ((!only || only.includes('gmail')) && process.env.KIER_NATIVE_VAULT === '1') {
+  if ((!only || only.includes('gmail')) && process.env.VAHTI_NATIVE_VAULT === '1') {
     const db = open()
     try { gmailReport = await collectAll(db, ['gmail']) } finally { db.close() }
   }

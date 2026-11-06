@@ -1,4 +1,4 @@
-"""Kier's own local model runtime: Qwen 3.5 9B (4-bit MLX) behind the part of Ollama's API the daemon uses, so Kier
+"""Vahti's own local model runtime: Qwen 3.5 9B (4-bit MLX) behind the part of Ollama's API the daemon uses, so Vahti
 needs no separate Ollama process. Idle unloading and bounded prompt caches limit memory use.
 Owner-only Unix socket and offline. The weights load on the first request and go again once a request's keep_alive
 has passed, so between bursts this process holds next to nothing. Every request starts with the same long
@@ -16,11 +16,11 @@ from mlx_lm.sample_utils import make_sampler
 MODEL, SOCKET = sys.argv[1], sys.argv[2]
 # Search by meaning (embedder.py): its own small model, loaded on the first search or indexing batch and gone again
 # after its keep_alive, like the 9B. Started isolated (-I), so its folder is added by hand.
-EMBED = os.environ.get("KIER_EMBED_MODEL")
+EMBED = os.environ.get("VAHTI_EMBED_MODEL")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # MLX keeps freed buffers for reuse; uncapped that held 2.5 GB on top of the weights in the 399-message run (8.1 GB peak).
 mx.set_cache_limit(512 * 1024 * 1024)
-NAME = os.environ.get("KIER_MODEL_NAME", "qwen3.5:9b")
+NAME = os.environ.get("VAHTI_MODEL_NAME", "qwen3.5:9b")
 # A shared start shorter than this isn't worth keeping: working it out again is as quick as copying it.
 MIN_PREFIX = 256
 PREFIXES = 3
@@ -41,14 +41,14 @@ def pressure():
 
 # mlx_lm wires the model into memory while it generates, so macOS can't page any of it out. With room to spare that
 # keeps it quick; when other processes already consume the available memory it pushed everything else into swap and
-# the whole Mac crawled. So it wires only while memory is fine, and otherwise Kier is what waits.
+# the whole Mac crawled. So it wires only while memory is fine, and otherwise Vahti is what waits.
 # (The module by name: mlx_lm.generate as an attribute is the function of that name.)
 mlx_lm_generate = importlib.import_module("mlx_lm.generate")
 _wired_limit = mlx_lm_generate.wired_limit
 mlx_lm_generate.wired_limit = lambda model, streams=None: (
     _wired_limit(model, streams) if pressure() == 1 else contextlib.nullcontext())
 
-# One request on the model at a time. Someone waiting (a search, a question to Kier) goes before background reading,
+# One request on the model at a time. Someone waiting (a search, a question to Vahti) goes before background reading,
 # and background reading holds back for a moment after one, so a search typed in pauses isn't stuck behind a card being
 # read: it waited 2 to 4 s for tagging before.
 gate = threading.Condition()
@@ -175,7 +175,7 @@ def cache_for(tokens):
     """A fresh cache for this prompt, already through as much of its start as an earlier prompt shared, and the
     tokens still to process (at least the last one, which generation starts from)."""
     global last_tokens
-    if os.environ.get("KIER_NO_PREFIX"):
+    if os.environ.get("VAHTI_NO_PREFIX"):
         return make_prompt_cache(model), tokens
     for i in range(len(prefixes) - 1, -1, -1):
         p, cache = prefixes[i]
@@ -251,7 +251,7 @@ class Handler(SecureHandler):
 
     def get(self):
         if self.path == "/api/version":
-            return self.reply(200, {"version": "kier-mlx"})
+            return self.reply(200, {"version": "vahti-mlx"})
         if self.path in ("/api/tags", "/api/ps"):
             return self.reply(200, {"models": [{"name": NAME, "model": NAME}] if self.path == "/api/tags" or model is not None else []})
         self.reply(404, {"error": "not found"})
@@ -259,7 +259,7 @@ class Handler(SecureHandler):
     def embed(self, body):
         """Ollama's /api/embed, plus kind ("query" for a question, "document" for a message) and dims."""
         global embedder, embed_until
-        if not EMBED or not os.path.exists(os.path.join(EMBED, ".kier-ready")):
+        if not EMBED or not os.path.exists(os.path.join(EMBED, ".vahti-ready")):
             return self.reply(404, {"error": "search by meaning isn't installed"})
         texts = body.get("input") or []
         texts = [texts] if isinstance(texts, str) else [str(t) for t in texts][:256]

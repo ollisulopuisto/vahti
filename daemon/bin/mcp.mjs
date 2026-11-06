@@ -13,8 +13,8 @@ import { nearest } from '../lib/meaning.mjs'
 import { sent } from '../lib/settings.mjs'
 import { brief, dayRange, isoDay, tasks, today } from '../lib/tasks.mjs'
 
-const client = process.env.KIER_CLIENT || 'claude'
-const role = process.env.KIER_MCP_ROLE || 'read-only'
+const client = process.env.VAHTI_CLIENT || 'claude'
+const role = process.env.VAHTI_MCP_ROLE || 'read-only'
 if (!['read-only', 'read-write'].includes(role)) throw Error('INVALID_MCP_ROLE')
 const db = open()
 const log = db.prepare('insert into access_log (ts, client, tool, args, rows) values (?, ?, ?, ?, ?)')
@@ -50,14 +50,14 @@ function context(policy) {
   return { auth, scopes, reader, allowed, items }
 }
 
-const server = new McpServer({ name: 'kier', version: '0.1.0' })
+const server = new McpServer({ name: 'vahti', version: '0.1.0' })
 
-tool('kier_brief',
+tool('vahti_brief',
   `What is waiting on the owner today: calendar, tasks due today, things that look forgotten, open requests and the next 7 days. ${UNTRUSTED}`,
   {},
   (_, { scopes, auth }) => briefEvidence(brief(db, { sources: scopes, auth })))
 
-tool('kier_day',
+tool('vahti_day',
   `Everything the vault holds for one day (messages, calls, calendar, pages visited, downloads), oldest first. ${UNTRUSTED}`,
   { date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD, default today'), source: z.string().optional() },
   ({ date = today(), source }, { items }) => {
@@ -65,7 +65,7 @@ tool('kier_day',
     return items(`i.ts >= ? and i.ts < ?${source ? ' and i.source = ?' : ''}`, [from, to, ...(source ? [source] : [])], 500)
   })
 
-tool('kier_search',
+tool('vahti_search',
   `Find past messages, calls, events and pages by words in the text, person or chat name, and by meaning in any language (a question in English finds a message in Croatian). ${UNTRUSTED}`,
   { query: z.string().min(2), days: z.number().int().min(1).max(365).default(60), limit: z.number().int().min(1).max(200).default(50) },
   async ({ query, days, limit }, { items, reader, auth, scopes, allowed }) => {
@@ -78,15 +78,15 @@ tool('kier_search',
     return extra.length ? [...byWords, ...items(`i.id in (${extra.map(() => '?').join(', ')})`, extra, extra.length)] : byWords
   })
 
-tool('kier_tasks',
-  `Tasks Kier found in messages, with state: open, overdue, handled (a reply or call closed it), done, dismissed or expired. ${UNTRUSTED}`,
+tool('vahti_tasks',
+  `Tasks Vahti found in messages, with state: open, overdue, handled (a reply or call closed it), done, dismissed or expired. ${UNTRUSTED}`,
   { days: z.number().int().min(1).max(90).default(14), all: z.boolean().default(false).describe('include handled, done and dismissed') },
   ({ days, all }, { scopes, auth }) => tasks(db, { days, sources: scopes, auth })
     .filter((t) => all || t.state === 'open' || t.state === 'overdue')
     .map((t) => ({ id: t.id, state: t.state, reason: t.reason, confidence: t.maybe ? 'maybe' : 'sure', summary: t.summary, due: t.due || null, amount: t.amount || null, ...evidenceTrust(t), from: evidenceTrust(t).fromMe ? config.me : t.source === 'mcp' ? externalSender(t.sender) : t.sender, thread: t.thread, day: isoDay(t.ts), text: t.text })))
 
-tool('kier_item',
-  `Everything Kier knows about one item, by its id (a hand-off from the owner names it): what it is, the chat before it, what happened since, the rest of that chat, and where such things usually get posted, checked now. ${UNTRUSTED}`,
+tool('vahti_item',
+  `Everything Vahti knows about one item, by its id (a hand-off from the owner names it): what it is, the chat before it, what happened since, the rest of that chat, and where such things usually get posted, checked now. ${UNTRUSTED}`,
   { id: z.string() },
   async ({ id }, { reader, auth }) => {
     const item = reader.prepare('select source from items where id = ?').get(id)
@@ -94,7 +94,7 @@ tool('kier_item',
     return aboutItem(reader, id, auth)
   })
 
-tool('kier_mark',
+tool('vahti_mark',
   'Mark a task done or dismissed (or open again) when the owner says so.',
   { id: z.string(), status: z.enum(['done', 'dismissed', 'open']) },
   ({ id, status }, { reader }) => {
@@ -103,7 +103,7 @@ tool('kier_mark',
     const next = item.source === 'reminders' && status === 'done' ? 'looks_done' : status
     db.prepare('insert into task_state (item_id, status, changed_at, reason) values (?, ?, ?, ?) on conflict(item_id) do update set status = excluded.status, changed_at = excluded.changed_at, reason = excluded.reason, completion_origin = null')
       .run(id, next, now(), `marked by ${client}`)
-    return next === 'looks_done' ? `${id} needs owner confirmation in Kier` : `${id} is ${next}`
+    return next === 'looks_done' ? `${id} needs owner confirmation in Vahti` : `${id} is ${next}`
   }, { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false })
 
 await server.connect(new StdioServerTransport())

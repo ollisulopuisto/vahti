@@ -4,7 +4,7 @@ import { homedir, userInfo } from 'node:os'
 import { resolve } from 'node:path'
 
 export const home = homedir()
-export const dataDir = process.env.KIER_DATA_DIR || resolve(home, 'Library/Application Support/Kier')
+export const dataDir = process.env.VAHTI_DATA_DIR || resolve(home, 'Library/Application Support/Vahti')
 export const tmpDir = resolve(dataDir, 'tmp')
 process.umask(0o077)
 mkdirSync(dataDir, { recursive: true, mode: 0o700 })
@@ -16,10 +16,10 @@ for (const path of [dataDir, tmpDir]) {
 }
 mkdirSync(tmpDir, { recursive: true, mode: 0o700 })
 chmodSync(tmpDir, 0o700)
-// The vault holds what macOS keeps behind Full Disk Access, so only its owner may open the folder, and what Kier writes
+// The vault holds what macOS keeps behind Full Disk Access, so only its owner may open the folder, and what Vahti writes
 // there is the owner’s alone, including legacy files and temporary copies.
 chmodSync(dataDir, 0o700)
-export const dbPath = resolve(dataDir, 'kier.db')
+export const dbPath = resolve(dataDir, 'vahti.db')
 export const configPath = resolve(dataDir, 'config.json')
 // Shared HTTP signing secret, read locally by owner clients and never sent over TCP.
 export const tokenPath = resolve(dataDir, 'token')
@@ -61,25 +61,25 @@ const defaults = {
   // Optional network lookups for pull request state, publishing destinations and cloud reviews.
   // Disabled by default; configured model servers and explicit agent handoffs have separate controls.
   online: false,
-  // A card Kier can't settle gets one look from the owner's Claude Code (doublecheck.mjs). It sends that card's chat
+  // A card Vahti can't settle gets one look from the owner's Claude Code (doublecheck.mjs). It sends that card's chat
   // to Claude, so it stays off until the owner turns it on in Setup, and only runs with online helpers on.
   claudeCheck: false,
   // Sources the owner switched off in Setup (settings.mjs).
   off: [],
   mcpSources: [],
   // Source restrictions also apply to nested evidence and derived summaries.
-  // What each AI may read through Kier: the conversations, calendar and work the tasks come from, and every read is
+  // What each AI may read through Vahti: the conversations, calendar and work the tasks come from, and every read is
   // logged. Not the clipboard, which apps you used, your browsing or your downloads; an owner who
   // wants those shared adds them to scopes in config.json.
-  scopes: Object.fromEntries(['claude', 'codex', 'kier'].map((c) => [c, ['kier', 'whatsapp', 'imessage', 'mail', 'calls', 'calendar', 'notifications', 'screen', 'discord', 'ai', 'git']])),
+  scopes: Object.fromEntries(['claude', 'codex', 'vahti'].map((c) => [c, ['vahti', 'whatsapp', 'imessage', 'mail', 'calls', 'calendar', 'notifications', 'screen', 'discord', 'ai', 'git']])),
   blockedChats: [],
   blockedDomains: ['1password.com', 'bitwarden.com', 'lastpass.com', 'dashlane.com', 'accounts.google.com', 'appleid.apple.com', 'revolut.com', 'paypal.com', 'wise.com', 'stripe.com', 'n26.com'],
 }
 
 export const config = { ...defaults, ...(existsSync(configPath) ? JSON.parse(readFileSync(configPath, 'utf8')) : {}) }
-// Kier's own runtime answers the Ollama-shaped API on a verified private Unix socket.
+// Vahti's own runtime answers the Ollama-shaped API on a verified private Unix socket.
 // It counts as installed once its model is complete (runtime.mjs writes the mark last).
-export const mlxReady = () => existsSync(resolve(dataDir, 'llm/bin/python')) && existsSync(resolve(dataDir, 'models/qwen3.5-9b-4bit/.kier-ready'))
+export const mlxReady = () => existsSync(resolve(dataDir, 'llm/bin/python')) && existsSync(resolve(dataDir, 'models/qwen3.5-9b-4bit/.vahti-ready'))
 export const usesExternalModel = config.runtime === 'external' && !!config.externalModel
 export const usesMlx = !usesExternalModel && (config.runtime === 'mlx' || (config.runtime === 'auto' && mlxReady()))
 if (usesExternalModel) config.model = config.externalModel.model

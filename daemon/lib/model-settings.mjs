@@ -30,7 +30,7 @@ export async function saveModelSettings(body) {
     if (!candidate.model) throw Error('Choose a model first.')
     await testModelConnection(candidate)
     patch = { runtime: 'external', externalModel: candidate }
-  } else throw Error('Choose Kier’s model or your model.')
+  } else throw Error('Choose Vahti’s model or your model.')
   const next = { ...stored(), ...patch }
   const temporary = configPath + '.next'
   writeFileSync(temporary, JSON.stringify(next, null, 2), { mode: 0o600 })

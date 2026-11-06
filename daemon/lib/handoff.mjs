@@ -3,8 +3,8 @@ import { parseModelJSON } from './errors.mjs'
 import { modelFetch } from './model-provider.mjs'
 import { aiProvider, codexLink } from './ai-provider.mjs'
 // Handing a card to an AI agent. A new session gets the full brief and starts in the right repository. A session that's
-// already running gets a short note it can paste-and-go: the gist, plus the kier_item tool to read the rest itself
-// (the same thing as "check the WhatsApp chat", for any owner). Kier also names the running session it most likely
+// already running gets a short note it can paste-and-go: the gist, plus the vahti_item tool to read the rest itself
+// (the same thing as "check the WhatsApp chat", for any owner). Vahti also names the running session it most likely
 // belongs to, so you know where to paste.
 import { execFileSync, spawn } from './child-process.mjs'
 import { rmSync, chmodSync, existsSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
@@ -83,7 +83,7 @@ async function belongsTo(db, t, sessions) {
 }
 
 // The menu's part, quick: the session it belongs to, where a new one would start, and the short note. No live lookups,
-// so it takes a second; kept for a quarter of an hour and worked out ahead while Kier is idle (warm), so it's ready
+// so it takes a second; kept for a quarter of an hour and worked out ahead while Vahti is idle (warm), so it's ready
 // before the menu opens. The full brief, which looks things up live, is only built when it's used.
 const ready = new Map()
 const FRESH = 15 * 60
@@ -204,7 +204,7 @@ async function fullBrief(db, id) {
   if (!h || !t) return null
   const original = db.prepare('select * from items where id = ?').get(id)
   const burst = burstOf(db, original).text || ''
-  return { ...h, full: `The owner handed this task over from Kier.\n\n${quotedMessages(`${await aboutItem(db, id)}\n\nOriginal message burst:\n${burst}`)}\n\nWhat to do: ${doing(t)}` }
+  return { ...h, full: `The owner handed this task over from Vahti.\n\n${quotedMessages(`${await aboutItem(db, id)}\n\nOriginal message burst:\n${burst}`)}\n\nWhat to do: ${doing(t)}` }
 }
 
 export async function handoff(db, id, { full = false } = {}) {

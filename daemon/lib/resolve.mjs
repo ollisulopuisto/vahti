@@ -75,7 +75,7 @@ export function github(text) {
   return out
 }
 
-// What Kier read on screen in a chat app (Discord today), turned back into who said what. Your own messages in
+// What Vahti read on screen in a chat app (Discord today), turned back into who said what. Your own messages in
 // those apps never arrive as notifications, so this is the only place the owner’s reply shows up.
 const HEADER = /^(.{1,40}?)(?: Server Tag: \S+)? (\d{1,2}):(\d{2})\s?([AP]M)$/
 const NOISE = /^(\d{1,2}:\d{2}\s?[AP]M|\w+day, \w+ \d{1,2}, \d{4} at .+|Send GIF|.+ is typing\.\.\.|Copy Message ID|Copy Link|Mark Unread|Bookmark Message|Pin Message|Create Thread|Click to react|:[\w+-]+:)$/
@@ -170,7 +170,7 @@ export async function describe(db, lines) {
 
 // Cards with no conversation of their own: an AI session's question, and one of your reminders, whose neighbours in its
 // list are other reminders, not a chat.
-const NO_CHAT = new Set(['ai', 'reminders', 'kier'])
+const NO_CHAT = new Set(['ai', 'reminders', 'vahti'])
 
 export function evidence(db, task, auth = localAuthorization(), { evidenceLabels = false } = {}) {
   db = readScope(db, auth)
@@ -222,9 +222,9 @@ export function evidence(db, task, auth = localAuthorization(), { evidenceLabels
       return { kind: 'chat', record: evidenceRecord(m), text: m.text, owner: ownerAuthored(m), ts: m.ts,
         line: evidenceLabels ? evidenceLine(m, `[email to ${to}, ${m.thread}, ${clock(m.ts)}] ${String(m.text || '').slice(0, 400)}`) : `[email to ${to}, ${m.thread}, ${clock(m.ts)}] ${N}: ${String(m.text || '').replace(/\s+/g, ' ').slice(0, 400)}` }
     })
-  // What you told Kier about it in its chat ("I gave Claude this", "done"): your words, so the same rules apply.
+  // What you told Vahti about it in its chat ("I gave Claude this", "done"): your words, so the same rules apply.
   const told = db.prepare('select ts, q from chats where key = ? order by ts').all(task.id)
-    .map((c) => ({ kind: 'kier', record: evidenceRecord({ source: 'kier', from_me: 1, ts: c.ts, text: c.q }), text: authoredText({ text: c.q }), owner: true, ts: c.ts, line: `[${N} told Kier about it, ${clock(c.ts)}] ${N}: ${String(c.q).replace(/\s+/g, ' ').slice(0, 300)}` }))
+    .map((c) => ({ kind: 'vahti', record: evidenceRecord({ source: 'vahti', from_me: 1, ts: c.ts, text: c.q }), text: authoredText({ text: c.q }), owner: true, ts: c.ts, line: `[${N} told Vahti about it, ${clock(c.ts)}] ${N}: ${String(c.q).replace(/\s+/g, ' ').slice(0, 300)}` }))
   const screen = onScreen(db, task, until)
   const links = github([task.text, ...before, ...chat.map((c) => c.line)].join(' '))
   return [...links, ...chat, ...paid, ...sentMail, ...told, ...screen, ...work].map(e => ({ ...e,
@@ -321,14 +321,14 @@ export async function hint(db, task) {
 // or a model's claim. Unknown and model-only evidence needs the owner's confirmation.
 export function recordCompletion(db, task, proof, reason, url = null) {
   // Git author text is forgeable. Only existing trusted message paths can authorize completion.
-  const origin = proof?.owner === true && ['chat', 'kier'].includes(proof.kind) && matchesCompletedTask(task, proof.text, proof.record?.recipients?.to || []) ? 'owner-message' : null
+  const origin = proof?.owner === true && ['chat', 'vahti'].includes(proof.kind) && matchesCompletedTask(task, proof.text, proof.record?.recipients?.to || []) ? 'owner-message' : null
   const status = !ownerCreated(task) && origin ? 'handled' : 'looks_done'
   return db.prepare(`insert into task_state (item_id, status, changed_at, reason, url, completion_origin)
     values (?, ?, ?, ?, ?, ?) on conflict(item_id) do nothing`)
     .run(task.id, status, now(), reason, url, status === 'looks_done' ? null : origin)
 }
 
-// A few open tasks at a time, each at most every six hours, so it runs in Kier's quiet moments.
+// A few open tasks at a time, each at most every six hours, so it runs in Vahti's quiet moments.
 // `answered` only: cards you've replied to since they were last checked, which go first and don't wait an hour, so
 // "evo jesam" closes "plati ovo" on the next pass even while the tagger is busy.
 export async function resolvePending(db, limit = 4, { answered = false, now: asked = false } = {}) {
@@ -360,7 +360,7 @@ export async function resolvePending(db, limit = 4, { answered = false, now: ask
     const verdict = lines.length ? await judge(db, t, lines).catch(() => null) : null
     let proof = verdict?.done === true ? lines[Number(verdict.line) - 1] : null
     // A model verdict can suggest completion, but only the deterministic action
-    // and object check in recordCompletion can settle Kier's own card.
+    // and object check in recordCompletion can settle Vahti's own card.
     // A reply is answered in its conversation; an unrelated commit is never an answer.
     if (proof && t.card === 'reply' && proof.kind === 'git') proof = null
     const elsewhere = verdict?.not_mine === true ? lines[Number(verdict.line) - 1] : null

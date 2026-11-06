@@ -1,7 +1,7 @@
 import { childDiagnostics, failure, errorRecord } from './errors.mjs'
 import { sockets } from './sidecar-client.mjs'
 import { sidecarToken } from './sidecar-auth.mjs'
-// Kier's own local model runtime (sidecar/llm_server.py: Qwen 3.5 9B in MLX), used instead of Ollama once it's
+// Vahti's own local model runtime (sidecar/llm_server.py: Qwen 3.5 9B in MLX), used instead of Ollama once it's
 // installed (config.mjs). It answers the same /api/chat on its own private socket, so every caller stays as it is. The process
 // stays up and small; the weights load on demand and leave after keep_alive.
 //
@@ -29,7 +29,7 @@ const MODEL = { repo: 'mlx-community/Qwen3.5-9B-4bit', revision: '8b2b98c00a6b4d
 // Search by meaning: EmbeddingGemma 2 (Apache 2.0) comes with its image and audio encoders (1.1 GB); only its text
 // part is kept (185 MB, sidecar/embedder.py prepare), and the download goes once that's saved.
 export const EMBED = { dir: resolve(dataDir, 'models/embeddinggemma-2-text'), repo: 'mlx-community/embeddinggemma-2-4bit', revision: '8ab839e127cb8cb305edd71fb7a02c82f2d49ab3', bytes: 1.1e9 }
-export const embedReady = () => existsSync(resolve(EMBED.dir, '.kier-ready'))
+export const embedReady = () => existsSync(resolve(EMBED.dir, '.vahti-ready'))
 const EMBED_DOWNLOAD = resolve(tmpDir, 'embeddinggemma-2')
 
 const children = {}
@@ -52,7 +52,7 @@ export function startRuntime(logTo) {
 function part(name, args) {
   if (children[name]) return
   const child = spawn(MLX.python, ['-I', '-E', SCRIPT, ...args], {
-    env: { KIER_SIDECAR_TOKEN: sidecarToken(), HF_HUB_OFFLINE: '1', TRANSFORMERS_OFFLINE: '1', TOKENIZERS_PARALLELISM: 'false', KIER_MODEL_NAME: config.model, KIER_EMBED_MODEL: EMBED.dir },
+    env: { VAHTI_SIDECAR_TOKEN: sidecarToken(), HF_HUB_OFFLINE: '1', TRANSFORMERS_OFFLINE: '1', TOKENIZERS_PARALLELISM: 'false', VAHTI_MODEL_NAME: config.model, VAHTI_EMBED_MODEL: EMBED.dir },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   children[name] = child
@@ -106,7 +106,7 @@ async function download(url, file, sha256) {
   }
 }
 
-// The search model on its own, for a Kier that already runs its own model (Setup's "Search by meaning"). The runtime
+// The search model on its own, for a Vahti that already runs its own model (Setup's "Search by meaning"). The runtime
 // loads it on the first search, so nothing restarts.
 async function fetchEmbedder() {
   if (embedReady()) return
@@ -114,7 +114,7 @@ async function fetchEmbedder() {
   await runtimeCommand(MLX.python, ['-I', '-E', '-c', `from huggingface_hub import snapshot_download; snapshot_download(${JSON.stringify(EMBED.repo)}, revision=${JSON.stringify(EMBED.revision)}, local_dir=${JSON.stringify(EMBED_DOWNLOAD)})`],
     { env: { HF_HUB_DISABLE_TELEMETRY: '1', HF_HUB_DISABLE_PROGRESS_BARS: '1' } })
   await runtimeCommand(MLX.python, ['-I', '-E', '-c', `import sys; sys.path.insert(0, ${JSON.stringify(SIDECAR)}); import embedder; embedder.prepare(${JSON.stringify(EMBED_DOWNLOAD)}, ${JSON.stringify(EMBED.dir)})`])
-  writeFileSync(resolve(EMBED.dir, '.kier-ready'), EMBED.revision)
+  writeFileSync(resolve(EMBED.dir, '.vahti-ready'), EMBED.revision)
   rmSync(EMBED_DOWNLOAD, { recursive: true, force: true })
 }
 
@@ -132,11 +132,11 @@ export async function installEmbedder() {
   }
 }
 
-// Kier's own Python, which every install builds its environment from.
+// Vahti's own Python, which every install builds its environment from.
 async function standalonePython() {
   if (existsSync(resolve(PYTHON.dir, 'bin/python3'))) return
   installing.phase = 'python'
-  const tar = resolve(tmpDir, 'kier-python.tar.gz')
+  const tar = resolve(tmpDir, 'vahti-python.tar.gz')
   await download(PYTHON.url, tar, PYTHON.sha256)
   rmSync(PYTHON.dir, { recursive: true, force: true })
   mkdirSync(PYTHON.dir, { recursive: true })
@@ -187,7 +187,7 @@ export async function installRuntime() {
     installing.phase = 'model'
     await runtimeCommand(MLX.python, ['-I', '-E', '-c', `from huggingface_hub import snapshot_download; snapshot_download(${JSON.stringify(MODEL.repo)}, revision=${JSON.stringify(MODEL.revision)}, local_dir=${JSON.stringify(MLX.model)})`],
       { env: { HF_HUB_DISABLE_TELEMETRY: '1', HF_HUB_DISABLE_PROGRESS_BARS: '1' } })
-    writeFileSync(resolve(MLX.model, '.kier-ready'), MODEL.revision)
+    writeFileSync(resolve(MLX.model, '.vahti-ready'), MODEL.revision)
     await fetchEmbedder()
     installing.phase = null
     // The daemon picks its runtime as it starts (config.mjs): it quits, and the login agent starts it again on this one.

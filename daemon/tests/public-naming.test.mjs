@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8')
 
-test('public package metadata agrees on the Kier name and executable', () => {
+test('public package metadata agrees on the Vahti name and executable', () => {
   const manifest = JSON.parse(read('../package.json'))
   const lock = JSON.parse(read('../package-lock.json'))
   assert.equal(lock.name, manifest.name)
@@ -14,9 +14,9 @@ test('public package metadata agrees on the Kier name and executable', () => {
 
 test('startup uses current storage and preferences without legacy migration', () => {
   const config = read('../lib/config.mjs')
-  assert.match(config, /resolve\(home,\s*["']Library\/Application Support\/Kier["']\)/)
+  assert.match(config, /resolve\(home,\s*["']Library\/Application Support\/Vahti["']\)/)
   assert.doesNotMatch(config, /renameSync|const legacy/)
   assert.doesNotMatch(read('../../app/main.swift'), /persistentDomain\(forName:/)
   const notifications = read('../collectors/notifications.mjs')
-  assert.ok(notifications.includes('/^Kier$/.test(title)'))
+  assert.ok(notifications.includes('/^Vahti$/.test(title)'))
 })

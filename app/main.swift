@@ -3,64 +3,64 @@ import ApplicationServices
 import Foundation
 
 
-// Kier.app is a thin shell around the Node daemon. macOS grants permissions such as Full Disk Access and
-// Accessibility to "Kier"; the Node process it starts inherits file access, and everything that needs
-// Accessibility or AppKit (the clipboard, which app is in front, text on screen) runs here in Kier itself.
+// Vahti.app is a thin shell around the Node daemon. macOS grants permissions such as Full Disk Access and
+// Accessibility to "Vahti"; the Node process it starts inherits file access, and everything that needs
+// Accessibility or AppKit (the clipboard, which app is in front, text on screen) runs here in Vahti itself.
 let info = Bundle.main.infoDictionary ?? [:]
-// A downloaded Kier carries its own Node and daemon inside the app; a development build points at the repo instead.
+// A downloaded Vahti carries its own Node and daemon inside the app; a development build points at the repo instead.
 let resources = Bundle.main.resourcePath ?? ""
-let bundled = FileManager.default.fileExists(atPath: resources + "/daemon/bin/kier.mjs")
-let root = bundled ? resources + "/daemon" : info["KierRoot"] as? String ?? ""
-let node = bundled ? resources + "/runtime/node" : info["KierNode"] as? String ?? "/opt/homebrew/bin/node"
+let bundled = FileManager.default.fileExists(atPath: resources + "/daemon/bin/vahti.mjs")
+let root = bundled ? resources + "/daemon" : info["VahtiRoot"] as? String ?? ""
+let node = bundled ? resources + "/runtime/node" : info["VahtiNode"] as? String ?? "/opt/homebrew/bin/node"
 var args = Array(CommandLine.arguments.dropFirst())
-// Opened from Finder or Launchpad: make sure Kier runs at login and show setup or the timeline.
+// Opened from Finder or Launchpad: make sure Vahti runs at login and show setup or the timeline.
 if args.isEmpty || args[0].hasPrefix("-psn") { args = ["open"] }
 let daemon = args.first == "run"
-let daemonClient = DaemonClient(dataDirectory: !bundled ? (ProcessInfo.processInfo.environment["KIER_DATA_DIR"] ??
-  FileManager.default.homeDirectoryForCurrentUser.path + "/Library/Application Support/Kier") :
-  FileManager.default.homeDirectoryForCurrentUser.path + "/Library/Application Support/Kier")
+let daemonClient = DaemonClient(dataDirectory: !bundled ? (ProcessInfo.processInfo.environment["VAHTI_DATA_DIR"] ??
+  FileManager.default.homeDirectoryForCurrentUser.path + "/Library/Application Support/Vahti") :
+  FileManager.default.homeDirectoryForCurrentUser.path + "/Library/Application Support/Vahti")
 
 let child = Process()
 child.executableURL = URL(fileURLWithPath: node)
-child.arguments = ["--disable-warning=ExperimentalWarning", root + "/bin/kier.mjs"] + args
-// Node takes code from its environment (NODE_OPTIONS=--import=…), and the daemon runs with Kier's Full Disk Access, so
-// none of that is passed on; nor, in a downloaded Kier, where its data lives.
+child.arguments = ["--disable-warning=ExperimentalWarning", root + "/bin/vahti.mjs"] + args
+// Node takes code from its environment (NODE_OPTIONS=--import=…), and the daemon runs with Vahti's Full Disk Access, so
+// none of that is passed on; nor, in a downloaded Vahti, where its data lives.
 child.environment = [
   "HOME": FileManager.default.homeDirectoryForCurrentUser.path,
   "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin",
   "LANG": "en_US.UTF-8", "TMPDIR": "/tmp",
-  "KIER_APP": Bundle.main.bundlePath,
+  "VAHTI_APP": Bundle.main.bundlePath,
 ]
-if !bundled, let data = ProcessInfo.processInfo.environment["KIER_DATA_DIR"] {
-  child.environment?["KIER_DATA_DIR"] = data
+if !bundled, let data = ProcessInfo.processInfo.environment["VAHTI_DATA_DIR"] {
+  child.environment?["VAHTI_DATA_DIR"] = data
 }
-// Opened from Finder: the daemon owns Kier's window, so this copy only says which page to show, then quits.
+// Opened from Finder: the daemon owns Vahti's window, so this copy only says which page to show, then quits.
 let output = Pipe()
 if args.first == "open" { child.standardOutput = output }
 // Run owns private credential pipes. The environment flag contains no secret.
 let vaultInput = Pipe(), vaultOutput = Pipe()
-let vaultDirectory = child.environment?["KIER_DATA_DIR"] ?? FileManager.default.homeDirectoryForCurrentUser.path + "/Library/Application Support/Kier"
+let vaultDirectory = child.environment?["VAHTI_DATA_DIR"] ?? FileManager.default.homeDirectoryForCurrentUser.path + "/Library/Application Support/Vahti"
 let gmailVault = GmailVault(directory: vaultDirectory, bundled: bundled)
 if daemon {
   child.standardInput = vaultInput
   child.standardOutput = vaultOutput
-  child.environment?["KIER_NATIVE_VAULT"] = bundled ? "1" : "0"
+  child.environment?["VAHTI_NATIVE_VAULT"] = bundled ? "1" : "0"
   gmailVault.serve(output: vaultOutput.fileHandleForReading, input: vaultInput.fileHandleForWriting)
 }
 child.terminationHandler = { process in
   if args.first == "open", process.terminationStatus == 0 {
     let page = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "/"
-    DistributedNotificationCenter.default().postNotificationName(.init("com.getkier.show"), object: page, userInfo: nil, deliverImmediately: true)
+    DistributedNotificationCenter.default().postNotificationName(.init("to.sulopuis.vahti.show"), object: page, userInfo: nil, deliverImmediately: true)
   }
   exit(process.terminationStatus)
 }
 do {
   if daemon && bundled {
-    try gmailVault.prepareForLaunch(node: URL(fileURLWithPath: node), daemon: URL(fileURLWithPath: root + "/bin/kier.mjs"))
+    try gmailVault.prepareForLaunch(node: URL(fileURLWithPath: node), daemon: URL(fileURLWithPath: root + "/bin/vahti.mjs"))
   }
   try child.run()
 } catch {
-  FileHandle.standardError.write("Kier could not start \(node): \(error)\n".data(using: .utf8)!)
+  FileHandle.standardError.write("Vahti could not start \(node): \(error)\n".data(using: .utf8)!)
   exit(1)
 }
 
@@ -73,7 +73,7 @@ for sig in [SIGTERM, SIGINT, SIGHUP] {
   forwarders.append(source)
 }
 
-// MARK: Eyes, only while Kier runs in the background
+// MARK: Eyes, only while Vahti runs in the background
 
 final class Eyes {
   private var pending: [[String: Any]] = []
@@ -90,7 +90,7 @@ final class Eyes {
   // App sessions: which app was in front, from when, for how long.
   private var front: (name: String, bundle: String, since: Date)?
 
-  // Screen text: chat apps whose windows Kier may read through Accessibility. Both lists come from the
+  // Screen text: chat apps whose windows Vahti may read through Accessibility. Both lists come from the
   // daemon's app discovery (what each installed app is for), refreshed every minute.
   private var screenApps: Set<String> = []
   private var capturePolicy: CapturePolicy?
@@ -101,7 +101,7 @@ final class Eyes {
   private var seen: [String: Set<String>] = [:]
   private var seenOrder: [String: [String]] = [:]
   private var electronReady: Set<pid_t> = []
-  private let dataDir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Kier")
+  private let dataDir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Vahti")
 
   private func loadLists() {
     func list(_ name: String) -> Set<String>? {
@@ -199,7 +199,7 @@ final class Eyes {
   // seconds and other running chat apps every twenty seconds, including minimized windows.
   // Accessible message roles supply author, time and text. Fall back to lines when roles are missing.
   // Never read text fields or quiet apps.
-  private let reader = DispatchQueue(label: "kier.eyes.chats", qos: .utility)
+  private let reader = DispatchQueue(label: "vahti.eyes.chats", qos: .utility)
   private var lastBackground = Date.distantPast
 
   private func screen() {
@@ -435,7 +435,7 @@ final class Bar: NSObject, NSMenuDelegate {
 
   override init() {
     super.init()
-    item.button?.image = KierMark.barImage()
+    item.button?.image = VahtiMark.barImage()
     item.button?.imagePosition = .imageLeading
     menu.delegate = self
     item.menu = menu
@@ -480,15 +480,15 @@ final class Bar: NSObject, NSMenuDelegate {
     menu.addItem(.separator())
     // Reading the brief aloud is switched off for now ; speak() and stopTalking() stay for when it's back.
     menu.addItem(entry(MainActor.assumeIsolated { companion?.visible ?? false } ? "Hide the orb" : "Show the orb", #selector(toggleOrb)))
-    menu.addItem(entry("Open Kier", #selector(openTimeline)))
+    menu.addItem(entry("Open Vahti", #selector(openTimeline)))
     menu.addItem(entry("Vault", #selector(openVault)))
     menu.addItem(entry("Setup", #selector(openSetup)))
     if let u = MainActor.assumeIsolated({ updater }) {
       menu.addItem(.separator())
-      menu.addItem(entry(MainActor.assumeIsolated { u.pending.map { "Update to Kier \($0)" } ?? "Check for Updates…" }, #selector(checkUpdates)))
+      menu.addItem(entry(MainActor.assumeIsolated { u.pending.map { "Update to Vahti \($0)" } ?? "Check for Updates…" }, #selector(checkUpdates)))
     }
     menu.addItem(.separator())
-    menu.addItem(entry("Quit Kier", #selector(quitKier)))
+    menu.addItem(entry("Quit Vahti", #selector(quitVahti)))
   }
 
   private func entry(_ title: String, _ action: Selector) -> NSMenuItem {
@@ -498,7 +498,7 @@ final class Bar: NSObject, NSMenuDelegate {
     return m
   }
 
-  @MainActor @objc private func quitKier() { viewer.quit() }
+  @MainActor @objc private func quitVahti() { viewer.quit() }
   @MainActor @objc private func openTimeline() { viewer.show("/") }
   @MainActor @objc private func openSetup() { viewer.show("/setup") }
   @MainActor @objc private func openVault() { viewer.show("/vault") }
@@ -520,14 +520,14 @@ final class Bar: NSObject, NSMenuDelegate {
   }
 }
 
-// Double-clicking Kier.app while it runs lands here instead of starting a second copy.
+// Double-clicking Vahti.app while it runs lands here instead of starting a second copy.
 final class Delegate: NSObject, NSApplicationDelegate {
   @MainActor func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
     viewer.show("/")
     return false
   }
 
-  // Quitting for an update (Updater.swift) takes the daemon with it, so the new Kier starts its own.
+  // Quitting for an update (Updater.swift) takes the daemon with it, so the new Vahti starts its own.
   func applicationWillTerminate(_ notification: Notification) { kill(child.processIdentifier, SIGTERM) }
 }
 
@@ -543,7 +543,7 @@ var updater: Updater?
 if daemon {
   app.delegate = delegate
   MainActor.assumeIsolated { viewer.installMenu() }
-  DistributedNotificationCenter.default().addObserver(forName: .init("com.getkier.show"), object: nil, queue: .main) { note in
+  DistributedNotificationCenter.default().addObserver(forName: .init("to.sulopuis.vahti.show"), object: nil, queue: .main) { note in
     let page = note.object as? String ?? "/"
     // "companion" opens the orb's panel, so a script can show it without a keystroke; "peek:/" and "unpeek" show the
     // window behind everything for a screenshot and put it away.
@@ -561,7 +561,7 @@ if daemon {
   eyes?.start()
   bar = Bar()
   companion = MainActor.assumeIsolated { Companion(store: viewer.store) }
-  // Only the downloaded Kier updates itself; a development build runs the daemon from a checkout.
+  // Only the downloaded Vahti updates itself; a development build runs the daemon from a checkout.
   if bundled {
     MainActor.assumeIsolated {
       updater = Updater()
@@ -570,7 +570,7 @@ if daemon {
       updater?.start()
     }
   }
-  // A new Kier put in this one's place while it runs (an update, or a newer copy dragged into Applications): quit, and
+  // A new Vahti put in this one's place while it runs (an update, or a newer copy dragged into Applications): quit, and
   // the login agent starts the new one. This also catches launchd restarting the old copy before an update had finished
   // installing.
   let build = info["CFBundleVersion"] as? String

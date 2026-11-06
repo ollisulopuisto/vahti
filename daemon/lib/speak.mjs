@@ -12,7 +12,7 @@ import { brief, timeLabel } from './tasks.mjs'
 const TTS = {
   voice: 'UK_Charlotte',
   ...config.tts,
-  // Never from config.json, which would choose what runs with Kier's Full Disk Access.
+  // Never from config.json, which would choose what runs with Vahti's Full Disk Access.
   python: resolve(dataDir, 'tts/bin/python'),
   model: resolve(dataDir, 'models/ming-tts-8bit'),
 }
@@ -29,7 +29,7 @@ const cleanup = async path => {
 export async function sweepSpeechFiles() {
   try {
     for await (const entry of await opendir(tmpDir)) {
-      if (/^kier-(?:say(?:-[\w-]+)?|brief(?:-[\w-]+)?)\.(?:wav|txt)$/.test(entry.name)) {
+      if (/^vahti-(?:say(?:-[\w-]+)?|brief(?:-[\w-]+)?)\.(?:wav|txt)$/.test(entry.name)) {
         const path = resolve(tmpDir, entry.name)
         if (!activeFiles.has(path)) await cleanup(path)
       }
@@ -49,7 +49,7 @@ export function speech(b) {
   if (b.forgotten.length) out.push(`You may have forgotten: ${list(b.forgotten.slice(0, 3).map(said))}.`)
   if (b.open.length) out.push(`Still waiting on you: ${list(b.open.slice(0, 3).map(said))}.`)
   const rest = (b.more?.open || 0) + Math.max(0, b.open.length - 3)
-  if (rest) out.push(`Plus ${rest} more in Kier.`)
+  if (rest) out.push(`Plus ${rest} more in Vahti.`)
   if (out.length === 1) out.push('Nothing is waiting on you. Enjoy your day.')
   return out.join(' ')
 }
@@ -76,7 +76,7 @@ export function prerender(db) {
   if (!ming() || rendering) return false
   const text = speech(brief(db))
   if (ready?.text === text) return false
-  const prefix = `kier-brief-${process.pid}-${++sequence}`, path = resolve(tmpDir, `${prefix}.wav`)
+  const prefix = `vahti-brief-${process.pid}-${++sequence}`, path = resolve(tmpDir, `${prefix}.wav`)
   activeFiles.add(path)
   let child
   try { child = render(text, prefix) } catch { void cleanup(path); return false }
@@ -107,7 +107,7 @@ export function say(text) {
   stop()
   if (!ming()) return track(mac(text))
   const request = utterance
-  const prefix = `kier-say-${process.pid}-${request}`, path = resolve(tmpDir, `${prefix}.wav`)
+  const prefix = `vahti-say-${process.pid}-${request}`, path = resolve(tmpDir, `${prefix}.wav`)
   activeFiles.add(path)
   let gen
   try { gen = track(render(text, prefix)) } catch { void cleanup(path); return null }

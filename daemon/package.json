@@ -1,17 +1,17 @@
 {
-  "name": "kier",
+  "name": "vahti",
   "version": "0.1.0",
   "private": true,
-  "description": "Kier remembers what you owe people across your chats, and notices when it is done.",
+  "description": "Vahti remembers what you owe people across your chats, and notices when it is done.",
   "type": "module",
   "bin": {
-    "kier": "bin/kier.mjs"
+    "vahti": "bin/vahti.mjs"
   },
   "engines": {
     "node": ">=23"
   },
   "scripts": {
-    "start": "node --disable-warning=ExperimentalWarning bin/kier.mjs run",
+    "start": "node --disable-warning=ExperimentalWarning bin/vahti.mjs run",
     "test": "node --disable-warning=ExperimentalWarning --test 'tests/*.test.mjs'"
   },
   "dependencies": {

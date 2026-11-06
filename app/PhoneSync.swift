@@ -1,9 +1,9 @@
 import AppKit
 import EventKit
 
-// Opt-in sync writes plans to a Kier calendar and dated tasks to a Kier reminder list.
+// Opt-in sync writes plans to a Vahti calendar and dated tasks to a Vahti reminder list.
 // Apple account sync carries them to other devices. Deleted items stay deleted; completed reminders
-// are marked done in Kier. The daemon decides which items qualify (lib/phone.mjs).
+// are marked done in Vahti. The daemon decides which items qualify (lib/phone.mjs).
 @MainActor
 final class PhoneSync {
   static let shared = PhoneSync()
@@ -17,7 +17,7 @@ final class PhoneSync {
     let end: Double?
     let due: String?
     let time: String?
-    // Done in Kier: its reminder is ticked off, not removed.
+    // Done in Vahti: its reminder is ticked off, not removed.
     let done: Bool?
   }
   // Three independent switches, off by default: plans, dated tasks, and reading existing reminders.
@@ -29,16 +29,16 @@ final class PhoneSync {
   private let defaults = UserDefaults.standard
   private let base = "http://127.0.0.1:4777"
   private var ownership: PhoneOwnership = {
-    guard let data = UserDefaults.standard.data(forKey: "kierPhoneOwnershipV1"),
+    guard let data = UserDefaults.standard.data(forKey: "vahtiPhoneOwnershipV1"),
           let value = try? JSONDecoder().decode(PhoneOwnership.self, from: data) else { return PhoneOwnership() }
     return value
   }()
   private func saveOwnership() {
-    if let data = try? JSONEncoder().encode(ownership) { defaults.set(data, forKey: "kierPhoneOwnershipV1") }
+    if let data = try? JSONEncoder().encode(ownership) { defaults.set(data, forKey: "vahtiPhoneOwnershipV1") }
   }
   private func owns(_ item: EKCalendarItem) -> Bool {
     ownership.owns(itemID: item.calendarItemIdentifier, externalID: item.calendarItemExternalIdentifier,
-                   containerID: item.calendar.calendarIdentifier, logicalID: Self.kierId(item))
+                   containerID: item.calendar.calendarIdentifier, logicalID: Self.vahtiId(item))
   }
   private func record(_ item: EKCalendarItem, logicalID: String, kind: String) {
     ownership.record(.init(logicalID: logicalID, itemID: item.calendarItemIdentifier,
@@ -81,29 +81,29 @@ final class PhoneSync {
     // What changed on the phone since the last look reaches this Mac through iCloud; forget what was cached.
     ek.refreshSourcesIfNecessary()
     // A switch turned off removes only items with persisted creation provenance.
-    if !useCalendar { await removeKier(.event) }
-    if !useList { await removeKier(.reminder) }
+    if !useCalendar { await removeVahti(.event) }
+    if !useList { await removeVahti(.reminder) }
     if wanted.mine == true, Self.remindersAllowed, !(await syncMine()) { return }
-    let calendar = useCalendar && Self.eventsAllowed ? kierCalendar(.event) : nil
-    let list = useList && Self.remindersAllowed ? kierCalendar(.reminder) : nil
+    let calendar = useCalendar && Self.eventsAllowed ? vahtiCalendar(.event) : nil
+    let list = useList && Self.remindersAllowed ? vahtiCalendar(.reminder) : nil
     guard calendar != nil || list != nil else { return }
-    // Use each item’s kier://item/<id> link as its stable identity; EventKit identifiers can change
+    // Use each item’s vahti://item/<id> link as its stable identity; EventKit identifiers can change
     // after a restart, which would otherwise duplicate events.
     var there: [String: EKCalendarItem] = [:]
     let events = calendar.map { ek.events(matching: ek.predicateForEvents(withStart: Date().addingTimeInterval(-86400), end: Date().addingTimeInterval(16 * 86400), calendars: [$0])) } ?? []
     let listed = list == nil ? [] : await reminders(in: list!)
     for found in (events as [EKCalendarItem]) + listed {
-      guard owns(found), let id = Self.kierId(found) else { continue }
+      guard owns(found), let id = Self.vahtiId(found) else { continue }
       // A copy (made twice by an earlier version): one stays.
       if there[id] != nil { remove(found); continue }
       there[id] = found
     }
-    var made = Set(defaults.stringArray(forKey: "kierPhoneMadeV1") ?? [])
-    var gone = Set(defaults.stringArray(forKey: "kierPhoneGone") ?? [])
+    var made = Set(defaults.stringArray(forKey: "vahtiPhoneMadeV1") ?? [])
+    var gone = Set(defaults.stringArray(forKey: "vahtiPhoneGone") ?? [])
     // Only what has its calendar or list here: without macOS's say-so for one, its items wait rather than read as deleted.
     for item in wanted.items where !gone.contains(item.id) && (item.kind == "event" ? calendar : list) != nil {
       if let existing = there[item.id] {
-        // Done in Kier: ticked off on the phone too.
+        // Done in Vahti: ticked off on the phone too.
         if item.done == true {
           if let reminder = existing as? EKReminder, !reminder.isCompleted {
             reminder.isCompleted = true
@@ -111,7 +111,7 @@ final class PhoneSync {
           }
           continue
         }
-        // Ticked off on the phone: done in Kier too.
+        // Ticked off on the phone: done in Vahti too.
         if let reminder = existing as? EKReminder, reminder.isCompleted {
           gone.insert(item.id)
           made.remove(item.id)
@@ -130,7 +130,7 @@ final class PhoneSync {
         made.insert(item.id)
       }
     }
-    // What left Kier's list leaves the phone: done or set aside here, or a plan that moved. Past events stay as they were.
+    // What left Vahti's list leaves the phone: done or set aside here, or a plan that moved. Past events stay as they were.
     let wantedIds = Set(wanted.items.map(\.id))
     for (id, found) in there where !wantedIds.contains(id) {
       if let reminder = found as? EKReminder, !reminder.isCompleted { remove(reminder) }
@@ -139,13 +139,13 @@ final class PhoneSync {
     }
     made.formIntersection(wantedIds)
     // Persist plain arrays: UserDefaults cannot store an ArraySlice.
-    defaults.set(Array(made), forKey: "kierPhoneMadeV1")
-    defaults.set(Array(Array(gone).suffix(500)), forKey: "kierPhoneGone")
+    defaults.set(Array(made), forKey: "vahtiPhoneMadeV1")
+    defaults.set(Array(Array(gone).suffix(500)), forKey: "vahtiPhoneGone")
   }
 
-  private static let scheme = "kier://item/"
+  private static let scheme = "vahti://item/"
   private static func link(_ id: String) -> URL? { URL(string: scheme + (id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? id)) }
-  private static func kierId(_ item: EKCalendarItem) -> String? {
+  private static func vahtiId(_ item: EKCalendarItem) -> String? {
     guard let url = item.url?.absoluteString, url.hasPrefix(scheme) else { return nil }
     return String(url.dropFirst(scheme.count)).removingPercentEncoding
   }
@@ -170,10 +170,10 @@ final class PhoneSync {
         ($0.itemID == itemID || ($0.externalID != nil && $0.externalID == externalID)) }
       saveOwnership()
       return true
-    } catch { NSLog("Kier phone: PHONE_REMOVE_FAILED"); return false }
+    } catch { NSLog("Vahti phone: PHONE_REMOVE_FAILED"); return false }
   }
 
-  // Each carries its Kier link, which is how the next look finds it.
+  // Each carries its Vahti link, which is how the next look finds it.
   private func create(_ item: Item, calendar: EKCalendar?, list: EKCalendar?) -> Bool {
     if item.kind == "event", item.start != nil, let calendar {
       let event = EKEvent(eventStore: ek)
@@ -181,7 +181,7 @@ final class PhoneSync {
       fill(event, item)
       event.url = Self.link(item.id)
       event.addAlarm(EKAlarm(relativeOffset: -30 * 60))
-      do { try ek.save(event, span: .thisEvent, commit: true) } catch { NSLog("Kier phone: PHONE_EVENT_SAVE_FAILED"); return false }
+      do { try ek.save(event, span: .thisEvent, commit: true) } catch { NSLog("Vahti phone: PHONE_EVENT_SAVE_FAILED"); return false }
       record(event, logicalID: item.id, kind: "event")
       return true
     }
@@ -190,7 +190,7 @@ final class PhoneSync {
       reminder.calendar = list
       fill(reminder, item)
       reminder.url = Self.link(item.id)
-      do { try ek.save(reminder, commit: true) } catch { NSLog("Kier phone: PHONE_REMINDER_SAVE_FAILED"); return false }
+      do { try ek.save(reminder, commit: true) } catch { NSLog("Vahti phone: PHONE_REMINDER_SAVE_FAILED"); return false }
       record(reminder, logicalID: item.id, kind: "reminder")
       return true
     }
@@ -231,7 +231,7 @@ final class PhoneSync {
     if let when = Calendar.current.date(from: at), when > Date() { reminder.addAlarm(EKAlarm(absoluteDate: when)) }
   }
 
-  // Apple's stored date carries its own calendar and time zone, so only what Kier sets is compared.
+  // Apple's stored date carries its own calendar and time zone, so only what Vahti sets is compared.
   private func same(_ a: DateComponents?, _ b: DateComponents?) -> Bool {
     a?.year == b?.year && a?.month == b?.month && a?.day == b?.day && a?.hour == b?.hour && a?.minute == b?.minute
   }
@@ -248,9 +248,9 @@ final class PhoneSync {
     return parts
   }
 
-  // Kier's own calendar and list, in the account new events and reminders go to (iCloud, usually), made once.
-  private func kierCalendar(_ type: EKEntityType) -> EKCalendar? {
-    let key = type == .event ? "kierPhoneCalendar" : "kierPhoneList"
+  // Vahti's own calendar and list, in the account new events and reminders go to (iCloud, usually), made once.
+  private func vahtiCalendar(_ type: EKEntityType) -> EKCalendar? {
+    let key = type == .event ? "vahtiPhoneCalendar" : "vahtiPhoneList"
     if let id = defaults.string(forKey: key), ownership.containers.contains(id),
        let found = ek.calendar(withIdentifier: id) { return found }
     // Legacy IDs and title matches are not proof of creation. Leave those containers
@@ -263,7 +263,7 @@ final class PhoneSync {
     var tried = Set<String>()
     for source in icloud + [fallback].compactMap({ $0 }) + others where tried.insert(source.sourceIdentifier).inserted {
       let made = EKCalendar(for: type, eventStore: ek)
-      made.title = "Kier"
+      made.title = "Vahti"
       made.source = source
       made.cgColor = NSColor(red: 0.45, green: 0.47, blue: 0.95, alpha: 1).cgColor
       do {
@@ -273,7 +273,7 @@ final class PhoneSync {
         defaults.set(made.calendarIdentifier, forKey: key)
         return made
       } catch {
-        NSLog("Kier phone: PHONE_CONTAINER_SAVE_FAILED")
+        NSLog("Vahti phone: PHONE_CONTAINER_SAVE_FAILED")
       }
     }
     return nil
@@ -282,9 +282,9 @@ final class PhoneSync {
   // EventKit cannot provide an exhaustive inventory of an event calendar across all
   // dates (event predicates have bounded ranges). Retain that container even after
   // removing our known events. Reminder lists support a complete inventory.
-  private func removeKier(_ type: EKEntityType) async {
+  private func removeVahti(_ type: EKEntityType) async {
     guard type == .event ? Self.eventsAllowed : Self.remindersAllowed else { return }
-    let key = type == .event ? "kierPhoneCalendar" : "kierPhoneList"
+    let key = type == .event ? "vahtiPhoneCalendar" : "vahtiPhoneList"
     let kind = type == .event ? "event" : "reminder"
     let entries = ownership.entries.filter { $0.kind == kind }
     for entry in entries {
@@ -302,20 +302,20 @@ final class PhoneSync {
           ownership.containers.remove(id)
           defaults.removeObject(forKey: key)
           saveOwnership()
-        } catch { NSLog("Kier phone: PHONE_CONTAINER_REMOVE_FAILED") }
+        } catch { NSLog("Vahti phone: PHONE_CONTAINER_REMOVE_FAILED") }
       }
     }
-    let made = (defaults.stringArray(forKey: "kierPhoneMadeV1") ?? []).filter { id in
+    let made = (defaults.stringArray(forKey: "vahtiPhoneMadeV1") ?? []).filter { id in
       !entries.contains { $0.logicalID == id }
     }
-    defaults.set(made, forKey: "kierPhoneMadeV1")
+    defaults.set(made, forKey: "vahtiPhoneMadeV1")
   }
 
-  // Read dated reminders from every list except Kier’s when enabled. Completion is synchronized both
+  // Read dated reminders from every list except Vahti’s when enabled. Completion is synchronized both
   // ways using the reminder’s stable iCloud identifier.
   private func syncMine() async -> Bool {
-    let kier = defaults.string(forKey: "kierPhoneList")
-    let lists = ek.calendars(for: .reminder).filter { $0.calendarIdentifier != kier }
+    let vahti = defaults.string(forKey: "vahtiPhoneList")
+    let lists = ek.calendars(for: .reminder).filter { $0.calendarIdentifier != vahti }
     guard !lists.isEmpty else { return true }
     let day = Calendar.current.startOfDay(for: Date())
     // A read that failed sends nothing: an empty answer would read as every reminder deleted.

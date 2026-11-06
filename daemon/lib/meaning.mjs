@@ -107,7 +107,7 @@ function bubbleDown(heap, i, n) {
 const words = (s) => [...new Set((String(s).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || []).map((w) => (/[aeiou]$/.test(w) ? w.slice(0, -1) : w)))].slice(0, 8)
 
 const COMMON = new Set(['the', 'what', 'when', 'where', 'who', 'why', 'how', 'did', 'does', 'can', 'could', 'would', 'should', 'please', 'are',
-  'was', 'were', 'has', 'have', 'had', 'this', 'that', 'there', 'these', 'those', 'kier', 'hey', 'and', 'but', 'any', 'tell', 'find', 'show', 'remind',
+  'was', 'were', 'has', 'have', 'had', 'this', 'that', 'there', 'these', 'those', 'vahti', 'hey', 'and', 'but', 'any', 'tell', 'find', 'show', 'remind',
   'mark', 'put', 'not', 'one', 'today', 'tomorrow', 'yesterday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])
 
 // A person or chat the question names ("what did I tell Nika"): its messages are where to look. A capitalised word that

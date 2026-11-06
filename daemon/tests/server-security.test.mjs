@@ -6,8 +6,8 @@ import { join } from 'node:path'
 import { request } from 'node:http'
 import { signedHeaders, responseMAC, sealBody, signedFetch } from '../lib/http-auth.mjs'
 
-const dir = mkdtempSync(join(tmpdir(), 'kier-http-test-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-http-test-'))
+process.env.VAHTI_DATA_DIR = dir
 const secret = 'a'.repeat(64)
 const { open } = await import('../lib/db.mjs')
 const { serve } = await import('../lib/server.mjs')
@@ -33,11 +33,11 @@ test('API authentication, host and origin checks reject untrusted callers', asyn
   assert.equal((await get('/api/status', { ...auth, origin: 'https://evil.example' })).status, 403)
   assert.equal((await get('/api/status', { ...auth, origin: `http://127.0.0.1:${port}` })).status, 200)
   const weird = 'é'.repeat(secret.length)
-  assert.equal((await get('/api/status', { 'x-kier-token': weird })).status, 401)
+  assert.equal((await get('/api/status', { 'x-vahti-token': weird })).status, 401)
 })
 
 test('cookies and URL bearer tokens are refused; one-use bootstrap is exact-origin bound', async () => {
-  assert.equal((await get('/api/status', { cookie: `kier=${secret}` })).status, 401)
+  assert.equal((await get('/api/status', { cookie: `vahti=${secret}` })).status, 401)
   const old = await get('/?k=' + secret)
   assert.equal(old.headers['set-cookie'], undefined)
   assert.equal(old.status, 200)
@@ -45,18 +45,18 @@ test('cookies and URL bearer tokens are refused; one-use bootstrap is exact-orig
   const { ticket } = JSON.parse(issue.body)
   const origin = `http://127.0.0.1:${port}`
   for (const headers of [{}, { origin: 'null' }, { origin: `http://127.0.0.1:${port + 1}` }, { origin: `http://localhost:${port}` }]) {
-    assert.equal((await get('/auth/bootstrap', { ...headers, 'x-kier-bootstrap': ticket }, 'POST')).status, 403)
+    assert.equal((await get('/auth/bootstrap', { ...headers, 'x-vahti-bootstrap': ticket }, 'POST')).status, 403)
   }
-  const r = await get('/auth/bootstrap', { origin, 'x-kier-bootstrap': ticket }, 'POST')
+  const r = await get('/auth/bootstrap', { origin, 'x-vahti-bootstrap': ticket }, 'POST')
   assert.equal(r.status, 200)
   assert.equal(r.headers['set-cookie'], undefined)
   assert.equal(r.headers['cache-control'], 'no-store')
   assert.equal(r.headers['referrer-policy'], 'no-referrer')
   assert.equal(r.headers['x-frame-options'], 'DENY')
-  const browserAuth = { 'x-kier-token': JSON.parse(r.body).token }
+  const browserAuth = { 'x-vahti-token': JSON.parse(r.body).token }
   assert.equal((await get('/api/status', browserAuth)).status, 200)
   assert.equal((await get('/api/status', { ...browserAuth, host: `localhost:${port}` })).status, 401)
-  assert.equal((await get('/auth/bootstrap', { origin, 'x-kier-bootstrap': ticket }, 'POST')).status, 403)
+  assert.equal((await get('/auth/bootstrap', { origin, 'x-vahti-bootstrap': ticket }, 'POST')).status, 403)
   assert.equal(statSync(tokenPath).mode & 0o777, 0o600)
 })
 
@@ -97,14 +97,14 @@ test('browser bootstrap and subsequent page navigation attach headers only to th
 
 test('raw secrets, stale signatures, replays and wrong signatures cannot read owner data', async () => {
   const path = '/api/capture-policy'
-  assert.equal((await get(path, { 'x-kier-token': secret })).status, 401)
+  assert.equal((await get(path, { 'x-vahti-token': secret })).status, 401)
   assert.equal((await get(path, signedHeaders(secret, 'GET', path, '', String(Math.floor(Date.now() / 1000) - 61)))).status, 401)
   assert.equal((await get(path, signedHeaders(secret, 'GET', path, '', String(Math.floor(Date.now() / 1000) + 61)))).status, 401)
   assert.equal((await get(path, signedHeaders('wrong', 'GET', path))).status, 401)
   const headers = signedHeaders(secret, 'GET', path)
   const response = await get(path, headers)
   assert.equal(response.status, 200)
-  assert.equal(response.headers['x-kier-response'], responseMAC(secret, headers['x-kier-nonce'], response.status, response.body))
+  assert.equal(response.headers['x-vahti-response'], responseMAC(secret, headers['x-vahti-nonce'], response.status, response.body))
   assert.equal((await get(path, headers)).status, 401)
   assert.equal((await get(path + '?changed=1', signedHeaders(secret, 'GET', path))).status, 401)
   assert.equal((await get(path, signedHeaders(secret, 'POST', path))).status, 401)
@@ -120,7 +120,7 @@ test('encrypted native bodies are authenticated before parsing or mutation; erro
   const bad = { ...signedHeaders(secret, 'POST', path, malformed), 'content-type': 'application/json' }
   const response = await get(path, bad, 'POST', malformed)
   assert.equal(response.status, 500)
-  assert.equal(response.headers['x-kier-response'], responseMAC(secret, bad['x-kier-nonce'], 500, response.body))
+  assert.equal(response.headers['x-vahti-response'], responseMAC(secret, bad['x-vahti-nonce'], 500, response.body))
   const cli = await signedFetch(secret, `http://127.0.0.1:${port}/api/ingest`, { method: 'POST', body: JSON.stringify({ items: [] }) })
   assert.equal((await cli.json()).ok, true)
 })
@@ -128,12 +128,12 @@ test('encrypted native bodies are authenticated before parsing or mutation; erro
 test('browser credentials expire and cannot mint fresh launch credentials', async () => {
   const { ticket } = JSON.parse((await get('/api/browser-ticket', auth, 'POST')).body)
   const origin = `http://127.0.0.1:${port}`
-  const { token } = JSON.parse((await get('/auth/bootstrap', { origin, 'x-kier-bootstrap': ticket }, 'POST')).body)
+  const { token } = JSON.parse((await get('/auth/bootstrap', { origin, 'x-vahti-bootstrap': ticket }, 'POST')).body)
   assert.notEqual(token, secret)
-  assert.equal((await get('/api/browser-ticket', { 'x-kier-token': token }, 'POST')).status, 404)
+  assert.equal((await get('/api/browser-ticket', { 'x-vahti-token': token }, 'POST')).status, 404)
   const clock = Date.now
   try {
     Date.now = () => clock() + 10 * 60_000 + 1
-    assert.equal((await get('/api/status', { 'x-kier-token': token })).status, 401)
+    assert.equal((await get('/api/status', { 'x-vahti-token': token })).status, 401)
   } finally { Date.now = clock }
 })

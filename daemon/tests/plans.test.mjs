@@ -4,7 +4,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-plans-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-plans-'))
 const { datesOf, group, parse, shows } = await import('../lib/plans.mjs')
 
 const at = (iso) => Math.floor(Date.parse(`${iso}T10:00:00Z`) / 1000)

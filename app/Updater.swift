@@ -3,7 +3,9 @@ import Sparkle
 import SwiftUI
 
 // Sparkle reads the signed appcast from the configured release feed. The island offers Update and Later.
-// Update downloads, checks the signature, installs and restarts with progress shown in Kier.
+// Updates are off for now (SUEnableAutomaticChecks is false in Info.plist): the fork has no Sparkle signing key
+// pair yet, so a feed answer could not be verified. Turn checks back on once a key pair exists (build scripts).
+// Update downloads, checks the signature, installs and restarts with progress shown in Vahti.
 // Only packaged builds update themselves; development builds run the daemon from a checkout.
 @MainActor final class Updater: NSObject, SPUUpdaterDelegate {
   enum Phase: Equatable { case available, downloading(Double?), installing, latest, failed(String) }
@@ -15,7 +17,7 @@ import SwiftUI
   }
 
   let offer = Offer()
-  // A newer Kier found and not taken: hovering the island brings the card back, and the menu bar says so.
+  // A newer Vahti found and not taken: hovering the island brings the card back, and the menu bar says so.
   private(set) var pending: String?
   // The card's in the middle of an update, so nothing else may take its place.
   var busy: Bool { offer.phase.working }
@@ -29,11 +31,11 @@ import SwiftUI
 
   var current: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "" }
 
-  // Checks now, so an update out since Kier last started is offered straight away, then on Sparkle's schedule
+  // Checks now, so an update out since Vahti last started is offered straight away, then on Sparkle's schedule
   // (SUScheduledCheckInterval in Info.plist). Never downloads unasked.
   func start() {
     sparkle.automaticallyDownloadsUpdates = false
-    do { try sparkle.start() } catch { NSLog("Kier updater: \(error.localizedDescription)"); return }
+    do { try sparkle.start() } catch { NSLog("Vahti updater: \(error.localizedDescription)"); return }
     if sparkle.automaticallyChecksForUpdates { sparkle.checkForUpdatesInBackground() }
   }
 
@@ -93,16 +95,16 @@ import SwiftUI
   }
 
   fileprivate func failed(_ error: Error, asked: Bool) {
-    NSLog("Kier updater: %@", String(describing: error))
+    NSLog("Vahti updater: %@", String(describing: error))
     let was = busy
     answer = nil
     installFound = false
     guard asked || was else { return }
-    offer.phase = .failed(Self.unreachable(error) ? "Couldn't reach the update server. Kier tries again on its own." : error.localizedDescription)
+    offer.phase = .failed(Self.unreachable(error) ? "Couldn't reach the update server. Vahti tries again on its own." : error.localizedDescription)
     show?()
   }
 
-  // Under the login agent, launchd relaunches Kier. Once Sparkle is ready, quit so the installer
+  // Under the login agent, launchd relaunches Vahti. Once Sparkle is ready, quit so the installer
   // can replace the bundle and launchd can start the updated app.
   fileprivate func readyToInstall() {
     quitToInstall = !Self.relaunches
@@ -133,12 +135,12 @@ import SwiftUI
 
   // MARK: SPUUpdaterDelegate
 
-  // KIER_UPDATE_FEED points a copy at another appcast, for trying an update out without publishing one.
-  nonisolated func feedURLString(for updater: SPUUpdater) -> String? { ProcessInfo.processInfo.environment["KIER_UPDATE_FEED"] }
+  // VAHTI_UPDATE_FEED points a copy at another appcast, for trying an update out without publishing one.
+  nonisolated func feedURLString(for updater: SPUUpdater) -> String? { ProcessInfo.processInfo.environment["VAHTI_UPDATE_FEED"] }
 
-  // The login agent keeps Kier running (KeepAlive), so launchd brings it back once it quits for the install, and main.swift
+  // The login agent keeps Vahti running (KeepAlive), so launchd brings it back once it quits for the install, and main.swift
   // restarts it if launchd was quicker than the install. Sparkle relaunching it as well would open a second copy.
-  nonisolated static var relaunches: Bool { ProcessInfo.processInfo.environment["XPC_SERVICE_NAME"] != "com.getkier.agent" }
+  nonisolated static var relaunches: Bool { ProcessInfo.processInfo.environment["XPC_SERVICE_NAME"] != "to.sulopuis.vahti.agent" }
   nonisolated func updaterShouldRelaunchApplication(_ updater: SPUUpdater) -> Bool { Self.relaunches }
 
   nonisolated func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
@@ -234,8 +236,8 @@ final class CardDriver: NSObject, SPUUserDriver {
   func dismissUpdateInstallation() { main { $0.ended() } }
 }
 
-// The card beside the island, in the nudges' black glass: which Kier, a line of what's new, Update and Later; then its
-// progress in place, and Kier restarts on its own.
+// The card beside the island, in the nudges' black glass: which Vahti, a line of what's new, Update and Later; then its
+// progress in place, and Vahti restarts on its own.
 struct UpdateView: View {
   @ObservedObject var model: ToastModel
   @ObservedObject var offer: Updater.Offer
@@ -245,10 +247,10 @@ struct UpdateView: View {
 
   private var line: String {
     switch offer.phase {
-    case .available: return "Kier \(offer.version) is out"
-    case .downloading: return "Downloading Kier \(offer.version)"
-    case .installing: return "Installing Kier \(offer.version)"
-    case .latest: return "Kier \(offer.version)"
+    case .available: return "Vahti \(offer.version) is out"
+    case .downloading: return "Downloading Vahti \(offer.version)"
+    case .installing: return "Installing Vahti \(offer.version)"
+    case .latest: return "Vahti \(offer.version)"
     case .failed: return "Couldn't update"
     }
   }
@@ -256,9 +258,9 @@ struct UpdateView: View {
   private var text: String {
     switch offer.phase {
     case .available: return offer.notes.isEmpty ? "A new version is ready to install." : offer.notes
-    case .downloading: return "Kier restarts on its own when it's in."
+    case .downloading: return "Vahti restarts on its own when it's in."
     case .installing: return "Restarting in a moment."
-    case .latest: return "You have the latest Kier."
+    case .latest: return "You have the latest Vahti."
     case let .failed(why): return why
     }
   }

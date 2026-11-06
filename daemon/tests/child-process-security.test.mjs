@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync } from 'no
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { childEnv, executable, execFileSync } from '../lib/child-process.mjs'
-const dir = mkdtempSync(join(tmpdir(), 'kier-env-'))
+const dir = mkdtempSync(join(tmpdir(), 'vahti-env-'))
 after(() => rmSync(dir, { recursive: true, force: true }))
 test('hostile inherited paths and interpreter startup settings never reach children', () => {
   const before = { ...process.env }

@@ -4,7 +4,7 @@ import { CODEX_UNAVAILABLE } from './ask-isolation.mjs'
 import { authorization, readScope, localAuthorization } from './authorization.mjs'
 import { parseModelJSON } from './errors.mjs'
 import { modelFetch } from './model-provider.mjs'
-// Talking to Kier: a question goes to Claude or Codex, which read the vault through Kier's MCP tools, or to the
+// Talking to Vahti: a question goes to Claude or Codex, which read the vault through Vahti's MCP tools, or to the
 // local model with today's brief. Claude and Codex use the owner's own subscriptions and command line logins.
 import { spawn } from './child-process.mjs'
 import { existsSync } from 'node:fs'
@@ -24,31 +24,31 @@ export const CLAUDE = first([resolve(home, '.local/bin/claude'), '/opt/homebrew/
 export const CODEX = first(['/opt/homebrew/bin/codex', '/usr/local/bin/codex', resolve(home, '.local/bin/codex')])
 // External Ask receives only scoped read tools. Codex is unavailable until its
 // runner supplies an enforceable global tools-only boundary (ask-isolation.mjs).
-export const TOOLS = ['kier_brief', 'kier_tasks', 'kier_search', 'kier_day', 'kier_item'].map((t) => `mcp__kier__${t}`).join(',')
-const KIER_MCP = { command: process.execPath, args: ['--disable-warning=ExperimentalWarning', resolve(new URL('../bin/mcp.mjs', import.meta.url).pathname)], env: { KIER_DATA_DIR: dataDir, KIER_CLIENT: 'claude', KIER_MCP_ROLE: 'read-only' } }
-export const CLAUDE_LOCK = ['--tools', '', '--restricted', '--setting-sources', '', '--disable-slash-commands', '--no-session-persistence', '--strict-mcp-config', '--mcp-config', JSON.stringify({ mcpServers: { kier: KIER_MCP } })]
-export const agents = () => ({ claude: !!CLAUDE, codex: false, kier: true, unavailable: { codex: CODEX_UNAVAILABLE }, default: CLAUDE ? 'claude' : 'kier' })
+export const TOOLS = ['vahti_brief', 'vahti_tasks', 'vahti_search', 'vahti_day', 'vahti_item'].map((t) => `mcp__vahti__${t}`).join(',')
+const VAHTI_MCP = { command: process.execPath, args: ['--disable-warning=ExperimentalWarning', resolve(new URL('../bin/mcp.mjs', import.meta.url).pathname)], env: { VAHTI_DATA_DIR: dataDir, VAHTI_CLIENT: 'claude', VAHTI_MCP_ROLE: 'read-only' } }
+export const CLAUDE_LOCK = ['--tools', '', '--restricted', '--setting-sources', '', '--disable-slash-commands', '--no-session-persistence', '--strict-mcp-config', '--mcp-config', JSON.stringify({ mcpServers: { vahti: VAHTI_MCP } })]
+export const agents = () => ({ claude: !!CLAUDE, codex: false, vahti: true, unavailable: { codex: CODEX_UNAVAILABLE }, default: CLAUDE ? 'claude' : 'vahti' })
 
 // Include previous questions for follow-ups, but drop stale refusal answers so they do not
 // prevent the model from using newly available evidence.
 const REFUSED = /\b(don'?t|do not|cannot|can'?t|unable to|not able to|no access)\b[^.]{0,80}\b(know|have|access|information|tell|provide|share|details)\b/i
-const turn = (h) => `${config.me}: ${h.q}${!h.a || REFUSED.test(h.a) ? '' : `\nKier: ${h.a}`}`
+const turn = (h) => `${config.me}: ${h.q}${!h.a || REFUSED.test(h.a) ? '' : `\nVahti: ${h.a}`}`
 // Who the owner is (profile.mjs) goes along with every question, so "tell me about myself" has an answer.
-const who = () => { const p = profileText(); return p ? `\n\nWho ${config.me} is, from Kier's profile of ${P.him}:\n${p}\n\n` : '\n\n' }
-const intro = (q, history, about) => `You are Kier, ${config.me}'s quiet assistant. Use the kier tools before answering. Answer plainly in at most 4 short sentences. ${EVIDENCE_RULE}
+const who = () => { const p = profileText(); return p ? `\n\nWho ${config.me} is, from Vahti's profile of ${P.him}:\n${p}\n\n` : '\n\n' }
+const intro = (q, history, about) => `You are Vahti, ${config.me}'s quiet assistant. Use the vahti tools before answering. Answer plainly in at most 4 short sentences. ${EVIDENCE_RULE}
 
 ${untrustedBlock({ about, history })}
 
 Owner question: ${q}`
 
 // About one item, the local model answers from what the vault shows about it; otherwise from today's brief.
-const ITEM = `You are Kier, ${config.me}'s quiet assistant, and you are talking with ${config.me} ${P.self}: call ${P.him} "you", never by name. You're asked about one item in ${P.his} vault; below is everything the vault shows about it: what happened since, the rest of that chat, and where such things usually go, checked just now. Answer in at most 3 short sentences. If a line answers it, say so and say where and when; something new where it usually goes, after the item, usually means it's done, even under another name (release notes posted as a blog post about the same change). If nothing does, say what you checked and that it doesn't show yet. Never tell ${P.him} to ask ${P.self}.`
+const ITEM = `You are Vahti, ${config.me}'s quiet assistant, and you are talking with ${config.me} ${P.self}: call ${P.him} "you", never by name. You're asked about one item in ${P.his} vault; below is everything the vault shows about it: what happened since, the rest of that chat, and where such things usually go, checked just now. Answer in at most 3 short sentences. If a line answers it, say so and say where and when; something new where it usually goes, after the item, usually means it's done, even under another name (release notes posted as a blog post about the same change). If nothing does, say what you checked and that it doesn't show yet. Never tell ${P.him} to ask ${P.self}.`
 // Answer the requested topic using evidence, rather than substituting the daily brief.
-const DAY = `You are Kier, ${config.me}'s quiet assistant, talking with ${P.him}: call ${P.him} "you", never by name. Answer the question ${P.he} asked, in at most 3 short sentences. When the messages found below answer it, say what was said, quote a few of the words, and say which chat and which day. A plan agreed in a chat is a plan even when it isn't in the calendar, and one that repeats (every Friday) holds for each such day. When messages disagree (a time changed), the latest holds. If nothing below answers it, say you couldn't find it; don't answer a different question.`
+const DAY = `You are Vahti, ${config.me}'s quiet assistant, talking with ${P.him}: call ${P.him} "you", never by name. Answer the question ${P.he} asked, in at most 3 short sentences. When the messages found below answer it, say what was said, quote a few of the words, and say which chat and which day. A plan agreed in a chat is a plan even when it isn't in the calendar, and one that repeats (every Friday) holds for each such day. When messages disagree (a time changed), the latest holds. If nothing below answers it, say you couldn't find it; don't answer a different question.`
 // Spell out upcoming dates and weekdays; do not ask the model to calculate them.
 const week = () => `Today is ${dayLabel(today())}. The next seven days: ${[1, 2, 3, 4, 5, 6, 7].map((n) => `${dayLabel(plusDays(today(), n))}${n === 1 ? ' (tomorrow)' : ''}`).join(', ')}.`
 // A day summary is structured evidence for the requested day.
-const ON_DAY = `You are Kier, ${config.me}'s quiet assistant, talking with ${P.him}: call ${P.him} "you", never by name. Below is each day ${P.he} asked about, with what's on ${P.his} calendar and list that day: answer from it, with the time of each thing. At most 3 short sentences. A day with nothing on it is free.`
+const ON_DAY = `You are Vahti, ${config.me}'s quiet assistant, talking with ${P.him}: call ${P.him} "you", never by name. Below is each day ${P.he} asked about, with what's on ${P.his} calendar and list that day: answer from it, with the time of each thing. At most 3 short sentences. A day with nothing on it is free.`
 // Label group messages explicitly so a group activity is not attributed solely to the sender.
 const APP = { whatsapp: 'WhatsApp', imessage: 'iMessage', discord: 'Discord' }
 function said(db, found) {
@@ -65,7 +65,7 @@ function said(db, found) {
 }
 
 // Asked to change something on the list ("that chat was marked done, put it back", "that's not mine"): which task, and
-// to what, become buttons under the answer. Kier only offers; the owner's click changes it (/api/mark).
+// to what, become buttons under the answer. Vahti only offers; the owner's click changes it (/api/mark).
 const ACTING = /\b(put (it |that |them )?back|revert|undo|reopen|re-?open|un-?done|not done|mark(ed)?\b.*\b(done|open)|tick(ed)? (it )?off|snooze|remind me|(move|push|shift)\b.*\btomorrow|not mine|isn'?t mine|dismiss|vrati|odzna[cč]i|ozna[cč]i|nije moj|gotovo)\b/i
 // What's on your plate for a day ("what do I have tomorrow", "am I free Friday"): the brief has the calendar and the
 // list, so that's the answer. Old messages only muddle it, their "tomorrow" was a different day.
@@ -110,8 +110,8 @@ function daysAsked(q) {
 const TO = {
   open: 'Put back on your list', done: 'Mark done', snoozed: 'Remind me tomorrow', dismissed: 'Not mine',
 }
-const STATE = { open: 'on the list', overdue: 'on the list, overdue', done: 'marked done', handled: 'ticked off by Kier', dismissed: 'marked not yours', snoozed: 'snoozed', expired: 'past' }
-const ACT = `${config.me} asked Kier to change something on ${P.his} list. Below are the tasks that may be meant, numbered, each with where it's from and its state now. Which does ${P.he} want changed, and to what: "open" (back on the list, not done), "done", "snoozed" (tomorrow) or "dismissed" (not ${P.his})? Only tasks the request clearly means, usually one; none if it's unclear. Reply with only JSON: {"actions": [{"n": 1, "to": "open"}]}`
+const STATE = { open: 'on the list', overdue: 'on the list, overdue', done: 'marked done', handled: 'ticked off by Vahti', dismissed: 'marked not yours', snoozed: 'snoozed', expired: 'past' }
+const ACT = `${config.me} asked Vahti to change something on ${P.his} list. Below are the tasks that may be meant, numbered, each with where it's from and its state now. Which does ${P.he} want changed, and to what: "open" (back on the list, not done), "done", "snoozed" (tomorrow) or "dismissed" (not ${P.his})? Only tasks the request clearly means, usually one; none if it's unclear. Reply with only JSON: {"actions": [{"n": 1, "to": "open"}]}`
 
 async function actionsFor(db, q, found, item) {
   const ids = new Set(found.map((m) => m.id))
@@ -148,19 +148,19 @@ async function local(q, history = [], about = '', on = QUIET, item = null) {
     : ''
   // For a topic question, retrieve relevant conversations as well as day summaries.
   // A bare date question can use the structured calendar and task list.
-  const plans = PLANS.test(q) && !topic(q) && !named(globalThis.kierDb, q)
+  const plans = PLANS.test(q) && !topic(q) && !named(globalThis.vahtiDb, q)
   // A follow-up ("I mean on Friday") is searched with the questions before it.
   const context = history.slice(-3).map((h) => h.q).join('\n')
   if (!about && !plans) on.status('Working out what to look for')
   const extra = about || plans ? [] : await chatWords(context ? `${context}\n${q}` : q).catch(() => [])
-  const found = about || plans ? [] : await search(globalThis.kierDb, q, { step: on.status, context, extra }).catch(() => [])
+  const found = about || plans ? [] : await search(globalThis.vahtiDb, q, { step: on.status, context, extra }).catch(() => [])
   // "Anything else?" after "what do I have on Friday?" is still about Friday.
   const days = daysAsked(q) || (history.length ? daysAsked(history.at(-1).q) : null)
   if (!about && !found.length) on.status(plans ? 'Looking at your calendar and list' : 'Reading your brief')
   let offered = []
   if (ACTING.test(q)) {
     on.status('Finding what to change')
-    offered = await actionsFor(globalThis.kierDb, q, found, item).catch(() => [])
+    offered = await actionsFor(globalThis.vahtiDb, q, found, item).catch(() => [])
   }
   // Describe the evidence and available action consistently with the button shown.
   if (offered.length) {
@@ -173,14 +173,14 @@ async function local(q, history = [], about = '', on = QUIET, item = null) {
   }
   const buttons = ''
   on.status('Thinking')
-  const vault = found.length ? `Messages found for this question, oldest first (a "tomorrow" or "this Friday" in one counts from the day it was sent):\n${said(globalThis.kierDb, found)}\n\n` : ''
+  const vault = found.length ? `Messages found for this question, oldest first (a "tomorrow" or "this Friday" in one counts from the day it was sent):\n${said(globalThis.vahtiDb, found)}\n\n` : ''
   // The days the question names, when it names any, otherwise the brief.
-  const calendar = `${days ? `${cap(P.his)} calendar and list:\n${daysText(globalThis.kierDb, ...days, { evidenceLabels: true })}` : briefEvidence(brief(globalThis.kierDb))}`
+  const calendar = `${days ? `${cap(P.his)} calendar and list:\n${daysText(globalThis.vahtiDb, ...days, { evidenceLabels: true })}` : briefEvidence(brief(globalThis.vahtiDb))}`
   const res = await modelFetch('/api/chat', {
     method: 'POST', signal: AbortSignal.timeout(120000),
     body: JSON.stringify({ model: config.model, asked: true, stream: true, think: false, keep_alive: config.chatKeepAlive, options: { temperature: 0.3, num_ctx: 8192 }, messages: [
       { role: 'system', content: `${about ? ITEM : plans ? ON_DAY : `${DAY} ${week()}`}${buttons} ${EVIDENCE_RULE}` },
-      { role: 'user', content: `${untrustedBlock({ evidence: about || (plans ? daysText(globalThis.kierDb, ...(days || [today(), today()]), { evidenceLabels: true }) : vault + calendar), history: earlier, profile: who() })}\n\nOwner question: ${q}` },
+      { role: 'user', content: `${untrustedBlock({ evidence: about || (plans ? daysText(globalThis.vahtiDb, ...(days || [today(), today()]), { evidenceLabels: true }) : vault + calendar), history: earlier, profile: who() })}\n\nOwner question: ${q}` },
     ] }),
   })
   if (!res.ok) return { error: `local model ${res.status}` }
@@ -227,15 +227,15 @@ export function events(cmd, args, onEvent, input = '', timeout = 240000) {
 }
 
 const LOOKING = 'Looking through your vault'
-// What Claude or Codex is doing with Kier's tools, for the chat's waiting line: which tool, and with what.
+// What Claude or Codex is doing with Vahti's tools, for the chat's waiting line: which tool, and with what.
 function cue(name = '', input = {}) {
-  const tool = String(name).replace(/^mcp__kier__/, '')
+  const tool = String(name).replace(/^mcp__vahti__/, '')
   try { if (typeof input === 'string') input = JSON.parse(input) } catch { input = {} }
-  if (tool === 'kier_search') return input?.query ? `Searching your vault for "${String(input.query).slice(0, 40)}"` : 'Searching your vault'
-  if (tool === 'kier_day') return input?.date ? `Looking at your day, ${new Date(`${input.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}` : 'Looking at your day'
-  if (tool === 'kier_tasks') return 'Going through your tasks'
-  if (tool === 'kier_brief') return "Reading today's brief"
-  if (tool === 'kier_item') return 'Reading a message'
+  if (tool === 'vahti_search') return input?.query ? `Searching your vault for "${String(input.query).slice(0, 40)}"` : 'Searching your vault'
+  if (tool === 'vahti_day') return input?.date ? `Looking at your day, ${new Date(`${input.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}` : 'Looking at your day'
+  if (tool === 'vahti_tasks') return 'Going through your tasks'
+  if (tool === 'vahti_brief') return "Reading today's brief"
+  if (tool === 'vahti_item') return 'Reading a message'
   return LOOKING
 }
 
@@ -259,7 +259,7 @@ export async function claude(prompt, on, runEvents = events) {
 const QUIET = { text() {}, status() {} }
 
 // `on` hears the answer as it forms: text(the answer so far) and status(what it's doing), for a reply that streams.
-// Kier on this Mac unless the owner picks Claude or Codex for this question: nothing leaves the Mac by default.
+// Vahti on this Mac unless the owner picks Claude or Codex for this question: nothing leaves the Mac by default.
 // The new name in a card's own chat: "rename this to "X"", "call it X", "change the title to X", "preimenuj ovo u X".
 const RENAME = /^\s*(?:please\s+|can you\s+|could you\s+)?(?:rename|retitle|preimenuj)(?:\s+(?:this|it|that|the card|the task|ovo|ga|to))?\s+(?:to|as|into|u)\s+(.+?)\s*$|^\s*(?:call|name)\s+(?:it|this)\s+(.+?)\s*$|^\s*change\s+(?:the|its)\s+(?:title|name)\s+to\s+(.+?)\s*$/i
 export function renameTo(q) {
@@ -268,7 +268,7 @@ export function renameTo(q) {
   return title.length >= 3 ? title : null
 }
 
-export async function ask(db, q, agent = 'kier', history = [], item = null, on = QUIET) {
+export async function ask(db, q, agent = 'vahti', history = [], item = null, on = QUIET) {
   // Fail before reading the vault, building a prompt, renaming a card or starting a process.
   if (agent === 'codex') return { agent, seconds: 0, unavailable: true, out: CODEX_UNAVAILABLE }
   // A reply to "what should I remind you about?" is the reminder itself.
@@ -287,7 +287,7 @@ export async function ask(db, q, agent = 'kier', history = [], item = null, on =
     return { agent, seconds: 0, out, created: reminder.id,
       actions: [{ id: reminder.id, status: 'dismissed', label: 'Undo', summary: reminder.title }] }
   }
-  globalThis.kierDb = readScope(db, localAuthorization())
+  globalThis.vahtiDb = readScope(db, localAuthorization())
   const t0 = Date.now()
   // Handle an explicit rename in a card’s chat directly, regardless of the selected assistant.
   const title = item && renameTo(q)

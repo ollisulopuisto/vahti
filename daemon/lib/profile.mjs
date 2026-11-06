@@ -167,7 +167,7 @@ export const due = () => { const p = profile(); return !p || now() - (p.updated 
 
 // An explicit lasting fact or correction from the owner updates the editable profile.
 // Questions, requests and conversational remarks do not.
-const LEARN = `${N} is talking to Kier, an assistant that keeps a profile of ${N}. Decide whether ${N}'s message states a lasting fact or a correction about ${N} (work, role, where ${N} lives, what ${N} no longer does) or about someone ${N} knows. A question, a request, a task or small talk is not one. If it is, rewrite the affected part of the profile with it taken in, keeping everything else as it was. Third person, no em dashes. Reply with only JSON: {"about": "the whole updated description of ${N}, or empty if it doesn't change", "person": {"name": "their name as in the profile", "text": "the whole updated line"} or null, "noted": "what you took in, at most 10 words, or empty"}`
+const LEARN = `${N} is talking to Vahti, an assistant that keeps a profile of ${N}. Decide whether ${N}'s message states a lasting fact or a correction about ${N} (work, role, where ${N} lives, what ${N} no longer does) or about someone ${N} knows. A question, a request, a task or small talk is not one. If it is, rewrite the affected part of the profile with it taken in, keeping everything else as it was. Third person, no em dashes. Reply with only JSON: {"about": "the whole updated description of ${N}, or empty if it doesn't change", "person": {"name": "their name as in the profile", "text": "the whole updated line"} or null, "noted": "what you took in, at most 10 words, or empty"}`
 
 export async function learn(q) {
   const said = String(q || '').trim()

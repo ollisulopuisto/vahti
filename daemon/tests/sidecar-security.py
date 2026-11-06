@@ -12,13 +12,13 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-os.environ.setdefault('KIER_SIDECAR_TOKEN', 'a' * 64)
+os.environ.setdefault('VAHTI_SIDECAR_TOKEN', 'a' * 64)
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'sidecar'))
 from secure_http import SecureHandler, SecureServer, MAX_BODY
 
 class UnixConnection(http.client.HTTPConnection):
     def __init__(self, path):
-        super().__init__('kier-sidecar', timeout=2)
+        super().__init__('vahti-sidecar', timeout=2)
         self.path = path
     def connect(self):
         self.sock = socket.socket(socket.AF_UNIX)
@@ -39,7 +39,7 @@ class Security(unittest.TestCase):
         return scope['Handler'], scope
     def test_actual_handlers(self):
         with tempfile.TemporaryDirectory() as folder:
-            Path(folder, '.kier-ready').touch()
+            Path(folder, '.vahti-ready').touch()
             for name, get, posts in [('llm_server.py', '/api/version', [('/api/chat', {'messages': [{}], 'stream': False}), ('/api/embed', {'input': ['fixture']})]),
                                      ('d1_server.py', '/health', [('/decide', {'messages': [{}]}), ('/ask', {'states': [{}], 'questions': {}})])]:
                 handler, scope = self.handler(name, folder)
@@ -58,11 +58,11 @@ class Security(unittest.TestCase):
                         return res.status, res.read()
                     finally:
                         conn.close()
-                auth = {'x-kier-token': 'a' * 64, 'content-type': 'application/json'}
+                auth = {'x-vahti-token': 'a' * 64, 'content-type': 'application/json'}
                 try:
                     self.assertEqual(request('GET', get)[0], 401)
                     self.assertEqual(request('GET', get, headers=auth)[0], 200)
-                    for bad in [{'host': 'example.test'}, {'origin': 'https://example.test'}, {'x-kier-token': 'wrong'}]:
+                    for bad in [{'host': 'example.test'}, {'origin': 'https://example.test'}, {'x-vahti-token': 'wrong'}]:
                         self.assertIn(request('GET', get, headers={**auth, **bad})[0], [401, 403])
                     for path, data in posts:
                         self.assertEqual(request('POST', path, json.dumps(data), auth)[0], 200)
@@ -84,8 +84,8 @@ class Security(unittest.TestCase):
 
 if __name__ == '__main__':
     if '--serve-fixture' in sys.argv:
-        with contextlib.nullcontext(os.environ['KIER_DATA_DIR']) as folder:
-            Path(folder, '.kier-ready').touch()
+        with contextlib.nullcontext(os.environ['VAHTI_DATA_DIR']) as folder:
+            Path(folder, '.vahti-ready').touch()
             servers = []
             for name, endpoint in [('llm_server.py', 'llm.sock'), ('llm_server.py', 'embed.sock'), ('d1_server.py', 'd1.sock')]:
                 handler, _ = Security().handler(name, folder)

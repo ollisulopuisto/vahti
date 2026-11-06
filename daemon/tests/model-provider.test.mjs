@@ -5,7 +5,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-model-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-model-'))
 const { validateModelConfig, testModelConnection, configureModelUsage } = await import('../lib/model-provider.mjs')
 
 // A stand-in for LM Studio or any OpenAI-compatible server, and one for Ollama, on this Mac.

@@ -1,4 +1,4 @@
-// Original Apple reminders stay open until the owner confirms in Kier or Reminders.
+// Original Apple reminders stay open until the owner confirms in Vahti or Reminders.
 // Imported messages and model verdicts remain suggestions, even with owner authorship.
 import { addItems, now } from './db.mjs'
 import { plusDays, today } from './tasks.mjs'

@@ -1,6 +1,6 @@
-// The few words Kier matches directly rather than through a model: "done", "right now", "call me", and the words that
+// The few words Vahti matches directly rather than through a model: "done", "right now", "call me", and the words that
 // carry a date. English always counts; the other languages come in with the owner's (config.languages, from System
-// Settings), so "sad" means "now" only to someone who writes Croatian. Teaching Kier a language means adding its words
+// Settings), so "sad" means "now" only to someone who writes Croatian. Teaching Vahti a language means adding its words
 // here. Pronouns live here too, so every prompt speaks of the owner the way they asked ("they" until they say).
 import { config } from './config.mjs'
 

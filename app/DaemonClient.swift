@@ -20,7 +20,7 @@ enum DaemonProof {
     return difference == 0
   }
   static func seal(_ secret: Data, body: Data) throws -> Data {
-    let key = HMAC<SHA256>.authenticationCode(for: Data("kier-request-body-v1".utf8), using: SymmetricKey(data: secret))
+    let key = HMAC<SHA256>.authenticationCode(for: Data("vahti-request-body-v1".utf8), using: SymmetricKey(data: secret))
     return try AES.GCM.seal(body, using: SymmetricKey(data: Data(key))).combined!
   }
 }
@@ -72,13 +72,13 @@ final class DaemonClient: @unchecked Sendable {
     let target = (parts.percentEncodedPath.isEmpty ? "/" : parts.percentEncodedPath) + (parts.percentEncodedQuery.map { "?" + $0 } ?? "")
     let nonce = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
     let timestamp = String(Int(Date().timeIntervalSince1970))
-    request.setValue(nil, forHTTPHeaderField: "x-kier-token")
-    request.setValue(timestamp, forHTTPHeaderField: "x-kier-time")
-    request.setValue(nonce, forHTTPHeaderField: "x-kier-nonce")
-    request.setValue(DaemonProof.request(key, method: request.httpMethod ?? "GET", target: target, timestamp: timestamp, nonce: nonce, body: body), forHTTPHeaderField: "x-kier-signature")
+    request.setValue(nil, forHTTPHeaderField: "x-vahti-token")
+    request.setValue(timestamp, forHTTPHeaderField: "x-vahti-time")
+    request.setValue(nonce, forHTTPHeaderField: "x-vahti-nonce")
+    request.setValue(DaemonProof.request(key, method: request.httpMethod ?? "GET", target: target, timestamp: timestamp, nonce: nonce, body: body), forHTTPHeaderField: "x-vahti-signature")
     let (data, response) = try await session.data(for: request)
     guard let http = response as? HTTPURLResponse,
-          DaemonProof.accepts(key, nonce: nonce, status: http.statusCode, body: data, signature: http.value(forHTTPHeaderField: "x-kier-response")) else {
+          DaemonProof.accepts(key, nonce: nonce, status: http.statusCode, body: data, signature: http.value(forHTTPHeaderField: "x-vahti-response")) else {
       throw URLError(.cannotConnectToHost)
     }
     return (data, response)

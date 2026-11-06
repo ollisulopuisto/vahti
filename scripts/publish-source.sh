@@ -1,6 +1,6 @@
 #!/bin/bash
 # The only two identity exceptions. Delete/change these here when attribution changes.
-IDENTITY_ALLOWLIST='{"license":"Copyright 2026 Mario Jankovic","repository":"mariojankovic/kier"}'
+IDENTITY_ALLOWLIST='{"license":"Copyright 2026 Mario Jankovic","repository":"ollisulopuisto/vahti"}'
 # Publish an independently checked snapshot, never the development repository history.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -34,7 +34,7 @@ if [[ -n "$PREPARED" ]]; then
   python3 scripts/release-validation.py verify "$PREPARED" "$VERSION"
   TREE="$PREPARED/source"
 else
-  STAGE="$(mktemp -d "${TMPDIR:-/tmp}/kier-public.XXXXXX")"
+  STAGE="$(mktemp -d "${TMPDIR:-/tmp}/vahti-public.XXXXXX")"
   chmod 700 "$STAGE"
   trap '[[ -z "${STAGE:-}" ]] || rm -rf "$STAGE"' EXIT
   TREE="$STAGE/source"
@@ -56,12 +56,12 @@ if $PREPARE; then
 fi
 python3 scripts/release-validation.py verify "$PREPARED" "$VERSION"
 [ ! -f scripts/local.env ] || . ./scripts/local.env
-REPO="${KIER_PUBLIC_REPO:-mariojankovic/kier}"
+REPO="${VAHTI_PUBLIC_REPO:-ollisulopuisto/vahti}"
 [[ "$REPO" != off ]] || { echo "Source publication disabled."; exit 0; }
 [[ "$REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "publish-source: expected owner/repo" >&2; exit 2; }
 # Never publish an uncommitted tracked change or reuse a version already released.
 git diff --quiet HEAD -- app daemon scripts README.md LICENSE SECURITY.md || { echo "publish-source: commit the source changes first" >&2; exit 1; }
-CACHE="$HOME/Library/Caches/kier-public"
+CACHE="$HOME/Library/Caches/vahti-public"
 if [[ ! -d "$CACHE/.git" ]]; then
   [[ ! -e "$CACHE" ]] || { echo "publish-source: cache exists without a checkout" >&2; exit 1; }
   mkdir -p "$(dirname "$CACHE")"
@@ -80,12 +80,12 @@ fi
 rsync -a --delete --exclude=.git/ "$TREE/" "$CACHE/"
 git -C "$CACHE" add --all
 # Public snapshots must not inherit the release Mac's private email or signing identity.
-GIT_AUTHOR_NAME="Kier release" GIT_AUTHOR_EMAIL="source@example.invalid" \
-GIT_COMMITTER_NAME="Kier release" GIT_COMMITTER_EMAIL="source@example.invalid" \
-  git -C "$CACHE" -c commit.gpgsign=false commit --allow-empty -m "Kier $VERSION"
+GIT_AUTHOR_NAME="Vahti release" GIT_AUTHOR_EMAIL="source@example.invalid" \
+GIT_COMMITTER_NAME="Vahti release" GIT_COMMITTER_EMAIL="source@example.invalid" \
+  git -C "$CACHE" -c commit.gpgsign=false commit --allow-empty -m "Vahti $VERSION"
 git -C "$CACHE" -c tag.gpgsign=false tag "v$VERSION"
 git -C "$CACHE" push --atomic origin HEAD "refs/tags/v$VERSION"
 python3 scripts/release-validation.py verify "$PREPARED"
-ASSETS=("$PREPARED/artifacts/Kier.dmg" "$PREPARED/artifacts/Kier-$VERSION.dmg" "$PREPARED/artifacts/appcast.xml")
-gh release create "v$VERSION" -R "$REPO" --verify-tag --title "Kier $VERSION" --notes-file "$PREPARED/artifacts/release-notes.md" "${ASSETS[@]}"
-printf 'Published Kier %s\n' "$VERSION"
+ASSETS=("$PREPARED/artifacts/Vahti.dmg" "$PREPARED/artifacts/Vahti-$VERSION.dmg" "$PREPARED/artifacts/appcast.xml")
+gh release create "v$VERSION" -R "$REPO" --verify-tag --title "Vahti $VERSION" --notes-file "$PREPARED/artifacts/release-notes.md" "${ASSETS[@]}"
+printf 'Published Vahti %s\n' "$VERSION"

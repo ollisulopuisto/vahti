@@ -4,12 +4,12 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-owner-action-'))
-after(() => rmSync(process.env.KIER_DATA_DIR, { recursive: true, force: true }))
-writeFileSync(join(process.env.KIER_DATA_DIR, 'config.json'), JSON.stringify({ me: 'Jonas', languages: ['Croatian', 'English'], runtime: 'ollama' }))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-owner-action-'))
+after(() => rmSync(process.env.VAHTI_DATA_DIR, { recursive: true, force: true }))
+writeFileSync(join(process.env.VAHTI_DATA_DIR, 'config.json'), JSON.stringify({ me: 'Jonas', languages: ['Croatian', 'English'], runtime: 'ollama' }))
 const { saveProfile } = await import('../lib/profile-state.mjs')
 saveProfile({ aliases: ['Lucija Example'], people: [], groups: [] }, 0)
-writeFileSync(join(process.env.KIER_DATA_DIR, 'handles.json'), JSON.stringify({ Discord: ['jonas_notes'] }))
+writeFileSync(join(process.env.VAHTI_DATA_DIR, 'handles.json'), JSON.stringify({ Discord: ['jonas_notes'] }))
 const { replyQuestion, actionTitle } = await import('../lib/owner-action.mjs')
 const { cards } = await import('../lib/second.mjs')
 const { open, addItems, now } = await import('../lib/db.mjs')

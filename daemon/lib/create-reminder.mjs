@@ -1,4 +1,4 @@
-// Only a direct request to Kier can create an owner-authored task. Retrieved text
+// Only a direct request to Vahti can create an owner-authored task. Retrieved text
 // and model output never enter this path.
 import { randomUUID } from 'node:crypto'
 import { addItems, now } from './db.mjs'
@@ -76,8 +76,8 @@ export function reminderRequest(question, at = now()) {
 }
 
 export function createReminder(db, request, at = now()) {
-  const id = `kier:${randomUUID()}`
-  const added = addItems(db, [{ id, source: 'kier', thread: 'Reminders', sender: config.me,
+  const id = `vahti:${randomUUID()}`
+  const added = addItems(db, [{ id, source: 'vahti', thread: 'Reminders', sender: config.me,
     fromMe: true, ts: at, text: request.title, meta: { ownerCreated: true } }])
   if (!added) return null
   // Use the stored, redacted title for every derived field and confirmation.
@@ -87,7 +87,7 @@ export function createReminder(db, request, at = now()) {
   return { id, title, due: request.due, when: request.when }
 }
 
-// Asking Kier to remember something without the instant phrasings above ("can you create a reminder", "new task:
+// Asking Vahti to remember something without the instant phrasings above ("can you create a reminder", "new task:
 // dentist Monday", "don't let me forget the rent", "napravi podsjetnik"). Only the owner's own message reaches this.
 export const ASK_DETAILS = 'Sure. What should I remind you about, and when?'
 const INTENT = /\b(remind|reminder|reminders|to-?do|task|forget|forgot|podsjet\p{L}*|zadat\p{L}*|zaborav\p{L}*|zapamti)\b/iu
@@ -99,7 +99,7 @@ Reply with JSON only: {"create": true or false, "title": "", "when": ""}.
 title: a short task title in the user's language, starting with a verb (Croatian: the infinitive, e.g. "Platiti Filipu"), without the date; empty if the user gave no task.
 when: the date or time words exactly as the user wrote them (e.g. "tomorrow", "on Friday", "u petak"), or empty.`
 
-// The model only extracts; Kier still decides the date itself and builds the card.
+// The model only extracts; Vahti still decides the date itself and builds the card.
 export async function modelReminder(q, fetchModel, model, at = now()) {
   const res = await fetchModel('/api/chat', {
     method: 'POST', signal: AbortSignal.timeout(20000),

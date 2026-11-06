@@ -71,11 +71,11 @@ async function readPlans() {
   }
 }
 
-// Kier 0.3.4 set up a browser extension's helper in every Chromium browser and copied the extension into the vault;
-// the extension is shelved (branch chrome-extension) and Kier stays all local, so whatever 0.3.4 left goes again.
+// Vahti 0.3.4 set up a browser extension's helper in every Chromium browser and copied the extension into the vault;
+// the extension is shelved (branch chrome-extension) and Vahti stays all local, so whatever 0.3.4 left goes again.
 function removeExtension() {
   const support = resolve(home, 'Library/Application Support')
-  for (const [, dir] of CHROMIUM) rmSync(resolve(support, dir, 'NativeMessagingHosts/com.getkier.kier.json'), { force: true })
+  for (const [, dir] of CHROMIUM) rmSync(resolve(support, dir, 'NativeMessagingHosts/to.sulopuis.vahti.json'), { force: true })
   for (const left of ['extension', 'native-host', 'extension-seen', 'inbox']) rmSync(resolve(dataDir, left), { recursive: true, force: true })
 }
 
@@ -95,8 +95,8 @@ function writeBrief(send) {
   // A fortnight of them, no more: they quote the chats.
   const keep = new Date(Date.now() - 14 * 86400_000).toISOString().slice(0, 10)
   for (const f of readdirSync(dir)) if (f.slice(0, 10) < keep) rmSync(resolve(dir, f), { force: true })
-  // Under Kier.app the island shows it (tasks.mjs moments); on its own, the daemon still sends a notification.
-  if (send && process.env.KIER_APP) moments.brief = briefMoment(brief(db))
+  // Under Vahti.app the island shows it (tasks.mjs moments); on its own, the daemon still sends a notification.
+  if (send && process.env.VAHTI_APP) moments.brief = briefMoment(brief(db))
   else if (send) notify(text)
   return text
 }
@@ -109,10 +109,10 @@ async function run() {
   excludeReminderNotices(db)
   // Set the forward-only callback boundary before backfill or the brief becomes visible.
   syncCallbacks(db)
-  // Started by Kier.app: when macOS quits the app (as it does after a permission change) this process is left
+  // Started by Vahti.app: when macOS quits the app (as it does after a permission change) this process is left
   // behind holding the port, and every new start fails. It goes with the app.
-  if (process.env.KIER_APP) setInterval(() => { if (process.ppid === 1) process.exit(0) }, 5000).unref()
-  if (process.env.KIER_NATIVE_VAULT === '1') await initializeGmail().catch(() => console.log(stamp(), 'Gmail native storage unavailable'))
+  if (process.env.VAHTI_APP) setInterval(() => { if (process.ppid === 1) process.exit(0) }, 5000).unref()
+  if (process.env.VAHTI_NATIVE_VAULT === '1') await initializeGmail().catch(() => console.log(stamp(), 'Gmail native storage unavailable'))
   dropCopies()
   removeExtension()
   startRuntime((line) => console.log(stamp(), line))
@@ -227,7 +227,7 @@ async function run() {
   }
 }
 
-// What double-clicking Kier.app does: make sure the agent runs, then show setup until it's finished.
+// What double-clicking Vahti.app does: make sure the agent runs, then show setup until it's finished.
 async function openApp() {
   if (!loaded()) install()
   // Read the owner's secret locally; a fresh nonce proves the listener before any browser launch.
@@ -239,8 +239,8 @@ async function openApp() {
   }
   if (!ready) throw Error('DAEMON_UNAVAILABLE')
   const todo = (await steps(db)).some((s) => s.status === 'todo' && s.action)
-  // Inside Kier.app the page opens in Kier's own window; from a terminal, in the browser.
-  if (process.env.KIER_APP) console.log(todo ? '/setup' : '/')
+  // Inside Vahti.app the page opens in Vahti's own window; from a terminal, in the browser.
+  if (process.env.VAHTI_APP) console.log(todo ? '/setup' : '/')
   else {
     const response = await signedFetch(token(), `${url}/api/browser-ticket`, { method: 'POST' })
     if (!response.ok) throw Error('BROWSER_BOOTSTRAP_FAILED')
@@ -249,8 +249,8 @@ async function openApp() {
   }
 }
 
-// Counts and table structure only, never message text. Run it as the app (`open -a Kier --args diag`)
-// so it has Kier's Full Disk Access; the report lands in diag.json.
+// Counts and table structure only, never message text. Run it as the app (`open -a Vahti --args diag`)
+// so it has Vahti's Full Disk Access; the report lands in diag.json.
 async function diag() {
   const { snapshot } = await import('../collectors/util.mjs')
   const { home } = await import('../lib/config.mjs')
@@ -323,8 +323,8 @@ const commands = {
     for (const r of db.prepare("select name, kind, printf('%.2f', confidence) p, route, electron from apps where route != 'usage' or kind is null order by route, name").all()) console.log(`${r.route?.padEnd(22) ?? 'unclassified'.padEnd(22)} ${(r.kind || '?').padEnd(10)} ${r.p}  ${r.name}${r.electron ? ' (Electron)' : ''}`)
   },
   open: openApp,
-  install: () => { install(); console.log(`Kier runs at login. Log: ${logPath}\nFinish setup at ${url}/setup`) },
-  uninstall: () => { uninstall(); console.log('Kier no longer runs at login.') },
+  install: () => { install(); console.log(`Vahti runs at login. Log: ${logPath}\nFinish setup at ${url}/setup`) },
+  uninstall: () => { uninstall(); console.log('Vahti no longer runs at login.') },
   collect: async () => {
     const only = args.find((a) => a.startsWith('--only='))?.slice(7).split(',')
     const report = await collectAll(db, only)
@@ -332,14 +332,14 @@ const commands = {
   },
   tag: async () => console.log(await tagPending(db, { limit: Number(args[0]) || 25 })),
   brief: () => console.log(writeBrief(args.includes('--notify'))),
-  // Abandoned audio from a daemon that died abruptly is swept however Kier starts.
+  // Abandoned audio from a daemon that died abruptly is swept however Vahti starts.
   serve: async () => { sweepSpeechFiles().catch(() => {}); await serve(db, { install }); console.log(url) },
   run,
   status: () => {
     for (const r of db.prepare('select * from runs order by source').all()) console.log(r.source.padEnd(10), r.ok ? `ok, +${r.added}` : r.error)
     console.log(db.prepare('select source, count(*) n from items group by source').all())
   },
-  help: () => console.log('kier open | run | install | uninstall | collect | tag [n] | brief [--notify] | serve | status'),
+  help: () => console.log('vahti open | run | install | uninstall | collect | tag [n] | brief [--notify] | serve | status'),
 }
 try { await (commands[cmd] || commands.help)() } catch {
   console.error(JSON.stringify(errorRecord('BACKGROUND_FAILED')))

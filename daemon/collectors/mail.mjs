@@ -32,7 +32,7 @@ export function mailStores(base = home) {
 
 export function mailSetup(stores = mailStores(), disabled = isOff(source)) {
   const clients = stores.map(s => s.client === 'apple-mail' ? 'Apple Mail' : 'Spark')
-  return { found: clients.length > 0, enabled: clients.length > 0 && !disabled, detail: disabled ? 'Mail is off in What Kier reads.' : clients.length
+  return { found: clients.length > 0, enabled: clients.length > 0 && !disabled, detail: disabled ? 'Mail is off in What Vahti reads.' : clients.length
     ? `Reads personal mail locally from ${clients.join(' and ')}. Bulk mail and attachments stay out.`
     : 'No local Apple Mail or Spark store found. Open either app and let it download your mail.' }
 }

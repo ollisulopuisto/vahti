@@ -13,8 +13,8 @@ child.spawn = (...args) => { launches.push(args); return { unref() {}, on() {} }
 syncBuiltinESMExports()
 after(() => { child.spawn = originalSpawn; syncBuiltinESMExports() })
 
-const dir = mkdtempSync(join(tmpdir(), 'kier-handoff-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-handoff-'))
+process.env.VAHTI_DATA_DIR = dir
 writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam', workRoots: [], online: false }))
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { handoff, approveBrief, quotedMessages, start } = await import('../lib/handoff.mjs')

@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 // Search from anywhere with ⌥⌘Space. Results arrive from words and semantic search, then from
-// the interpreted query (daemon/lib/find.mjs). Return opens a result; ⌘Return asks Kier.
+// the interpreted query (daemon/lib/find.mjs). Return opens a result; ⌘Return asks Vahti.
 struct FindResult: Decodable, Identifiable, Hashable {
   struct Open: Decodable, Hashable {
     let card: String?
@@ -119,8 +119,8 @@ struct FindView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       HStack(spacing: 12) {
-        KierMark(working: model.reading).frame(width: 22, height: 22)
-        TextField("Find anything, or ask Kier", text: $model.query)
+        VahtiMark(working: model.reading).frame(width: 22, height: 22)
+        TextField("Find anything, or ask Vahti", text: $model.query)
           .textFieldStyle(.plain)
           .font(.system(size: 21))
           .focused($focused)
@@ -157,12 +157,12 @@ struct FindView: View {
           .fixedSize(horizontal: false, vertical: true)
           .onChange(of: model.selected) { withAnimation(.easeOut(duration: 0.12)) { scroll.scrollTo(model.selected) } }
         }
-        // What Kier made of the request sits with the hints, in a row that's already there, so nothing moves when it comes.
+        // What Vahti made of the request sits with the hints, in a row that's already there, so nothing moves when it comes.
         HStack(spacing: 16) {
           Text(model.understood ?? "").font(.caption2).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.tail)
           Spacer(minLength: 0)
           hint("↩", "Open")
-          hint("⌘↩", "Ask Kier")
+          hint("⌘↩", "Ask Vahti")
           hint("esc", "Close")
         }
         .padding(.horizontal, 18)
@@ -196,7 +196,7 @@ struct FindView: View {
         .foregroundStyle(.secondary)
         .frame(width: 22)
       VStack(alignment: .leading, spacing: 2) {
-        Text(r.title).font(.system(size: 14)).foregroundStyle(Kier.bright).lineLimit(1)
+        Text(r.title).font(.system(size: 14)).foregroundStyle(Vahti.bright).lineLimit(1)
         Text(r.detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
       }
       Spacer(minLength: 0)

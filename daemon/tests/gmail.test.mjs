@@ -4,8 +4,8 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-const dir = mkdtempSync(join(tmpdir(), 'kier-gmail-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-gmail-'))
+process.env.VAHTI_DATA_DIR = dir
 writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam', languages: ['English'], workRoots: [] }))
 after(() => rmSync(dir, { recursive: true, force: true }))
 const { googleFetch, googleURL, accessToken, initializeGmail, disconnectGmail, connectGmail, gmailStep } = await import('../lib/google.mjs')

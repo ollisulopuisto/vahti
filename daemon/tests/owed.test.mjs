@@ -4,12 +4,12 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-owed-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-owed-'))
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { owed, tasks } = await import('../lib/tasks.mjs')
 
 const t = now()
-const db = open(join(process.env.KIER_DATA_DIR, 'kier.db'))
+const db = open(join(process.env.VAHTI_DATA_DIR, 'vahti.db'))
 const msg = (id, source, thread, sender, fromMe, ago, text, meta) => ({ id, source, thread, sender, fromMe, ts: t - ago, text, meta })
 addItems(db, [
   msg('w1', 'whatsapp', 'Nika', 'Sam', true, 3 * 3600, 'sutra ti saljem nacrt brodica'),

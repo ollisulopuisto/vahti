@@ -59,7 +59,7 @@ export async function whereItGoes(db, item, auth = localAuthorization()) {
   const found = homes(db, item.summary, item.ts, auth)
   if (!found) return ''
   const pages = found.pages.slice(0, 3).map((p) => `${p.url} (opened ${p.n} time${p.n === 1 ? '' : 's'}, last ${day(new Date(p.last * 1000))})`)
-  // Opening the pages is an online helper; with helpers off, Kier only says where it would look.
+  // Opening the pages is an online helper; with helpers off, Vahti only says where it would look.
   if (!config.online) return `Where "${found.phrase}" usually goes, from ${config.me}'s browsing:\n${pages.map((p) => `- ${p}`).join('\n')}\n\nNot checked: online helpers are off.`
   const checked = await Promise.all(found.pages.slice(0, 2).map((p) => look(p.url, item.ts).catch((e) => `${p.url}: couldn't load (${e.name})`)))
   return `Where "${found.phrase}" usually goes, from ${config.me}'s browsing:\n${pages.map((p) => `- ${p}`).join('\n')}\n\nChecked just now:\n${checked.join('\n')}`

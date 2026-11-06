@@ -14,7 +14,7 @@ export function authoredText(row) {
   return meta.bodyKind === 'plain' && typeof meta.body === 'string' ? newlyWritten(meta.body) : ''
 }
 
-// Only simple, completed first-person assertions can settle a Kier card. This
+// Only simple, completed first-person assertions can settle a Vahti card. This
 // parser grants no native reminder authority, regardless of the model verdict.
 const normalized = text => String(text || '').normalize('NFD').replace(/\p{M}/gu, '').replace(/[’‘]/g, "'").toLowerCase()
 const PAY = /\b(?:pay|payment|paid|platiti|plati|platio|platila|uplati|uplatio|uplatila|placanje)\b/

@@ -1,13 +1,13 @@
 #!/bin/bash
 # Validate a frozen source and artifact snapshot before any release upload.
-# Set KIER_RELEASES_REPO on the release machine. Bump both bundle versions first.
+# Set VAHTI_RELEASES_REPO on the release machine. Bump both bundle versions first.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # Optional settings on the release machine; never part of the public export.
 [ ! -f scripts/local.env ] || . ./scripts/local.env
-REPO="${KIER_RELEASES_REPO:?Set KIER_RELEASES_REPO in the environment or scripts/local.env}"
-# Updates download from the public repository, which carries every release; the releases repository only serves older copies of Kier.
-DOWNLOADS="${KIER_PUBLIC_REPO:-off}"
+REPO="${VAHTI_RELEASES_REPO:?Set VAHTI_RELEASES_REPO in the environment or scripts/local.env}"
+# Updates download from the public repository, which carries every release; the releases repository only serves older copies of Vahti.
+DOWNLOADS="${VAHTI_PUBLIC_REPO:-off}"
 [[ "$DOWNLOADS" != off ]] || DOWNLOADS="$REPO"
 # Check source before parsers or packaging tools can quote a rejected input in an error.
 scripts/publish-source.sh --check-source
@@ -19,41 +19,41 @@ case "${1:-}" in
   "") scripts/package-app.sh --release ;;
   *) echo "release-app: unknown option" >&2; exit 2 ;;
 esac
-[[ -f dist/Kier.dmg ]] || { echo "release-app: missing package" >&2; exit 1; }
+[[ -f dist/Vahti.dmg ]] || { echo "release-app: missing package" >&2; exit 1; }
 # Only a notarized, stapled build that Gatekeeper accepts may be uploaded, however it was built.
 if ! $VALIDATE_ONLY; then
-  for item in dist/Kier.app dist/Kier.dmg; do
+  for item in dist/Vahti.app dist/Vahti.dmg; do
     xcrun stapler validate "$item" >/dev/null 2>&1 || { echo "release-app: $item is not notarized and stapled" >&2; exit 1; }
   done
-  spctl --assess --type open --context context:primary-signature dist/Kier.dmg >/dev/null 2>&1 || { echo "release-app: Gatekeeper rejects Kier.dmg" >&2; exit 1; }
+  spctl --assess --type open --context context:primary-signature dist/Vahti.dmg >/dev/null 2>&1 || { echo "release-app: Gatekeeper rejects Vahti.dmg" >&2; exit 1; }
 fi
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' app/Info.plist)"
 MIN_OS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' app/Info.plist)"
 # What's new, from app/changelog.json (the same notes the app and getkier.com/changelog show).
 CHANGES="$(node -e "const r = require('./app/changelog.json').find((x) => x.version === process.argv[1]); if (r) console.log([r.title, '', ...r.notes.map(n => '- ' + n)].join('\n'))" "$VERSION")"
-NOTES="${KIER_RELEASE_NOTES:-${CHANGES:-Kier $VERSION for Mac (Apple Silicon, macOS $MIN_OS or later).}}"
+NOTES="${VAHTI_RELEASE_NOTES:-${CHANGES:-Vahti $VERSION for Mac (Apple Silicon, macOS $MIN_OS or later).}}"
 
 # Keep the update offer brief; the full notes live in the app and on the release page.
 SUMMARY="$(node -e "const r = require('./app/changelog.json').find((x) => x.version === process.argv[1]); if (r) console.log(r.summary || r.title)" "$VERSION")"
 
-# The appcast Kier's updater reads (app/Updater.swift), from releases/latest/download/appcast.xml, so each release
+# The appcast Vahti's updater reads (app/Updater.swift), from releases/latest/download/appcast.xml, so each release
 # carries its own: this version, its DMG and the DMG's EdDSA signature. The signing key is in this Mac's login keychain,
-# under KIER_SPARKLE_ACCOUNT (Sparkle generate_keys); without it no update can be published.
-SIGNATURE="$("$(scripts/sparkle.sh)/bin/sign_update" --account "${KIER_SPARKLE_ACCOUNT:-kier-sparkle}" "dist/Kier-$VERSION.dmg" 2>/dev/null)" || { echo "release-app: no Sparkle signing key for the configured account" >&2; exit 1; }
+# under VAHTI_SPARKLE_ACCOUNT (Sparkle generate_keys); without it no update can be published.
+SIGNATURE="$("$(scripts/sparkle.sh)/bin/sign_update" --account "${VAHTI_SPARKLE_ACCOUNT:-vahti-sparkle}" "dist/Vahti-$VERSION.dmg" 2>/dev/null)" || { echo "release-app: no Sparkle signing key for the configured account" >&2; exit 1; }
 xml() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
 cat > dist/appcast.xml <<XML
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
-    <title>Kier</title>
+    <title>Vahti</title>
     <item>
-      <title>Kier $VERSION</title>
+      <title>Vahti $VERSION</title>
       <pubDate>$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')</pubDate>
       <sparkle:version>$BUILD</sparkle:version>
       <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>$MIN_OS</sparkle:minimumSystemVersion>
       <description>&lt;p&gt;$(printf '%s' "$SUMMARY" | xml | xml)&lt;/p&gt;</description>
-      <enclosure url="https://github.com/$DOWNLOADS/releases/download/v$VERSION/Kier-$VERSION.dmg" $SIGNATURE type="application/octet-stream"/>
+      <enclosure url="https://github.com/$DOWNLOADS/releases/download/v$VERSION/Vahti-$VERSION.dmg" $SIGNATURE type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
@@ -74,9 +74,9 @@ python3 scripts/release-validation.py verify "$PREPARED" "$VERSION"
 if gh release view "v$VERSION" -R "$REPO" >/dev/null 2>&1; then
   echo "release-app: version already released" >&2; exit 1
 fi
-ASSETS=("$PREPARED/artifacts/Kier.dmg" "$PREPARED/artifacts/Kier-$VERSION.dmg" "$PREPARED/artifacts/appcast.xml")
-gh release create "v$VERSION" -R "$REPO" --title "Kier $VERSION" --notes-file "$PREPARED/artifacts/release-notes.md" "${ASSETS[@]}"
+ASSETS=("$PREPARED/artifacts/Vahti.dmg" "$PREPARED/artifacts/Vahti-$VERSION.dmg" "$PREPARED/artifacts/appcast.xml")
+gh release create "v$VERSION" -R "$REPO" --title "Vahti $VERSION" --notes-file "$PREPARED/artifacts/release-notes.md" "${ASSETS[@]}"
 # Both destinations use the exact same snapshot and the same explicit artifact list.
-if [[ "${KIER_PUBLIC_REPO:-}" != off ]]; then
+if [[ "${VAHTI_PUBLIC_REPO:-}" != off ]]; then
   scripts/publish-source.sh "$VERSION" --validated "$PREPARED"
 fi
