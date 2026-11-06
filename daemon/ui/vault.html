@@ -63,7 +63,7 @@
   </ul>
 
   <h2>Forget one thing</h2>
-  <input type="search" id="q" placeholder="Find a message, page, copy or file">
+  <input type="search" id="q" placeholder="Find a message, page, copy or file" aria-label="Search your vault">
   <section id="found"></section>
 
   <h2>Who read your vault</h2>
@@ -104,7 +104,7 @@ async function load() {
       <span class="count">${s.n.toLocaleString()} kept, ${s.recent.toLocaleString()} in the last 30 days, newest ${when(s.newest)}</span></div>
     <p class="keeps">${KEEPS[s.source] || ''}</p>
     <div class="threads">${(v.threads[s.source] || []).map((t) => `<span class="thread">${esc(t.thread)}<span>${t.n}</span>
-      <button class="forget" data-source="${esc(s.source)}" data-thread="${esc(t.thread)}" title="Forget ${esc(t.thread)} and stop keeping it">×</button></span>`).join('')}</div></div>`).join('')
+      <button class="forget" data-source="${esc(s.source)}" data-thread="${esc(t.thread)}" aria-label="Forget this thread" title="Forget ${esc(t.thread)} and stop keeping it">×</button></span>`).join('')}</div></div>`).join('')
   $('#forgotten').textContent = v.forgotten ? `Things you forgot here: ${v.forgotten}. Vahti keeps only a one-way fingerprint of each, so even this page can't say what they were.` : 'Things you forget here. Vahti keeps only a one-way fingerprint, so even this page can\'t say what they were.'
   $('#reads').innerHTML = v.reads.recent.length
     ? `<div class="empty">${v.reads.week} reads in the last 7 days.</div>` + v.reads.recent.map((r) => `<div class="row"><span class="time">${when(r.ts)}</span><div class="what">

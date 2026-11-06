@@ -1,0 +1,5 @@
+## 2026-11-07 - Unlabeled search inputs and destructive symbol buttons
+
+**Learning:** The two `#q` search inputs (timeline index.html and vault.html) relied on placeholder text only, so screen reader users tabbing to them heard nothing meaningful. The vault's destructive "×" forget buttons used a bare symbol character with only a `title` attribute, which screen readers announce inconsistently (often as "multiplication sign" rather than "forget").
+
+**Action:** Added `aria-label` to both search inputs ("Search everything" / "Search your vault") and to the "×" forget buttons ("Forget this thread"), keeping the visible `title` as a secondary tooltip. Visual output is unchanged (aria-label is invisible); verified via DOM markup diff since the built-in browser cannot open file:// URLs or the local daemon server these pages depend on. All 746 existing tests pass (8 pre-existing unrelated failures). Keep aria-label changes small and paired with visible text where a button already has one; don't rely on title alone for interactive controls.
