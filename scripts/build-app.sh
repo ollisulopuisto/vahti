@@ -25,10 +25,15 @@ FW="$APP/Contents/Frameworks/Sparkle.framework"
 ditto "$SPARKLE/Sparkle.framework" "$FW"
 rm -rf "$FW/XPCServices" "$FW/Versions/B/XPCServices"
 # The companion orb is a Metal shader; SwiftUI loads it from the app's default.metallib. METAL and METALLIB can name
-# another compiler when Xcode's own Metal toolchain isn't installed.
-SHADERS="$(mktemp -d)"
-xcrun -sdk macosx "${METAL:-metal}" -c app/orb.metal -o "$SHADERS/orb.air"
-xcrun -sdk macosx "${METALLIB:-metallib}" "$SHADERS/orb.air" -o "$APP/Contents/Resources/default.metallib"
+# another compiler when Xcode's own Metal toolchain isn't installed. If metal CLI is absent, fall back to bundling orb.metal.
+if xcrun -sdk macosx -f "${METAL:-metal}" >/dev/null 2>&1; then
+  SHADERS="$(mktemp -d)"
+  xcrun -sdk macosx "${METAL:-metal}" -c app/orb.metal -o "$SHADERS/orb.air"
+  xcrun -sdk macosx "${METALLIB:-metallib}" "$SHADERS/orb.air" -o "$APP/Contents/Resources/default.metallib"
+else
+  echo "metal compiler utility not found; bundling app/orb.metal for runtime compilation"
+  cp app/orb.metal "$APP/Contents/Resources/orb.metal"
+fi
 # High-resolution orb artwork, loaded once with mipmaps.
 cp app/icon/orb-hd.png "$APP/Contents/Resources/orb.png"
 # Brand marks for where things came from (Design.swift, Brand).

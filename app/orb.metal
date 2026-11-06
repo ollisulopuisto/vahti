@@ -1,7 +1,6 @@
 // Sol's Sealed Sun artwork, sampled from orb.png, with the island's live light and attention effects.
 // The sky, sea and outline stay procedural; the ball and its embossed star come from the original image.
 #include <metal_stdlib>
-#include <SwiftUI/SwiftUI_Metal.h>
 using namespace metal;
 
 // Vahti's world: a pastel sky over a calm sea, the backdrop of its island and what its chrome reflects, so the glass

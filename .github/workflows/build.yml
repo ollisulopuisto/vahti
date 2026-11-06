@@ -1,0 +1,121 @@
+name: Build & Package Vahti
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      notarize:
+        description: 'Notarize with Apple (requires secrets)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    name: Build macOS App & DMG
+    runs-on: macos-14
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install daemon dependencies
+        run: |
+          npm --prefix daemon ci
+
+      - name: Run daemon tests
+        run: |
+          npm --prefix daemon test
+
+      - name: Set up Apple Code Signing & Notarization
+        id: certs
+        env:
+          BUILD_CERT_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 || secrets.APPLE_CERTIFICATE_BASE64 || secrets.APPLE_CERTIFICATE_P12 }}
+          P12_PWD: ${{ secrets.P12_PASSWORD || secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || 'LWSR8T5392' }}
+        run: |
+          if [ -n "$BUILD_CERT_BASE64" ] && [ -n "$P12_PWD" ]; then
+            echo "Configuring Apple Developer ID Certificate..."
+            KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+            KEYCHAIN_PWD=$(openssl rand -base64 32)
+            CERT_PATH=$RUNNER_TEMP/developer_id.p12
+
+            echo "$BUILD_CERT_BASE64" | base64 --decode > "$CERT_PATH"
+
+            security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+            security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+
+            security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$P12_PWD" -T /usr/bin/codesign -T /usr/bin/security
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+
+            security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+            security default-keychain -s "$KEYCHAIN_PATH"
+            echo "has_cert=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No signing certificate secret found; build will use ad-hoc / local signing."
+            echo "has_cert=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_PASSWORD" ]; then
+            echo "Configuring Apple ID for Notarization..."
+            xcrun notarytool store-credentials "vahti" \
+              --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_PASSWORD"
+            echo "has_notary=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No notarytool secrets found."
+            echo "has_notary=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and Package App
+        run: |
+          SHOULD_NOTARIZE="${{ github.event.inputs.notarize || (steps.certs.outputs.has_notary == 'true' && startsWith(github.ref, 'refs/tags/v')) }}"
+          if [ "$SHOULD_NOTARIZE" = "true" ] && [ "${{ steps.certs.outputs.has_cert }}" = "true" ]; then
+            echo "==> Building Release Package (Notarized)..."
+            scripts/package-app.sh --release
+          else
+            echo "==> Building Package (Self-contained, non-notarized test build)..."
+            scripts/package-app.sh
+          fi
+
+      - name: Upload DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vahti-macOS
+          path: |
+            dist/Vahti.dmg
+            dist/Vahti-*.dmg
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/Vahti-*.dmg
+            dist/Vahti.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

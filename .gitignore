@@ -1,1 +1,6 @@
 __pycache__/
+dist/
+scripts/local.env
+.DS_Store
+*.swp
+

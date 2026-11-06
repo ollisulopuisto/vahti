@@ -100,8 +100,13 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
   private var rate: Float = 0
 
   init?(size: CGSize) {
-    guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue(),
-          let library = device.makeDefaultLibrary(),
+    guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else { return nil }
+    let library: MTLLibrary? = device.makeDefaultLibrary() ?? {
+      guard let url = Bundle.main.url(forResource: "orb", withExtension: "metal"),
+            let src = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+      return try? device.makeLibrary(source: src, options: nil)
+    }()
+    guard let library,
           let url = Bundle.main.url(forResource: "orb", withExtension: "png"),
           let artwork = try? IslandArtwork.load(device: device, url: url) else { return nil }
     let d = MTLRenderPipelineDescriptor()

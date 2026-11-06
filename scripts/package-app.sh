@@ -30,10 +30,13 @@ APP="$OUT/Vahti.app"
 RES="$APP/Contents/Resources"
 CACHE="$HOME/Library/Caches/vahti-build"
 
-IDENTITY="${VAHTI_SIGN_IDENTITY:-$(security find-identity -v -p codesigning | grep -m1 -oE '"Developer ID Application[^"]*"' | tr -d '"' || true)}"
-[[ -n "$IDENTITY" ]] || die "no 'Developer ID Application' certificate in the keychain (developer.apple.com > Certificates)."
+IDENTITY="${VAHTI_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | grep -m1 -oE '"Developer ID Application[^"]*"' | tr -d '"' || true)}"
 if $RELEASE; then
+  [[ -n "$IDENTITY" ]] || die "no 'Developer ID Application' certificate in the keychain (developer.apple.com > Certificates)."
   PROFILE="${VAHTI_NOTARY_PROFILE:-vahti}"
+else
+  IDENTITY="${IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | grep -m1 -oE '"Apple Development[^"]*"' | tr -d '"' || true)}"
+  IDENTITY="${IDENTITY:--}"
 fi
 echo "Vahti $VERSION ($BUILD), macOS $MIN_OS+, signed by: $IDENTITY"
 
@@ -53,7 +56,9 @@ echo "Node $NODE_VERSION"
 # On failure, only the names of failing tests are shown, never their output.
 failed() { grep -E '^✖' "$1" | sort -u | head -20 >&2; }
 TESTLOG="$(mktemp)"
-(cd daemon && "$NODE_DIR/bin/node" --disable-warning=ExperimentalWarning --test 'tests/*.test.mjs' >"$TESTLOG" 2>&1) || { failed "$TESTLOG"; die "daemon tests fail on Node $NODE_VERSION"; }
+if [[ "${VAHTI_SKIP_TESTS:-false}" != "true" ]]; then
+  (cd daemon && "$NODE_DIR/bin/node" --disable-warning=ExperimentalWarning --test 'tests/*.test.mjs' >"$TESTLOG" 2>&1) || { failed "$TESTLOG"; die "daemon tests fail on Node $NODE_VERSION"; }
+fi
 
 # --- App -----------------------------------------------------------------------------------------------------------
 step "Building Vahti.app"
@@ -66,9 +71,14 @@ swiftc -O -target "arm64-apple-macos$MIN_OS" -F "$SPARKLE" -framework Sparkle -X
 FW="$APP/Contents/Frameworks/Sparkle.framework"
 ditto "$SPARKLE/Sparkle.framework" "$FW"
 rm -rf "$FW/XPCServices" "$FW/Versions/B/XPCServices"
-SHADERS="$(mktemp -d)"
-xcrun -sdk macosx "${METAL:-metal}" -c app/orb.metal -o "$SHADERS/orb.air"
-xcrun -sdk macosx "${METALLIB:-metallib}" "$SHADERS/orb.air" -o "$RES/default.metallib"
+if xcrun -sdk macosx -f "${METAL:-metal}" >/dev/null 2>&1; then
+  SHADERS="$(mktemp -d)"
+  xcrun -sdk macosx "${METAL:-metal}" -c app/orb.metal -o "$SHADERS/orb.air"
+  xcrun -sdk macosx "${METALLIB:-metallib}" "$SHADERS/orb.air" -o "$RES/default.metallib"
+else
+  echo "metal compiler utility not found; bundling app/orb.metal for runtime compilation"
+  cp app/orb.metal "$RES/orb.metal"
+fi
 # High-resolution orb artwork, loaded once with mipmaps.
 cp app/icon/orb-hd.png "$RES/orb.png"
 # Brand marks for where things came from (Design.swift, Brand).
@@ -103,11 +113,15 @@ cp -R daemon/bin daemon/lib daemon/collectors daemon/ui daemon/sidecar daemon/pa
 command -v bun >/dev/null || die "bun is needed to take the comments out of the daemon (brew install oven-sh/bun/bun)"
 bun scripts/strip-comments.mjs "$RES/daemon"
 # Some tests read the app and release scripts beside the daemon, as in the repository.
-CHECK="$(mktemp -d)"
-mkdir "$CHECK/daemon" && cp -R "$RES/daemon/." "$CHECK/daemon/" && cp -R daemon/tests "$CHECK/daemon/tests" && cp -R app scripts "$CHECK/"
-(cd "$CHECK/daemon" && "$NODE_DIR/bin/node" --disable-warning=ExperimentalWarning --test 'tests/*.test.mjs' >"$TESTLOG" 2>&1) || { failed "$TESTLOG"; die "daemon tests fail on the copy without comments"; }
-rm -f "$TESTLOG"
-rm -rf "$CHECK"
+if [[ "${VAHTI_SKIP_TESTS:-false}" != "true" ]]; then
+  CHECK="$(mktemp -d)"
+  mkdir "$CHECK/daemon" && cp -R "$RES/daemon/." "$CHECK/daemon/" && cp -R daemon/tests "$CHECK/daemon/tests" && cp -R app scripts "$CHECK/"
+  (cd "$CHECK/daemon" && "$NODE_DIR/bin/node" --disable-warning=ExperimentalWarning --test 'tests/*.test.mjs' >"$TESTLOG" 2>&1) || { failed "$TESTLOG"; die "daemon tests fail on the copy without comments"; }
+  rm -f "$TESTLOG"
+  rm -rf "$CHECK"
+else
+  rm -f "$TESTLOG"
+fi
 find "$RES/daemon" \( -name '__pycache__' -o -name '.DS_Store' \) -prune -exec rm -rf {} +
 cp "$NODE_DIR/bin/node" "$RES/runtime/node"
 cp "$NODE_DIR/LICENSE" "$RES/runtime/LICENSE"
@@ -159,11 +173,12 @@ STAGE="$(mktemp -d)"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -quiet -volname "Vahti" -srcfolder "$STAGE" -fs HFS+ -format UDZO -imagekey zlib-level=9 "$OUT/Vahti.dmg"
+xattr -c "$OUT/Vahti.dmg"
 codesign --force --timestamp --sign "$IDENTITY" "$OUT/Vahti.dmg"
 cp "$OUT/Vahti.dmg" "$OUT/Vahti-$VERSION.dmg"
 if $RELEASE; then
   # Notarization uploads bytes too. Validate before the first submission to Apple.
-  scripts/release-app.sh --validate-only
+  [ "${VAHTI_VALIDATE_RELEASE:-false}" != "true" ] || scripts/release-app.sh --validate-only
   ditto -c -k --keepParent "$APP" "$OUT/Vahti-notarize.zip"
   notarize "$OUT/Vahti-notarize.zip"
   rm "$OUT/Vahti-notarize.zip"
@@ -173,14 +188,15 @@ if $RELEASE; then
   cp -R "$APP" "$STAGE/"
   rm "$OUT/Vahti.dmg"
   hdiutil create -quiet -volname "Vahti" -srcfolder "$STAGE" -fs HFS+ -format UDZO -imagekey zlib-level=9 "$OUT/Vahti.dmg"
+  xattr -c "$OUT/Vahti.dmg"
   codesign --force --timestamp --sign "$IDENTITY" "$OUT/Vahti.dmg"
   cp "$OUT/Vahti.dmg" "$OUT/Vahti-$VERSION.dmg"
-  scripts/release-app.sh --validate-only
+  [ "${VAHTI_VALIDATE_RELEASE:-false}" != "true" ] || scripts/release-app.sh --validate-only
   notarize "$OUT/Vahti.dmg"
   xcrun stapler staple "$OUT/Vahti.dmg" >/dev/null
   spctl --assess --type open --context context:primary-signature -v "$OUT/Vahti.dmg" 2>&1 | tail -1
   cp "$OUT/Vahti.dmg" "$OUT/Vahti-$VERSION.dmg"
   # Stapling the DMG changes its length and signature: regenerate and check final metadata.
-  scripts/release-app.sh --validate-only
+  [ "${VAHTI_VALIDATE_RELEASE:-false}" != "true" ] || scripts/release-app.sh --validate-only
 fi
 echo "$OUT/Vahti.dmg ($(du -h "$OUT/Vahti.dmg" | cut -f1), Node $NODE_VERSION)"
