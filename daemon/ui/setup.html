@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Set up Kier</title>
+<title>Set up Vahti</title>
 <style>
   :root { --bg: #fbfbfa; --text: #1c1c1e; --muted: #6e6e73; --faint: #a1a1a6; --line: rgba(0,0,0,.08); --accent: #0a66c2; --done: #2f7d32; color-scheme: light; }
   @media (prefers-color-scheme: dark) { :root { --bg: #161618; --text: #f2f2f4; --muted: #a1a1a6; --faint: #6e6e73; --line: rgba(255,255,255,.1); --accent: #5aa9ff; --done: #7bc47f; color-scheme: dark; } }
@@ -30,8 +30,8 @@
 </head>
 <body>
 <main>
-  <h1>Set up Kier</h1>
-  <p class="lead">Kier keeps a private timeline of your messages, calls and calendar on this Mac, so your AI can answer "what do I have tomorrow?". Nothing leaves this Mac unless you connect an assistant.</p>
+  <h1>Set up Vahti</h1>
+  <p class="lead">Vahti keeps a private timeline of your messages, calls and calendar on this Mac, so your AI can answer "what do I have tomorrow?". Nothing leaves this Mac unless you connect an assistant.</p>
   <section id="steps"></section>
   <p class="foot" id="foot"></p>
 </main>
@@ -59,9 +59,9 @@ function render(steps) {
 }
 
 async function load() {
-  // Kier restarts itself after some steps; keep the last checklist and try again on the next poll.
+  // Vahti restarts itself after some steps; keep the last checklist and try again on the next poll.
   let steps
-  try { ({ steps } = await (await fetch('/api/setup')).json()) } catch { $('#foot').textContent = 'Kier is restarting, one moment.'; return }
+  try { ({ steps } = await (await fetch('/api/setup')).json()) } catch { $('#foot').textContent = 'Vahti is restarting, one moment.'; return }
   const fda = steps.find((s) => s.id === 'fda')?.status === 'done'
   // The moment Full Disk Access is granted, read Messages, calls and calendar instead of waiting 5 minutes.
   if (hadFda === false && fda) {

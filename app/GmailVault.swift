@@ -22,7 +22,7 @@ final class GmailRuntimeSeal {
   init(bundle: URL, requirement: SecRequirement, node: URL, daemon: URL) throws {
     let resources = bundle.appendingPathComponent("Contents/Resources").resolvingSymlinksInPath()
     guard node.resolvingSymlinksInPath() == resources.appendingPathComponent("runtime/node"),
-          daemon.resolvingSymlinksInPath() == resources.appendingPathComponent("daemon/bin/kier.mjs")
+          daemon.resolvingSymlinksInPath() == resources.appendingPathComponent("daemon/bin/vahti.mjs")
     else { throw URLError(.noPermissionsToReadFile) }
     self.bundle = bundle
     self.requirement = requirement
@@ -36,14 +36,14 @@ final class GmailRuntimeSeal {
 // This service is reachable only through pipes inherited by our own daemon.
 // There is no credential CLI mode, listener, token file or diagnostic payload.
 final class GmailVault: @unchecked Sendable {
-  private let replies = DispatchQueue(label: "com.getkier.gmail-replies")
+  private let replies = DispatchQueue(label: "to.sulopuis.vahti.gmail-replies")
   private let service: String
   private let bundled: Bool
   private var runtime: GmailRuntimeSeal?
   init(directory: String, bundled: Bool) {
     self.bundled = bundled
     let digest = SHA256.hash(data: Data(directory.utf8)).map { String(format: "%02x", $0) }.joined()
-    service = "com.getkier.gmail." + digest.prefix(16) + (bundled ? ".native-v2" : ".development-v1")
+    service = "to.sulopuis.vahti.gmail." + digest.prefix(16) + (bundled ? ".native-v2" : ".development-v1")
   }
   // Called immediately before launching the exact process receiving our pipes.
   func prepareForLaunch(node: URL, daemon: URL) throws {
@@ -56,7 +56,7 @@ final class GmailVault: @unchecked Sendable {
           SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode,
           SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
           let details = info as? [String: Any],
-          details[kSecCodeInfoIdentifier as String] as? String == "com.getkier.kier",
+          details[kSecCodeInfoIdentifier as String] as? String == "to.sulopuis.vahti",
           let team = details[kSecCodeInfoTeamIdentifier as String] as? String, !team.isEmpty,
           SecCodeCopyDesignatedRequirement(staticCode, [], &requirement) == errSecSuccess, let requirement
     else { throw URLError(.noPermissionsToReadFile) }
@@ -72,13 +72,13 @@ final class GmailVault: @unchecked Sendable {
           SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode,
           SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
           let details = info as? [String: Any],
-          details[kSecCodeInfoIdentifier as String] as? String == "com.getkier.kier",
+          details[kSecCodeInfoIdentifier as String] as? String == "to.sulopuis.vahti",
           let team = details[kSecCodeInfoTeamIdentifier as String] as? String, !team.isEmpty,
           let path = Bundle.main.executablePath else { throw URLError(.noPermissionsToReadFile) }
     var app: SecTrustedApplication?
     var access: SecAccess?
     guard SecTrustedApplicationCreateFromPath(path, &app) == errSecSuccess, let app,
-          SecAccessCreate("Kier Gmail" as CFString, [app] as CFArray, &access) == errSecSuccess,
+          SecAccessCreate("Vahti Gmail" as CFString, [app] as CFArray, &access) == errSecSuccess,
           let access else { throw URLError(.noPermissionsToReadFile) }
     return access
   }
@@ -113,7 +113,7 @@ final class GmailVault: @unchecked Sendable {
     }
   }
   private lazy var google = NativeGoogleSession(
-    clientID: Bundle.main.object(forInfoDictionaryKey: "KierGoogleClientID") as? String ?? "",
+    clientID: Bundle.main.object(forInfoDictionaryKey: "VahtiGoogleClientID") as? String ?? "",
     credential: { [unowned self] operation, token in try self.credential(operation, token: token) })
   func perform(_ operation: String) async throws -> [String: Any] {
     // Reject credential requests before any Keychain access, even from a replaced runtime.
@@ -123,7 +123,7 @@ final class GmailVault: @unchecked Sendable {
     return try await google.perform(operation)
   }
   func serve(output: FileHandle, input: FileHandle) {
-    DispatchQueue(label: "com.getkier.gmail-vault").async {
+    DispatchQueue(label: "to.sulopuis.vahti.gmail-vault").async {
       var buffer = Data()
       while true {
         let chunk = output.availableData
@@ -132,7 +132,7 @@ final class GmailVault: @unchecked Sendable {
         if buffer.count > 65536 { buffer.removeAll(); continue }
         while let end = buffer.firstIndex(of: 10) {
           let line = Data(buffer[..<end]); buffer.removeSubrange(...end)
-          guard let text = String(data: line, encoding: .utf8), text.hasPrefix("KIER_VAULT ") else {
+          guard let text = String(data: line, encoding: .utf8), text.hasPrefix("VAHTI_VAULT ") else {
             FileHandle.standardOutput.write(line + Data([10])); continue
           }
           // Protocol frames, including malformed ones, are never forwarded to logs.

@@ -1,8 +1,8 @@
 import { sidecarFetch } from './sidecar-client.mjs'
 import { modelFetch } from './model-provider.mjs'
-// A report for a bug, built only from what is listed here: facts about Kier and this Mac, which parts run, numbers, and
+// A report for a bug, built only from what is listed here: facts about Vahti and this Mac, which parts run, numbers, and
 // the kinds of trouble in the log. Never a name, message, chat, file, path, address or the apps you have; an error's
-// own words can carry any of those, so only its kind is kept. Kier never sends it: Settings shows it whole and you copy
+// own words can carry any of those, so only its kind is kept. Vahti never sends it: Settings shows it whole and you copy
 // it only when they choose.
 import { execFileSync } from './child-process.mjs'
 import { existsSync, openSync, readSync, statSync, closeSync } from 'node:fs'
@@ -43,7 +43,7 @@ const up = async (name) => { try { return (await sidecarFetch(name, '/api/versio
 
 // The last two days of the log, counted by kind of trouble: how many, and when the latest was.
 function trouble() {
-  const file = resolve(dataDir, 'kier.log')
+  const file = resolve(dataDir, 'vahti.log')
   if (!existsSync(file)) return []
   const size = statSync(file).size
   const length = Math.min(size, 2_000_000)
@@ -64,10 +64,10 @@ export async function diagnostics(db, { steps = [] } = {}) {
   const [model, search] = usesMlx ? await Promise.all([up('llm'), up('embed')])
     : usesExternalModel ? await Promise.all([answering(), up('embed')]) : [false, false]
   const lines = [
-    `Kier daemon: up ${Math.round(process.uptime() / 60)} min, Node ${process.versions.node}`,
+    `Vahti daemon: up ${Math.round(process.uptime() / 60)} min, Node ${process.versions.node}`,
     `Mac: macOS ${sh('sw_vers', ['-productVersion'])}, ${cpus()[0]?.model || 'unknown chip'}, ${Math.round(totalmem() / 2 ** 30)} GB memory, up ${Math.round(uptime() / 3600)} h`,
     `Memory: ${['', 'fine', 'warning', '', 'critical'][mem.level] || mem.level} now; background reading waited ${mem.backedOff} time${mem.backedOff === 1 ? '' : 's'} since start${mem.waiting ? `, waiting ${mem.waiting} min more` : ''}`,
-    `Model: ${usesMlx ? "Kier's own" : usesExternalModel ? `your server, ${config.externalModel.protocol}` : 'Ollama'} (${config.model}), ${model ? 'answering' : 'not answering'}; search by meaning ${embedReady() ? (search ? 'answering' : 'installed, not answering') : 'not installed'}; second opinion ${secondInstalled() ? (await secondUp() ? 'answering' : 'installed, loads when needed') : 'not installed'}`,
+    `Model: ${usesMlx ? "Vahti's own" : usesExternalModel ? `your server, ${config.externalModel.protocol}` : 'Ollama'} (${config.model}), ${model ? 'answering' : 'not answering'}; search by meaning ${embedReady() ? (search ? 'answering' : 'installed, not answering') : 'not installed'}; second opinion ${secondInstalled() ? (await secondUp() ? 'answering' : 'installed, loads when needed') : 'not installed'}`,
     '',
     'Setup:',
     ...steps.map((s) => `  ${s.id}: ${s.status}`),

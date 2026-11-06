@@ -362,7 +362,7 @@ export function pending(db, limit) {
     .all(...TAGGED_SOURCES, now() - config.tagBackfillDays * 86400, now() - SETTLE, limit)
 }
 
-// Reminders are read directly. Its alerts can echo Kier's own export and must
+// Reminders are read directly. Its alerts can echo Vahti's own export and must
 // never turn back into a second task; retain messages and explicit owner choices.
 export function excludeReminderNotices(db) {
   return Number(db.prepare(`update tags set is_task = 0, model = 'reminder-notice'
@@ -661,7 +661,7 @@ export function quietSenderPromises(db) {
 export async function doubleCheck(db, limit = 16) {
   const items = db.prepare(`select i.id, i.source, i.thread, i.sender, i.from_me, i.ts, i.meta, coalesce(t.said, i.text) text, t.amount, t.when_words
     from tags t join items i on i.id = t.item_id where t.is_task = 1 and (t.second is null or t.card is null) and i.ts > ?
-      and i.source not in ('reminders', 'kier') and coalesce(json_extract(i.meta, '$.ownerCreated'), 0) != 1 order by i.ts desc limit ?`).all(now() - 30 * 86400, limit)
+      and i.source not in ('reminders', 'vahti') and coalesce(json_extract(i.meta, '$.ownerCreated'), 0) != 1 order by i.ts desc limit ?`).all(now() - 30 * 86400, limit)
   if (!items.length) return {}
   const checks = items.map(item => ({ ...item, context: contextForTag(db, burstOf(db, item).start, item.text) }))
   const p = await decide(checks).catch(() => null)

@@ -1,5 +1,5 @@
-// The login agent that keeps `kier run` alive. When Kier.app exists the agent starts the app's launcher,
-// so macOS attributes file access to Kier; otherwise it falls back to plain Node.
+// The login agent that keeps `vahti run` alive. When Vahti.app exists the agent starts the app's launcher,
+// so macOS attributes file access to Vahti; otherwise it falls back to plain Node.
 import { execFileSync } from './child-process.mjs'
 import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -7,16 +7,16 @@ import { dataDir, home } from './config.mjs'
 import { AGENT, appPath } from './setup.mjs'
 
 export const plistPath = resolve(home, `Library/LaunchAgents/${AGENT}.plist`)
-export const logPath = resolve(dataDir, 'kier.log')
+export const logPath = resolve(dataDir, 'vahti.log')
 const target = `gui/${process.getuid()}`
 const launchctl = (...a) => { try { execFileSync('launchctl', a, { stdio: 'ignore' }); return true } catch { return false } }
 export const NODE = process.execPath.includes('.app/Contents/Resources/') ? process.execPath : ['/opt/homebrew/bin/node', '/usr/local/bin/node'].find(existsSync) || process.execPath
-const SCRIPT = resolve(new URL('../bin/kier.mjs', import.meta.url).pathname)
+const SCRIPT = resolve(new URL('../bin/vahti.mjs', import.meta.url).pathname)
 
 export const loaded = () => launchctl('print', `${target}/${AGENT}`)
 
 export function install() {
-  const launcher = resolve(appPath, 'Contents/MacOS/Kier')
+  const launcher = resolve(appPath, 'Contents/MacOS/Vahti')
   const program = existsSync(launcher) ? [launcher, 'run'] : [NODE, '--disable-warning=ExperimentalWarning', SCRIPT, 'run']
   const xml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
   // launchd starts agents with only the system folders on PATH; Homebrew's tools (gh, ollama) live elsewhere.
@@ -43,7 +43,7 @@ ${program.map((a) => `    <string>${xml(a)}</string>`).join('\n')}
 </plist>
 `)
   stop()
-  if (!launchctl('bootstrap', target, plistPath)) throw Error('launchctl could not start the Kier agent')
+  if (!launchctl('bootstrap', target, plistPath)) throw Error('launchctl could not start the Vahti agent')
 }
 
 // bootout returns before the old process is gone, and bootstrapping too early fails.

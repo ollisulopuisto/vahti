@@ -40,7 +40,7 @@ const pages = {
   '/': new URL('../ui/index.html', import.meta.url), '/setup': new URL('../ui/setup.html', import.meta.url), '/vault': new URL('../ui/vault.html', import.meta.url),
 }
 
-// What Kier.app's eyes report: clipboard, app sessions and chat text on screen. Like every /api call it needs the
+// What Vahti.app's eyes report: clipboard, app sessions and chat text on screen. Like every /api call it needs the
 // request proof (see serve), so other local accounts cannot feed the vault.
 const EYES_SOURCES = new Set(['clipboard', 'apps', 'screen'])
 export const eyes = { at: 0, accessibility: false, front: '' }
@@ -67,7 +67,7 @@ export function ingest(db, body) {
   return addItems(db, items)
 }
 
-// Everything Kier keeps, by source and by chat, site or app, plus every time an AI read from it.
+// Everything Vahti keeps, by source and by chat, site or app, plus every time an AI read from it.
 function vault(db) {
   const since = now() - 30 * 86400
   const size = (p) => { try { return statSync(p).size } catch { return 0 } }
@@ -95,8 +95,24 @@ export function serve(db, { install, port = config.port } = {}) {
   const secret = readSecret(tokenPath, true), verify = verifier(secret, () => Date.now(), resolve(tmpDir, 'http-nonces.json'))
   const launch = randomUUID()
   const tickets = new Map(), browserTokens = new Map()
+  // Rate limit: 120 requests per minute per client. A runaway local script
+  // cannot drown the daemon in collection, model or ingest calls. All requests
+  // are counted, authenticated or not, so the check also slows auth probing.
+  const rateLimit = new Map()
+  const RATE_WINDOW_MS = 60 * 1000
+  const RATE_MAX = 120
+  const rateLimited = (ip) => {
+    const now = Date.now()
+    let entry = rateLimit.get(ip)
+    if (!entry || now > entry.reset) {
+      entry = { count: 0, reset: now + RATE_WINDOW_MS }
+      rateLimit.set(ip, entry)
+    }
+    entry.count++
+    return entry.count > RATE_MAX
+  }
   const authedBrowser = req => {
-    const session = browserTokens.get(req.headers['x-kier-token'])
+    const session = browserTokens.get(req.headers['x-vahti-token'])
     return session && session.expires > Date.now() && session.origin === `http://${req.headers.host}`
   }
   const issueTicket = (origin) => {
@@ -118,7 +134,7 @@ export function serve(db, { install, port = config.port } = {}) {
     select i.id, i.source, i.thread, i.sender, i.from_me, i.ts, i.text, i.url, t.is_task, t.due, t.amount, t.summary
     from items i left join tags t on t.item_id = i.id where ${where} order by i.ts limit ${limit}`).all(...params)
   const server = createServer(async (req, res) => {
-    // Kier's pages are never shown inside another site's frame, where a click could be borrowed.
+    // Vahti's pages are never shown inside another site's frame, where a click could be borrowed.
     res.setHeader('x-frame-options', 'DENY')
     res.setHeader('content-security-policy', "frame-ancestors 'none'")
     res.setHeader('cache-control', 'no-store')
@@ -134,12 +150,14 @@ export function serve(db, { install, port = config.port } = {}) {
         chunks.push(chunk)
       }
       const wire = Buffer.concat(chunks)
-      const signed = req.headers['x-kier-signature'] !== undefined
+      const signed = req.headers['x-vahti-signature'] !== undefined
       const nonce = signed ? verify(req.method, req.url, req.headers, wire) : null
       if (signed && !nonce) return json(res, { error: 'authentication required' }, 401)
       if (nonce) signResponse(res, secret, nonce)
       if (!hosts.has(req.headers.host)) return json(res, { error: 'forbidden' }, 403)
       if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return json(res, { error: 'forbidden origin' }, 403)
+      const ip = req.socket.remoteAddress || '127.0.0.1'
+      if (rateLimited(ip)) return json(res, { error: 'too many requests' }, 429)
       // Native bodies are encrypted too: a port squatter must not receive captured text.
       const requestBody = nonce && wire.length ? openBody(secret, wire).toString('utf8') : wire.toString('utf8')
       const url = new URL(req.url, `http://${req.headers.host}`)
@@ -150,11 +168,11 @@ export function serve(db, { install, port = config.port } = {}) {
       }
       if (url.pathname === '/auth/bootstrap') {
         // Browsers supply Origin on this POST; missing/null/cross-port origins fail.
-        const key = req.headers['x-kier-bootstrap'], ticket = tickets.get(key)
+        const key = req.headers['x-vahti-bootstrap'], ticket = tickets.get(key)
         if (req.method !== 'POST' || req.headers.origin !== `http://${req.headers.host}` ||
             !ticket || ticket.origin !== req.headers.origin || ticket.expires <= Date.now()) return json(res, { error: 'bootstrap unavailable' }, 403)
         tickets.delete(key)
-        const browserToken = mac(secret, ['kier-browser-v1', launch, randomUUID()].join('\n'))
+        const browserToken = mac(secret, ['vahti-browser-v1', launch, randomUUID()].join('\n'))
         if (browserTokens.size >= 64) browserTokens.delete(browserTokens.keys().next().value)
         browserTokens.set(browserToken, { origin: ticket.origin, expires: Date.now() + 10 * 60_000 })
         return json(res, { token: browserToken })
@@ -180,11 +198,11 @@ export function serve(db, { install, port = config.port } = {}) {
         const like = `%${(q.q || '').replace(/[%_]/g, '')}%`
         return json(res, { items: rows('(i.text like ? or i.sender like ? or i.thread like ?) and i.ts > ?', [like, like, like, now() - 365 * 86400], 300).reverse() })
       }
-      // The search bar (⌥⌘Space, lib/find.mjs): as you type, then once Kier has read what you're asking for.
+      // The search bar (⌥⌘Space, lib/find.mjs): as you type, then once Vahti has read what you're asking for.
       if (url.pathname === '/api/find') return json(res, { results: await findQuick(db, String(q.q || '').slice(0, 300)) })
       if (url.pathname === '/api/find/ai') return json(res, await findUnderstood(db, String(q.q || '').slice(0, 300)))
       if (url.pathname === '/api/find/warm') return json(res, { ready: await findWarm() })
-      // What belongs on the iPhone and Watch, for Kier.app to keep Calendar and Reminders in step with (lib/phone.mjs).
+      // What belongs on the iPhone and Watch, for Vahti.app to keep Calendar and Reminders in step with (lib/phone.mjs).
       if (url.pathname === '/api/phone') return json(res, phoneItems(db))
       if (url.pathname === '/api/brief') {
         const b = brief(db)
@@ -192,8 +210,8 @@ export function serve(db, { install, port = config.port } = {}) {
       }
       if (url.pathname === '/api/done') return json(res, donePage(db, q))
       if (url.pathname === '/api/tasks') return json(res, { tasks: tasks(db, { days: 30 }).map((t) => ({ ...t, day: isoDay(t.ts) })) })
-      // "On this Mac": what Kier read today, whether the local model is running, and what went to the cloud, which is
-      // only ever what Kier handed to Claude or Codex for you. There's no account and no server of Kier's to send to.
+      // "On this Mac": what Vahti read today, whether the local model is running, and what went to the cloud, which is
+      // only ever what Vahti handed to Claude or Codex for you. There's no account and no server of Vahti's to send to.
       if (url.pathname === '/api/privacy') {
         const day = dayRange(today())[0]
         const read = db.prepare(`select count(*) n from items where ts >= ? and source in ('whatsapp', 'imessage', 'discord', 'chat', 'social', 'mail', 'notifications')`).get(day).n
@@ -204,7 +222,7 @@ export function serve(db, { install, port = config.port } = {}) {
         return json(res, { read, model: config.model, running: await ollamaUp(), sent: out.reduce((n, r) => n + r.bytes, 0), to: out, account: false,
           yours: usesExternalModel, ...(server && { server }), local })
       }
-      // What Kier may read, and whether the owner's Claude may double-check stuck cards.
+      // What Vahti may read, and whether the owner's Claude may double-check stuck cards.
       if (url.pathname === '/api/capture-policy' && req.method === 'GET') return json(res, capturePolicy())
       if (url.pathname === '/api/settings' && req.method === 'GET') {
         const counts = Object.fromEntries(db.prepare('select source, count(*) n from items where ts > ? group by source').all(now() - 30 * 86400).map((r) => [r.source, r.n]))
@@ -297,7 +315,7 @@ export function serve(db, { install, port = config.port } = {}) {
         const body = requestBody
         const task = tasks(db, { days: 60 }).find((t) => t.id === JSON.parse(body).id)
         if (!task) return json(res, { error: 'no such task' }, 404)
-        const file = resolve(tmpDir, `kier-${task.id.replace(/\W/g, '')}.ics`)
+        const file = resolve(tmpDir, `vahti-${task.id.replace(/\W/g, '')}.ics`)
         writeFileSync(file, icsFor(task))
         execFile('open', [file])
         return json(res, { ok: true })
@@ -312,7 +330,7 @@ export function serve(db, { install, port = config.port } = {}) {
       }
       if (url.pathname === '/api/speaking') return json(res, { speaking: speaking() })
       if (url.pathname === '/api/agents') return json(res, agents())
-      // A question for Kier, answered by Claude, Codex or the local model; Claude and Codex can take half a minute.
+      // A question for Vahti, answered by Claude, Codex or the local model; Claude and Codex can take half a minute.
       // The same question, answered as it forms: one JSON line per update ({text} so far, {status}), then {done}.
       if (url.pathname === '/api/ask/stream' && post) {
         const body = requestBody
@@ -321,12 +339,12 @@ export function serve(db, { install, port = config.port } = {}) {
         const past = conversation(key, history)
         res.writeHead(200, { 'content-type': 'application/x-ndjson', 'cache-control': 'no-cache' })
         const send = (o) => res.write(`${JSON.stringify(o)}\n`)
-        const r = await ask(db, q.slice(0, 2000), ['claude', 'codex', 'kier'].includes(agent) ? agent : 'kier', past, typeof item === 'string' ? item : null,
+        const r = await ask(db, q.slice(0, 2000), ['claude', 'codex', 'vahti'].includes(agent) ? agent : 'vahti', past, typeof item === 'string' ? item : null,
           { text: (t) => send({ text: t }), status: (s) => send({ status: s }) })
         if (typeof key === 'string' && key && r.out) {
           db.prepare('insert into chats (key, ts, q, a, agent, seconds) values (?, ?, ?, ?, ?, ?)').run(key.slice(0, 300), now(), q.slice(0, 2000), r.out, r.agent, r.seconds)
         }
-        // The answer is finished (with its buttons) before Kier works out whether you told it something about yourself,
+        // The answer is finished (with its buttons) before Vahti works out whether you told it something about yourself,
         // which takes the model a few seconds; what it took into your profile follows on its own line. Asking it to
         // change a task isn't about you.
         send({ done: true, ...r })
@@ -339,7 +357,7 @@ export function serve(db, { install, port = config.port } = {}) {
         const { q, agent, history, item, key } = JSON.parse(body)
         if (!q || typeof q !== 'string') return json(res, { error: 'no question' }, 400)
         const past = conversation(key, history)
-        const r = await ask(db, q.slice(0, 2000), ['claude', 'codex', 'kier'].includes(agent) ? agent : 'kier', past, typeof item === 'string' ? item : null)
+        const r = await ask(db, q.slice(0, 2000), ['claude', 'codex', 'vahti'].includes(agent) ? agent : 'vahti', past, typeof item === 'string' ? item : null)
         // Kept, so the conversation is still there after a restart or on another screen.
         if (typeof key === 'string' && key && r.out) {
           db.prepare('insert into chats (key, ts, q, a, agent, seconds) values (?, ?, ?, ?, ?, ?)').run(key.slice(0, 300), now(), q.slice(0, 2000), r.out, r.agent, r.seconds)
@@ -372,7 +390,7 @@ export function serve(db, { install, port = config.port } = {}) {
         warmHandoffs(db, ids).catch(() => {})
         return json(res, { warming: ids.length })
       }
-      // Who you are: Kier's draft, your edits, and a rebuild that runs in the background.
+      // Who you are: Vahti's draft, your edits, and a rebuild that runs in the background.
       if (url.pathname === '/api/profile' || url.pathname === '/api/profile/rebuild') {
         if (url.pathname === '/api/profile/rebuild' && post) { buildProfile(db).catch(() => {}); return json(res, { building: true }) }
         if (post) {
@@ -381,7 +399,7 @@ export function serve(db, { install, port = config.port } = {}) {
         }
         return json(res, { ...(profile() || { about: '', people: [], groups: [], aliases: [] }), building: profileBuilding() })
       }
-      // Your conversations with Kier (not the chats about one card), newest first, minus the ones you put away.
+      // Your conversations with Vahti (not the chats about one card), newest first, minus the ones you put away.
       if (url.pathname === '/api/conversations') {
         return json(res, { conversations: db.prepare(`select c.key, max(c.ts) last, count(*) turns,
           (select q from chats x where x.key = c.key order by x.ts desc limit 1) q from chats c

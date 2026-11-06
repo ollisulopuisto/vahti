@@ -43,11 +43,14 @@ class Gate:
         if any(not isinstance(value, str) for value in identities.values()):
             raise ValueError('invalid identity exception')
         self.identities = identities
+        # The public repository's owner, for flagging it outside its exact exempted form. Upstream relied on the
+        # owner matching the protected attribution names; a fork's owner does not, so guard it explicitly.
+        self.owner = identities.get('repository', '').split('/')[0] or None
         # Release artifacts that may name the public repository; only release validation sets these.
         self.release_labels = set()
         self.errors = set()
         self.count = 0
-        names_file = names_file or Path.home() / '.config/kier-public/names.txt'
+        names_file = names_file or Path.home() / '.config/vahti-public/names.txt'
         try:
             lines = names_file.read_text().splitlines()
         except (OSError, UnicodeError):
@@ -125,6 +128,8 @@ class Gate:
             for n, original in enumerate(current.splitlines(), offset + 1):
                 line = original
                 line = re.sub(r'\\[nrt]', ' ', line)
+                if self.owner and re.search(r'(?<![\w.-])' + re.escape(self.owner) + r'/', line):
+                    self.error(path, n, 'repository identity outside its exempted form')
                 hits = self.hits(line)
                 for hit in hits:
                     self.error(path, n, f'private identity (names list line {hit})' if hit else 'private attribution identity')

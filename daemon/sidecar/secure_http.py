@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MAX_BODY = 2 * 1024 * 1024
 REQUEST_SECONDS = 120
-TOKEN = os.environ.get("KIER_SIDECAR_TOKEN", "")
+TOKEN = os.environ.get("VAHTI_SIDECAR_TOKEN", "")
 if not re.fullmatch(r"[a-f0-9]{64}", TOKEN):
     raise RuntimeError("SIDECAR_TOKEN_REQUIRED")
 
@@ -41,7 +41,7 @@ class SecureServer(ThreadingHTTPServer):
         os.chmod(address, 0o600)
     def server_bind(self):
         self.socket.bind(self.server_address)
-        self.server_name = "kier-sidecar"
+        self.server_name = "vahti-sidecar"
         self.server_port = 0
     def process_request(self, request, address):
         if not self.slots.acquire(blocking=False):
@@ -85,13 +85,13 @@ class SecureHandler(BaseHTTPRequestHandler):
         self.wfile.write(data)
     def authorized(self):
         self.close_connection = True
-        expected = "kier-sidecar"
-        for key in ("host", "x-kier-token", "content-type", "content-length", "origin"):
+        expected = "vahti-sidecar"
+        for key in ("host", "x-vahti-token", "content-type", "content-length", "origin"):
             if len(self.headers.get_all(key, [])) > 1:
                 self.reply(400, {"error": "SIDECAR_HEADERS"}); return False
         if self.headers.get("host") != expected or self.headers.get("origin") is not None:
             self.reply(403, {"error": "SIDECAR_HOST"}); return False
-        given = self.headers.get("x-kier-token", "").encode()
+        given = self.headers.get("x-vahti-token", "").encode()
         if not hmac.compare_digest(given, TOKEN.encode()):
             self.reply(401, {"error": "SIDECAR_AUTH"}); return False
         return True

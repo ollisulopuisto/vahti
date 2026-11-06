@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// Kier's look: black glass. Whatever is behind the window shows through a heavy blur under a deep black tint, a faint
+// Vahti's look: black glass. Whatever is behind the window shows through a heavy blur under a deep black tint, a faint
 // sheen catches the top edge, the rim is a white hairline, and nothing inside sits on a grey fill.
 enum Glass {
   static let tint = Color.black.opacity(0.78)

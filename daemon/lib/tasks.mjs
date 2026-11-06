@@ -76,7 +76,7 @@ export function markTask(db, id, status) {
     .run(id, status, now(), reason, ['done', 'dismissed'].includes(status) ? 'owner' : null)
 }
 
-// Every task Kier knows about, with a state the brief can act on: open, overdue, handled, done or dismissed.
+// Every task Vahti knows about, with a state the brief can act on: open, overdue, handled, done or dismissed.
 export function tasks(db, { days = 14, sources, auth = authorization(sources ?? null) } = {}) {
   db = readScope(db, auth)
   const t0 = today()
@@ -84,7 +84,7 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
     select i.id, i.rowid rid, i.source, i.thread, i.sender, i.from_me, i.ts, coalesce(t.said, i.text) text, i.text raw_text, i.url, i.meta, t.due, t.when_words, t.amount, t.urgency, t.summary, t.second, t.quiet, t.confirmed, t.card, t.hint, t.hint_url, t.model, s.status, s.reason, s.url evidence_url, s.changed_at done_at, s.completion_origin
     from tags t join items i on i.id = t.item_id left join task_state s on s.item_id = i.id
     where t.is_task = 1 and (i.ts > ? or t.due >= ? or s.changed_at > ?
-      or (i.source = 'kier' and (s.status is null or s.status in ('open', 'snoozed', 'looks_done', 'looks_unneeded')))
+      or (i.source = 'vahti' and (s.status is null or s.status in ('open', 'snoozed', 'looks_done', 'looks_unneeded')))
       or (t.card = 'callback' and (s.status is null or s.status in ('open', 'snoozed', 'looks_done', 'looks_unneeded')))) ${sourceFilter(sources)}
     order by i.ts desc`).all(now() - days * 86400, plusDays(t0, -days), now() - days * 86400)
   // Include later rows from the same minute: some sources provide minute-resolution timestamps.
@@ -147,7 +147,7 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
     }
     // Anything tied to a moment (being somewhere, a quick "reply now") has simply passed once its day is over.
     // Only promises, to-dos and payments can be forgotten, for a few days.
-    if (state === 'open' && r.due && r.due < t0) state = r.source === 'kier' ? 'overdue' : r.card === 'callback' || (!moment(r) && r.due >= plusDays(t0, -OVERDUE_DAYS)) ? 'overdue' : 'expired'
+    if (state === 'open' && r.due && r.due < t0) state = r.source === 'vahti' ? 'overdue' : r.card === 'callback' || (!moment(r) && r.due >= plusDays(t0, -OVERDUE_DAYS)) ? 'overdue' : 'expired'
     // Summaries were written on the day the message came, so "tomorrow" goes stale; the card shows the date instead.
     if (r.summary) r.summary = r.summary.replace(/\s+(?:(?:by|until|before|on|for)\s+)?(today|tomorrow|tonight|this evening|this morning)\.?$/i, '')
     // Without a second opinion, keep the first model’s judgment. Owner promises, personal
@@ -251,7 +251,7 @@ export function brief(db, { sources, auth = authorization(sources ?? null) } = {
   const back = new Map(owed(db, live, now(), 24 * 60).map((o) => [o.card.id, o.at]))
   // Your own "I'll fix it" without a date is usually handled in the same conversation, so it only
   // stays in the brief for a day; requests from other people stay until answered or 3 days pass.
-  const recent = (t) => t.source === 'kier' || t.card === 'callback' || t.due || t.ts > now() - (t.from_me ? OWN_UNDATED_HOURS * 3600 : OVERDUE_DAYS * 86400) || back.has(t.id)
+  const recent = (t) => t.source === 'vahti' || t.card === 'callback' || t.due || t.ts > now() - (t.from_me ? OWN_UNDATED_HOURS * 3600 : OVERDUE_DAYS * 86400) || back.has(t.id)
   const maybe = top(all.filter((t) => t.maybe && recent(t)))
   const forgotten = top(live.filter((t) => t.state === 'overdue' || (['looks_done', 'looks_unneeded'].includes(t.state) && t.due && t.due < t0)))
   const open = top(live.filter((t) => !t.due && recent(t)), (t) => back.get(t.id) || t.ts)
@@ -264,7 +264,7 @@ export function brief(db, { sources, auth = authorization(sources ?? null) } = {
     more: { forgotten: forgotten.more, open: open.more, maybe: maybe.more },
     soon: { events: ev.filter((e) => e.day > t0), tasks: live.filter((t) => t.due > t0 && t.due <= week) },
     waiting: waiting(db, { sources }).slice(0, 8),
-    // Done lately, the last one done first: what Kier saw done (a reply, a call, a commit), shown so a wrong guess can
+    // Done lately, the last one done first: what Vahti saw done (a reply, a call, a commit), shown so a wrong guess can
     // be undone, and what you ticked off yourself, so the one you just marked is at the top.
     done: completed(db, { days: OVERDUE_DAYS, sources }).slice(0, SECTION_MAX),
   }
@@ -412,12 +412,12 @@ export function icsFor(t) {
     ? (() => { const h = String(time[1] || time[3]).padStart(2, '0'); const m = time[2] || '00'; const end = String((Number(h) + 1) % 24).padStart(2, '0')
       return [`DTSTART;TZID=${config.timezone}:${day}T${h}${m}00`, `DTEND;TZID=${config.timezone}:${day}T${end}${m}00`] })()
     : [`DTSTART;VALUE=DATE:${day}`, `DTEND;VALUE=DATE:${plusDays(t.due || today(), 1).replace(/-/g, '')}`]
-  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Kier//EN', 'BEGIN:VEVENT', `UID:${t.id.replace(/\W/g, '')}@getkier.com`, `DTSTAMP:${stamp}`,
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Vahti//EN', 'BEGIN:VEVENT', `UID:${t.id.replace(/\W/g, '')}@getkier.com`, `DTSTAMP:${stamp}`,
     ...when, `SUMMARY:${text(t.summary || t.text)}`, `DESCRIPTION:${text(`${t.sender}: ${t.text}`)}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n')
 }
 
 export function briefText(b) {
-  const out = [`Kier, ${dayLabel(b.date)}`]
+  const out = [`Vahti, ${dayLabel(b.date)}`]
   const section = (title, lines) => { if (lines.length) out.push('', title, ...lines.map((l) => `- ${l}`)) }
   section(`Today, ${dayLabel(b.date)}`, [...b.today.events.map(eventLine), ...b.today.tasks.map(line)])
   const more = (n) => (n ? [`and ${n} more in the timeline`] : [])

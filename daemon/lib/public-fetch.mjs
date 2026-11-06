@@ -39,7 +39,7 @@ export async function publicText(value, { lookup = dnsLookup, request = httpsReq
     })
     timer = setTimeout(fail, Math.max(1, deadline - Date.now()))
     try {
-      req = request(url, { agent: false, lookup: connectLookup, headers: { 'user-agent': 'Kier', accept: 'application/json, text/html, application/xml', 'accept-encoding': 'identity' } }, res => {
+      req = request(url, { agent: false, lookup: connectLookup, headers: { 'user-agent': 'Vahti', accept: 'application/json, text/html, application/xml', 'accept-encoding': 'identity' } }, res => {
         if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
           clearTimeout(timer); res.destroy(); return resolve({ location: res.headers.location })
         }

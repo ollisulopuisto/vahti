@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync, existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-const dir = mkdtempSync(join(tmpdir(), 'kier-profile-fixture-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-profile-fixture-'))
+process.env.VAHTI_DATA_DIR = dir
 writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam', about: '' }))
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { build, profile, profileText, due } = await import('../lib/profile.mjs')

@@ -13,7 +13,7 @@ export async function modelFixture({ decision = true } = {}) {
     try {
       if (globalThis.fetch === original) throw Error('A synthetic fetch fixture is required')
       let body = ''; for await (const chunk of req) body += chunk
-      const result = await globalThis.fetch(`http://kier-sidecar${req.url}`, { method: req.method, body })
+      const result = await globalThis.fetch(`http://vahti-sidecar${req.url}`, { method: req.method, body })
       res.writeHead(result.ok ? 200 : 500, { 'content-type': 'application/json' })
       res.end(JSON.stringify(result.json ? await result.json() : {}))
     } catch { res.writeHead(500); res.end('{}') }

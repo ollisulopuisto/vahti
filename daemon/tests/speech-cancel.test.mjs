@@ -8,8 +8,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { managedSpawn } from '../lib/child-process.mjs'
-const dir = mkdtempSync(join(tmpdir(), 'kier-speech-cancel-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-speech-cancel-'))
+process.env.VAHTI_DATA_DIR = dir
 mkdirSync(join(dir, 'tts/bin'), { recursive: true })
 mkdirSync(join(dir, 'models/ming-tts-8bit'), { recursive: true })
 writeFileSync(join(dir, 'tts/bin/python'), 'fixture')
@@ -133,7 +133,7 @@ for (const ending of ['played', 'canceled', 'failed']) test(`prerendered brief W
 })
 test('startup sweeps stale speech caches without deleting unrelated files or an active render', async t => {
   const f = await audioFixture(t)
-  const stale = ['kier-say.wav', 'kier-say-123-4.wav', 'kier-brief.wav', 'kier-brief-next.wav', 'kier-brief.txt', 'kier-brief-123-4.wav']
+  const stale = ['vahti-say.wav', 'vahti-say-123-4.wav', 'vahti-brief.wav', 'vahti-brief-next.wav', 'vahti-brief.txt', 'vahti-brief-123-4.wav']
   for (const name of [...stale, 'fixture.wav', 'handoff-fixture.txt']) writeFileSync(join(dir, 'tmp', name), 'fixture')
   const gen = f.say('Active fixture'), path = f.spawned[0].path
   await f.sweepSpeechFiles()
@@ -141,7 +141,7 @@ test('startup sweeps stale speech caches without deleting unrelated files or an 
   const { existsSync, readFileSync } = await import('node:fs')
   for (const retained of [path, join(dir, 'tmp/fixture.wav'), join(dir, 'tmp/handoff-fixture.txt')]) assert.equal(existsSync(retained), true)
   f.stop(); gen.emit('exit', null, 'SIGTERM'); await removed(path)
-  const main = readFileSync('bin/kier.mjs', 'utf8')
+  const main = readFileSync('bin/vahti.mjs', 'utf8')
   assert.ok(main.indexOf('await serve(db, { install })') < main.indexOf('await sweepSpeechFiles()'))
   assert.ok(main.indexOf('await sweepSpeechFiles()') < main.indexOf('startRuntime((line)'))
 })

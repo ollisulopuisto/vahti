@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn, execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-const dir = mkdtempSync(join(tmpdir(), 'kier-lifecycle-'))
+const dir = mkdtempSync(join(tmpdir(), 'vahti-lifecycle-'))
 after(() => rmSync(dir, { recursive: true, force: true }))
 const run = promisify(execFile)
 
@@ -17,14 +17,14 @@ test('occupied port exits nonzero before any installed model launcher or mainten
   writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam', runtime: 'mlx', port: occupied.address().port }))
   mkdirSync(join(dir, 'llm/bin'), { recursive: true })
   mkdirSync(join(dir, 'models/qwen3.5-9b-4bit'), { recursive: true })
-  writeFileSync(join(dir, 'models/qwen3.5-9b-4bit/.kier-ready'), '')
+  writeFileSync(join(dir, 'models/qwen3.5-9b-4bit/.vahti-ready'), '')
   const marker = join(dir, 'worker-started')
   // A mock launcher only. No model, app, collector or installation is started.
   writeFileSync(join(dir, 'llm/bin/python'), `#!/bin/sh\ntouch '${marker}'\nexit 0\n`, { mode: 0o700 })
   mkdirSync(join(dir, 'extension'))
   const started = Date.now()
-  await assert.rejects(run(process.execPath, ['--disable-warning=ExperimentalWarning', 'bin/kier.mjs', 'run'], {
-    env: { KIER_DATA_DIR: dir, PATH: '/usr/bin:/bin' }, timeout: 10000,
+  await assert.rejects(run(process.execPath, ['--disable-warning=ExperimentalWarning', 'bin/vahti.mjs', 'run'], {
+    env: { VAHTI_DATA_DIR: dir, PATH: '/usr/bin:/bin' }, timeout: 10000,
   }), e => e.code === 1 && !e.killed && e.stderr.includes('BACKGROUND_FAILED'))
   assert.ok(Date.now() - started < 10000)
   assert.equal(existsSync(marker), false)

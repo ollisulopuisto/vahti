@@ -14,7 +14,7 @@ struct IslandGoal: Equatable {
   var pressed = false
   var nudging = false
   var glance = false
-  // Kier's panel is open beside the island: the orb turns toward it.
+  // Vahti's panel is open beside the island: the orb turns toward it.
   var panel = false
   var attention: Float = 0
   var working = false
@@ -59,7 +59,7 @@ struct IslandHitGeometry: Sendable {
   var radius: CGFloat = 24
 }
 
-// Opt-in hover prototypes. These values match kierIsland's final uniform slots.
+// Opt-in hover prototypes. These values match vahtiIsland's final uniform slots.
 enum IslandHoverVariant: Int {
   case none = 0
   case shimmer = 1
@@ -105,8 +105,8 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
           let url = Bundle.main.url(forResource: "orb", withExtension: "png"),
           let artwork = try? IslandArtwork.load(device: device, url: url) else { return nil }
     let d = MTLRenderPipelineDescriptor()
-    d.vertexFunction = library.makeFunction(name: "kierIslandVertex")
-    d.fragmentFunction = library.makeFunction(name: "kierIsland")
+    d.vertexFunction = library.makeFunction(name: "vahtiIslandVertex")
+    d.fragmentFunction = library.makeFunction(name: "vahtiIsland")
     d.colorAttachments[0].pixelFormat = .bgra8Unorm
     guard let pipeline = try? device.makeRenderPipelineState(descriptor: d) else { return nil }
     self.queue = queue
@@ -127,7 +127,7 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
       self.link.add(to: .current, forMode: .default)
       RunLoop.current.run()
     }
-    thread.name = "Kier island"
+    thread.name = "Vahti island"
     thread.qualityOfService = .userInteractive
     thread.start()
   }
@@ -235,7 +235,7 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
     }
 
     // 60 frames a second while you're on it, something just happened or it's moving; 30 for the slow light that orbits
-    // it while something waits or Kier works; 24 when still. Tucked and quiet, or out of sight, it rests on its last frame.
+    // it while something waits or Vahti works; 24 when still. Tucked and quiet, or out of sight, it rests on its last frame.
     let want: Float = g.hover || g.pressed || fresh > 0 || cheer > 0 || moving ? 60 : g.attention > 0 || g.nudging || working > 0 ? 30 : 24
     if want != rate {
       rate = want

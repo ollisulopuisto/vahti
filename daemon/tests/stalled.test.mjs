@@ -5,12 +5,12 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-stalled-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-stalled-'))
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { checkStalled } = await import('../lib/stalled.mjs')
 
 // A real repo, outside the temporary folders the check leaves alone on purpose.
-const repo = join(homedir(), 'Library/Caches', `kier-stalled-test-${process.pid}`)
+const repo = join(homedir(), 'Library/Caches', `vahti-stalled-test-${process.pid}`)
 mkdirSync(repo, { recursive: true })
 after(() => rmSync(repo, { recursive: true, force: true }))
 const git = (...a) => execFileSync('git', ['-C', repo, ...a], { stdio: 'ignore' })
@@ -25,7 +25,7 @@ writeFileSync(file, 'one\n')
 git('add', '.')
 gitThen('commit', '-qm', 'first')
 
-const db = open(join(process.env.KIER_DATA_DIR, 'kier.db'))
+const db = open(join(process.env.VAHTI_DATA_DIR, 'vahti.db'))
 // A session you talked to, quiet for hours, that edited the file and left it uncommitted.
 const session = (id, title, at) => addItems(db, [{ id: `ai:${id}`, source: 'ai', thread: title, sender: 'Claude', fromMe: false, ts: at,
   text: title, meta: { kind: 'session', session: id, cwd: repo, edits: [file], human: true, at } }])

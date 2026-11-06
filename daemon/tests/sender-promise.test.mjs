@@ -4,8 +4,8 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-sender-promise-'))
-writeFileSync(join(process.env.KIER_DATA_DIR, 'config.json'), JSON.stringify({ me: 'Jonas', languages: ['Croatian', 'English'] }))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-sender-promise-'))
+writeFileSync(join(process.env.VAHTI_DATA_DIR, 'config.json'), JSON.stringify({ me: 'Jonas', languages: ['Croatian', 'English'] }))
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { senderPromise, quietSenderPromises, excludeSenderPromises, unaddressedGroup, excludeUnaddressedGroups, ownVerdict, tagPending } = await import('../lib/tagger.mjs')
 const { brief, tasks } = await import('../lib/tasks.mjs')
@@ -90,7 +90,7 @@ test('a notification sender header is not quoted speech, but quotes in its body 
 })
 
 test('the once-only pass reads saved bursts and preserves user choices and tag details', (t) => {
-  const db = open(join(process.env.KIER_DATA_DIR, 'backfill.db'))
+  const db = open(join(process.env.VAHTI_DATA_DIR, 'backfill.db'))
   t.after(() => db.close())
   const at = now()
   const rows = [
@@ -131,7 +131,7 @@ test('the once-only pass reads saved bursts and preserves user choices and tag d
 })
 
 test('fresh tagging checks the whole burst after a confident model verdict', async (t) => {
-  const db = open(join(process.env.KIER_DATA_DIR, 'fresh.db'))
+  const db = open(join(process.env.VAHTI_DATA_DIR, 'fresh.db'))
   t.after(() => db.close())
   const at = now()
   addItems(db, [
@@ -188,7 +188,7 @@ test('first-person telling is not an instruction to the owner', () => {
 })
 
 test('existing sender promises leave all task lists, preserving confirmed and marked cards', t => {
-  const db = open(join(process.env.KIER_DATA_DIR, 'exclude.db'))
+  const db = open(join(process.env.VAHTI_DATA_DIR, 'exclude.db'))
   t.after(() => db.close())
   for (const id of ['other', 'mine', 'claimed', 'marked', 'quiet']) {
     addItems(db, [{id, source:'discord', sender:'Tea', fromMe:id === 'mine', text:'reci cu mu da spremi slagalicu', ts:now()}])
@@ -214,7 +214,7 @@ test('outgoing ownership requires a grounded owner commitment; failed checks ret
 
 
 test('group questions require an address or owner participation, including same-minute replies', t => {
-  const db = open(join(process.env.KIER_DATA_DIR, 'groups.db'))
+  const db = open(join(process.env.VAHTI_DATA_DIR, 'groups.db'))
   t.after(() => db.close())
   const at = now()
   addItems(db, [{id:'question',source:'discord',thread:'support',sender:'Tea',text:'Should I sort the puzzle pieces?',meta:{group:true},ts:at}])

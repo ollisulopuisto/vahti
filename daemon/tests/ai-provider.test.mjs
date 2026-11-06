@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { aiProvider, codexLink } from '../lib/ai-provider.mjs'
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(),'kier-provider-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(),'vahti-provider-'))
 const { appLink } = await import('../lib/handoff.mjs')
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { quick } = await import('../lib/find.mjs')
@@ -23,7 +23,7 @@ test('Codex sessions get exact app links, independent of model name',()=>{
   assert.equal(appLink({agent:'Claude',session:id}),null)
 })
 test('search opens a Sol or GPT session in the OpenAI desktop app rather than Claude',async t=>{
-  const db=open(join(process.env.KIER_DATA_DIR,'kier.db'));t.after(()=>{db.close();rmSync(process.env.KIER_DATA_DIR,{recursive:true,force:true})})
+  const db=open(join(process.env.VAHTI_DATA_DIR,'vahti.db'));t.after(()=>{db.close();rmSync(process.env.VAHTI_DATA_DIR,{recursive:true,force:true})})
   for(const [agent,n] of [['Sol','1'],['GPT-6','2']])addItems(db,[{id:`ai:${n}`,source:'ai',thread:`Archive migration ${n}`,sender:agent,fromMe:true,ts:now(),text:'Archive migration implementation',meta:{kind:'session',agent,session:id,cwd:'/tmp/example'}}])
   const found=await quick(db,'archive migration')
   assert.equal(found.length,2)

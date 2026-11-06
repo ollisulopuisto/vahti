@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 test('Swift link policy removes unsafe markdown destinations and rejects native schemes', { skip: process.platform !== 'darwin' }, t => {
-  const dir = mkdtempSync(join(tmpdir(), 'kier-link-test-'))
+  const dir = mkdtempSync(join(tmpdir(), 'vahti-link-test-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   writeFileSync(join(dir, 'main.swift'), `
 import Foundation
@@ -26,7 +26,7 @@ for target in ["file:///tmp/fixture", "custom:fixture", "x-apple:fixture", "java
 }
 let mixed = markdown("[good](https://example.test) [bad](file:///tmp/fixture) [also bad](custom:fixture)")
 precondition(mixed.runs.compactMap { $0.link }.count == 1)
-// Kier's own session addresses open only in their exact shapes, and never through message links.
+// Vahti's own session addresses open only in their exact shapes, and never through message links.
 precondition(LinkPolicy.allowsSession(URL(string: "claude://claude.ai/epitaxy/local_abc-123")!))
 precondition(LinkPolicy.allowsSession(URL(string: "codex://threads/0f8fad5b-d9cb-469f-a165-70867728950e")!))
 for target in ["claude://claude.ai/epitaxy/a/../b", "claude://evil.test/epitaxy/x", "claude://claude.ai/settings", "codex://threads/not-an-id", "https://example.test", "file:///tmp/fixture"] {

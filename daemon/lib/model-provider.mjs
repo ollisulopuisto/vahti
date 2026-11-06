@@ -1,5 +1,5 @@
 import { sidecarFetch } from './sidecar-client.mjs'
-// Keep Kier's Ollama-shaped callers working with an explicitly selected model server.
+// Keep Vahti's Ollama-shaped callers working with an explicitly selected model server.
 // The default path stays unchanged; an external server's errors never select another model.
 import { config, usesMlx } from './config.mjs'
 import { isIP } from 'node:net'
@@ -181,7 +181,7 @@ async function externalModelFetch(candidate, path, options = {}) {
 
 export function modelFetch(path, options = {}) {
   if (config.runtime !== 'external') {
-    if (!usesMlx) throw fail('Choose your model server in Setup or install Kier’s local model.')
+    if (!usesMlx) throw fail('Choose your model server in Setup or install Vahti’s local model.')
     return sidecarFetch('llm', path, options)
   }
   return externalModelFetch(validateModelConfig(config.externalModel), path, options)
@@ -207,7 +207,7 @@ export async function testModelConnection(candidate, { signal } = {}) {
     try {
       const data = await probe.json()
       if (JSON.parse(data.message?.content || '').ok !== true) throw Error()
-    } catch { throw fail('The selected model did not return the JSON response Kier needs.') }
+    } catch { throw fail('The selected model did not return the JSON response Vahti needs.') }
   }
   return { models, ...(selected.model && { model: selected.model, checked: true }) }
 }

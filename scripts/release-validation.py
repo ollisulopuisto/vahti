@@ -36,7 +36,7 @@ def inventory(root):
 
 
 ROOT = Path(__file__).resolve().parent.parent
-BUILD_CACHE = Path.home() / 'Library/Caches/kier-build'
+BUILD_CACHE = Path.home() / 'Library/Caches/vahti-build'
 
 
 def names_only(gate, text, rel):
@@ -47,7 +47,7 @@ def names_only(gate, text, rel):
 
 
 def unsigned(path):
-    with tempfile.TemporaryDirectory(prefix='kier-unsigned-') as temp:
+    with tempfile.TemporaryDirectory(prefix='vahti-unsigned-') as temp:
         copy = Path(temp) / 'binary'
         shutil.copyfile(path, copy)
         subprocess.run(['codesign', '--remove-signature', str(copy)], check=True,
@@ -98,7 +98,7 @@ def official_node(shipped):
 
 def rebuilt_daemon(source, node_dir):
     # The packaged daemon is rebuilt from the validated source and the lockfile, exactly as packaging does.
-    temp = Path(tempfile.mkdtemp(prefix='kier-daemon-check-'))
+    temp = Path(tempfile.mkdtemp(prefix='vahti-daemon-check-'))
     daemon = temp / 'daemon'
     daemon.mkdir()
     for name in ('bin', 'lib', 'collectors', 'ui', 'sidecar'):
@@ -116,16 +116,16 @@ def rebuilt_daemon(source, node_dir):
 
 
 def rebuilt_icon(source):
-    temp = Path(tempfile.mkdtemp(prefix='kier-icon-check-'))
-    iconset = temp / 'Kier.iconset'
+    temp = Path(tempfile.mkdtemp(prefix='vahti-icon-check-'))
+    iconset = temp / 'Vahti.iconset'
     iconset.mkdir()
     for s in (16, 32, 128, 256, 512):
         for size, name in ((s, f'icon_{s}x{s}.png'), (s * 2, f'icon_{s}x{s}@2x.png')):
-            subprocess.run(['sips', '-z', str(size), str(size), str(source / 'app/icon/kier-icon.png'), '--out', str(iconset / name)],
+            subprocess.run(['sips', '-z', str(size), str(size), str(source / 'app/icon/vahti-icon.png'), '--out', str(iconset / name)],
                            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.run(['iconutil', '-c', 'icns', str(iconset), '-o', str(temp / 'Kier.icns')], check=True,
+    subprocess.run(['iconutil', '-c', 'icns', str(iconset), '-o', str(temp / 'Vahti.icns')], check=True,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return temp, (temp / 'Kier.icns').read_bytes()
+    return temp, (temp / 'Vahti.icns').read_bytes()
 
 
 def bundle(gate, app, source):
@@ -148,7 +148,7 @@ def bundle(gate, app, source):
             temp, daemon = rebuilt_daemon(source, node_dir)
             if inventory(daemon) != inventory(resources / 'daemon'):
                 raise ValueError('packaged daemon differs from the validated source')
-        if (resources / 'Kier.icns').exists():
+        if (resources / 'Vahti.icns').exists():
             icon_temp, icon = rebuilt_icon(source)
         framework = None
         exact = {'Resources/orb.png': source / 'app/icon/orb-hd.png', 'Resources/changelog.json': source / 'app/changelog.json'}
@@ -162,7 +162,7 @@ def bundle(gate, app, source):
                 if path.read_bytes() != exact[rel].read_bytes(): raise ValueError('bundled file differs from its source')
             elif rel.startswith('Resources/brands/'):
                 if path.read_bytes() != (source / 'app/brands' / path.name).read_bytes(): raise ValueError('bundled file differs from its source')
-            elif rel == 'Resources/Kier.icns':
+            elif rel == 'Resources/Vahti.icns':
                 if path.read_bytes() != icon: raise ValueError('bundled icon differs from its source')
             elif rel.startswith('Frameworks/Sparkle.framework/'):
                 if framework is None:
@@ -180,8 +180,8 @@ def bundle(gate, app, source):
                 names_only(gate, '\n'.join(privacy.strings(path.read_bytes())), label)
             elif rel == '_CodeSignature/CodeResources':
                 signature_manifest(gate, path, label)
-            elif rel in ('MacOS/Kier', 'Resources/default.metallib'):
-                data = unsigned(path) if rel == 'MacOS/Kier' else path.read_bytes()
+            elif rel in ('MacOS/Vahti', 'Resources/default.metallib'):
+                data = unsigned(path) if rel == 'MacOS/Vahti' else path.read_bytes()
                 names_only(gate, '\n'.join(privacy.strings(data)), label)
             else:
                 gate.file(path, label, release=True)
@@ -192,7 +192,7 @@ def bundle(gate, app, source):
 
 def disk_image(gate, image, app):
     # A DMG is not an opaque allowlist exception: mount read-only and compare all payloads.
-    with tempfile.TemporaryDirectory(prefix='kier-dmg-check-') as temp:
+    with tempfile.TemporaryDirectory(prefix='vahti-dmg-check-') as temp:
         mount = Path(temp) / 'volume'
         mount.mkdir()
         attached = False
@@ -201,12 +201,12 @@ def disk_image(gate, image, app):
                            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             attached = True
             entries = {p.name for p in mount.iterdir()}
-            if entries != {'Kier.app', 'Applications'}:
+            if entries != {'Vahti.app', 'Applications'}:
                 raise ValueError('unexpected disk image payload')
             link = mount / 'Applications'
             if not link.is_symlink() or os.readlink(link) != '/Applications':
                 raise ValueError('unexpected application shortcut')
-            payload = mount / 'Kier.app'
+            payload = mount / 'Vahti.app'
             if payload.is_symlink() or not payload.is_dir() or not payload.resolve().is_relative_to(mount.resolve()):
                 raise ValueError('disk image app root must be a real contained directory')
             if inventory(payload) != inventory(app):
@@ -224,13 +224,13 @@ def prepare(root, stage, version, identities):
     if (stage / 'validation.json').exists(): raise ValueError('snapshot already sealed')
     out = stage / 'artifacts'
     out.mkdir()
-    names = ['Kier.dmg', f'Kier-{version}.dmg', 'appcast.xml', 'release-notes.md']
+    names = ['Vahti.dmg', f'Vahti-{version}.dmg', 'appcast.xml', 'release-notes.md']
     for name in names:
         src = root / 'dist' / name
         if src.is_symlink() or not src.is_file(): raise ValueError('release artifact missing or linked')
         shutil.copyfile(src, out / name)
-    app = stage / 'Kier.app'
-    shutil.copytree(root / 'dist/Kier.app', app, symlinks=True)
+    app = stage / 'Vahti.app'
+    shutil.copytree(root / 'dist/Vahti.app', app, symlinks=True)
     validate_inputs(stage, version, identities)
     manifest = {'version': version, 'artifacts': names, 'files': inventory(stage)}
     (stage / 'validation.json').write_text(json.dumps(manifest, sort_keys=True))
@@ -247,7 +247,7 @@ def validate_inputs(stage, version, identities):
     if not all((source / name).is_file() for name in privacy.DOCUMENTS):
         raise ValueError('snapshot is missing required documents')
     gate.tree(source)
-    out, app = stage / 'artifacts', stage / 'Kier.app'
+    out, app = stage / 'artifacts', stage / 'Vahti.app'
     bundle(gate, app, source)
     info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
     if info['CFBundleShortVersionString'] != version: raise ValueError('bundle version mismatch')
@@ -258,14 +258,14 @@ def validate_inputs(stage, version, identities):
     if not any(row.get('version') == version for row in changes): raise ValueError('missing changelog entry')
     cast = ET.parse(out / 'appcast.xml')
     enclosure = cast.find('./channel/item/enclosure')
-    if enclosure is None or not enclosure.get('url', '').endswith(f'/v{version}/Kier-{version}.dmg'):
+    if enclosure is None or not enclosure.get('url', '').endswith(f'/v{version}/Vahti-{version}.dmg'):
         raise ValueError('appcast artifact mismatch')
-    if int(enclosure.get('length', '0')) != (out / f'Kier-{version}.dmg').stat().st_size:
+    if int(enclosure.get('length', '0')) != (out / f'Vahti-{version}.dmg').stat().st_size:
         raise ValueError('appcast size mismatch')
-    if (out / 'Kier.dmg').read_bytes() != (out / f'Kier-{version}.dmg').read_bytes():
+    if (out / 'Vahti.dmg').read_bytes() != (out / f'Vahti-{version}.dmg').read_bytes():
         raise ValueError('download aliases differ')
     gate.finish()
-    disk_image(gate, out / 'Kier.dmg', app)
+    disk_image(gate, out / 'Vahti.dmg', app)
     gate.finish()
 
 
@@ -274,7 +274,7 @@ def verify(stage, version=None):
     manifest = json.loads((stage / 'validation.json').read_text())
     actual_version = manifest['version']
     if version and actual_version != version: raise ValueError('snapshot version mismatch')
-    if manifest['artifacts'] != ['Kier.dmg', f'Kier-{actual_version}.dmg', 'appcast.xml', 'release-notes.md']:
+    if manifest['artifacts'] != ['Vahti.dmg', f'Vahti-{actual_version}.dmg', 'appcast.xml', 'release-notes.md']:
         raise ValueError('unapproved artifact list')
     if inventory(stage) != manifest['files']: raise ValueError('validated inputs changed')
     policy = Path(__file__).with_name('publish-source.sh').read_text()

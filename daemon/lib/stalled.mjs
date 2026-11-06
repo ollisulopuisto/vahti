@@ -86,7 +86,7 @@ export async function checkStalled(db, { fresh = false, github = {} } = {}) {
   const getViewer = github.viewer || viewer
   let identity
   const owner = () => identity ||= Promise.resolve(getViewer(fresh))
-  // Each session's latest day; scratch runs in temporary folders and Kier's own don't count.
+  // Each session's latest day; scratch runs in temporary folders and Vahti's own don't count.
   const latest = new Map()
   for (const s of db.prepare("select thread, sender, ts, meta from items where source = 'ai' and json_extract(meta, '$.kind') = 'session' and ts > ? order by ts desc")
     .all(now() - DAYS * 86400)) {

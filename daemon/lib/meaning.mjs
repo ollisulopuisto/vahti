@@ -53,19 +53,61 @@ export async function indexPending(db, limit = 48) {
 }
 
 // The k messages closest in meaning to the question, optionally within `where` (SQL on items i, with its params).
-export async function nearest(db, question, { k = 25, where = '', params = [], auth = localAuthorization() } = {}) {
+// `readyCheck` and `embedFn` are injected for tests; they default to the module's embedding functions.
+// Instead of scoring every vector and sorting all n (O(n log n)), a min-heap keeps only the top k
+// (O(n log k) time, O(k) memory). Search results are identical because only the relative order matters.
+export async function nearest(db, question, { k = 25, where = '', params = [], auth = localAuthorization(), readyCheck = ready, embedFn = embed } = {}) {
   db = readScope(db, auth)
-  if (!ready()) return []
-  const [q] = await embed([question], { query: true })
+  if (!readyCheck()) return []
+  const [q] = await embedFn([question], { query: true })
   const rows = db.prepare(`select v.item_id id, v.v from vectors v join items i on i.id = v.item_id where 1 = 1 ${where} ${offClause()}`).all(...params)
-  return rows.map((r) => ({ id: r.id, score: similarity(q, r.v) })).sort((a, b) => b.score - a.score).slice(0, k)
+  return topK(rows, q, k)
+}
+
+// Min-heap of the k most similar vectors. The smallest score sits at index 0, so a new vector
+// displaces it only when it is more similar. At the end the heap holds exactly the top k,
+// sorted descending by score. Avoids allocating n scored rows and sorting all of them.
+function topK(rows, q, k) {
+  const heap = []
+  for (const r of rows) {
+    const score = similarity(q, r.v)
+    if (heap.length < k) {
+      heap.push({ id: r.id, score })
+      bubbleUp(heap, heap.length - 1)
+    } else if (score > heap[0].score) {
+      heap[0] = { id: r.id, score }
+      bubbleDown(heap, 0, heap.length)
+    }
+  }
+  return heap.sort((a, b) => b.score - a.score)
+}
+
+function bubbleUp(heap, i) {
+  while (i > 0) {
+    const p = (i - 1) >> 1
+    if (heap[p].score <= heap[i].score) return
+    ;[heap[p], heap[i]] = [heap[i], heap[p]]
+    i = p
+  }
+}
+
+function bubbleDown(heap, i, n) {
+  while (true) {
+    let smallest = i
+    const l = 2 * i + 1, r = l + 1
+    if (l < n && heap[l].score < heap[smallest].score) smallest = l
+    if (r < n && heap[r].score < heap[smallest].score) smallest = r
+    if (smallest === i) return
+    ;[heap[i], heap[smallest]] = [heap[smallest], heap[i]]
+    i = smallest
+  }
 }
 
 // Words of four letters or more, Croatian's last vowel dropped (radionica, radionicu: "radionic").
 const words = (s) => [...new Set((String(s).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || []).map((w) => (/[aeiou]$/.test(w) ? w.slice(0, -1) : w)))].slice(0, 8)
 
 const COMMON = new Set(['the', 'what', 'when', 'where', 'who', 'why', 'how', 'did', 'does', 'can', 'could', 'would', 'should', 'please', 'are',
-  'was', 'were', 'has', 'have', 'had', 'this', 'that', 'there', 'these', 'those', 'kier', 'hey', 'and', 'but', 'any', 'tell', 'find', 'show', 'remind',
+  'was', 'were', 'has', 'have', 'had', 'this', 'that', 'there', 'these', 'those', 'vahti', 'hey', 'and', 'but', 'any', 'tell', 'find', 'show', 'remind',
   'mark', 'put', 'not', 'one', 'today', 'tomorrow', 'yesterday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])
 
 // A person or chat the question names ("what did I tell Nika"): its messages are where to look. A capitalised word that

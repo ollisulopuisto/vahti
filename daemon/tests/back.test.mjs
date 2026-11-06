@@ -4,12 +4,12 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-back-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-back-'))
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { brief } = await import('../lib/tasks.mjs')
 
 const t = now()
-const db = open(join(process.env.KIER_DATA_DIR, 'kier.db'))
+const db = open(join(process.env.VAHTI_DATA_DIR, 'vahti.db'))
 const msg = (id, thread, sender, fromMe, ago, text) => ({ id, source: 'whatsapp', thread, sender, fromMe, ts: t - ago, text })
 addItems(db, [
   // Your own promise without a date, two days old: off the list after a day...

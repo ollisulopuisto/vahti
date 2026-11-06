@@ -7,12 +7,12 @@ import { save } from './settings.mjs'
 
 const exec = promisify(execFile)
 export const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly'
-export const GMAIL_NOTICE = 'Kier fetches your Gmail from Google straight to this Mac, read only. Nothing goes to any Kier server. The refresh token stays in the signed app and its own Keychain item. The daemon holds only a read-only access token in memory, expiring within about an hour. A process running as you could at most obtain that short-lived access token.'
+export const GMAIL_NOTICE = 'Vahti fetches your Gmail from Google straight to this Mac, read only. Nothing goes to any Vahti server. The refresh token stays in the signed app and its own Keychain item. The daemon holds only a read-only access token in memory, expiring within about an hour. A process running as you could at most obtain that short-lived access token.'
 export async function googleClientID() {
-  if (process.env.KIER_GOOGLE_CLIENT_ID) return process.env.KIER_GOOGLE_CLIENT_ID.trim()
-  if (!process.env.KIER_APP) return ''
+  if (process.env.VAHTI_GOOGLE_CLIENT_ID) return process.env.VAHTI_GOOGLE_CLIENT_ID.trim()
+  if (!process.env.VAHTI_APP) return ''
   try {
-    return (await exec('/usr/libexec/PlistBuddy', ['-c', 'Print :KierGoogleClientID', `${process.env.KIER_APP}/Contents/Info.plist`], { timeout: 2000 })).stdout.trim()
+    return (await exec('/usr/libexec/PlistBuddy', ['-c', 'Print :VahtiGoogleClientID', `${process.env.VAHTI_APP}/Contents/Info.plist`], { timeout: 2000 })).stdout.trim()
   } catch { return '' }
 }
 export function googleURL(value) {
@@ -66,7 +66,7 @@ export async function disconnectGmail({ call = vaultCall, persist = gmail => sav
   epoch++; pending = false
   persist({ connected: false })
   const result = await call('disconnect')
-  lastError = result.revoked ? '' : 'Disconnected on this Mac. Google could not confirm revocation. Remove Kier in your Google Account connections too.'
+  lastError = result.revoked ? '' : 'Disconnected on this Mac. Google could not confirm revocation. Remove Vahti in your Google Account connections too.'
   return result
 }
 export async function accessToken({ call = vaultCall, at = Date.now() } = {}) {
@@ -76,7 +76,7 @@ export async function accessToken({ call = vaultCall, at = Date.now() } = {}) {
   return value
 }
 export async function gmailStep() {
-  if (process.env.KIER_NATIVE_VAULT !== '1') return { id: 'gmail', title: 'Gmail', status: 'optional', detail: 'Gmail is only available in signed release builds' }
+  if (process.env.VAHTI_NATIVE_VAULT !== '1') return { id: 'gmail', title: 'Gmail', status: 'optional', detail: 'Gmail is only available in signed release builds' }
   const available = !!await googleClientID(), connected = config.gmail?.connected === true
   return { id: 'gmail', title: 'Gmail', status: connected ? 'done' : 'optional',
     detail: `${GMAIL_NOTICE} ${lastError || (connected ? 'Connected. The Mail switch also controls Gmail.' : !available ? 'Unavailable: this build has no Google client ID.' : 'Off until you choose Connect.')}`,

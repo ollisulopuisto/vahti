@@ -187,7 +187,7 @@ export function codex(path) {
 }
 
 export function collect(db, { claudeDir = CLAUDE, codexDir = CODEX } = {}) {
-  // Kier's own questions to Claude run in its data folder: the companion's chats, not yours.
+  // Vahti's own questions to Claude run in its data folder: the companion's chats, not yours.
   const all = [...recent(claudeDir, 1).map(claude), ...recent(codexDir, 3).map(codex)].filter(Boolean)
     .map((s) => (s.cwd?.startsWith(dataDir) ? { own: true, session: s.session } : s))
   const sessions = all.filter((s) => !s.own)

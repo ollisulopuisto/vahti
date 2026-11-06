@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-terms-'))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-terms-'))
 const { configPath } = await import('../lib/config.mjs')
 const { TERMS_URL, TERMS_VERSION, termsAccepted } = await import('../lib/settings.mjs')
 const { act } = await import('../lib/setup.mjs')

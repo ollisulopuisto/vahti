@@ -25,7 +25,7 @@ export async function inspectGit(root, args) {
     if (!/^ref: refs\/heads\/[A-Za-z0-9_./-]+$/.test(raw)) throw Error('GIT_INSPECTION_FAILED')
   }
   if (head && !new RegExp(`^[a-f0-9]{${format === 'sha1' ? 40 : 64}}$`).test(head)) throw Error('GIT_INSPECTION_FAILED')
-  const scratch = mkdtempSync(join(tmpdir(), 'kier-git-read-'))
+  const scratch = mkdtempSync(join(tmpdir(), 'vahti-git-read-'))
   try {
     mkdirSync(join(scratch, 'refs/heads'), { recursive: true })
     for (const [i, ref] of refs.entries()) {

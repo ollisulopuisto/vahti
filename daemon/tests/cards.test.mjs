@@ -41,7 +41,7 @@ test('the spoken brief names what is due, what may be forgotten and how much mor
   assert.match(s, /On your calendar today: Free day\./)
   assert.match(s, /Due today: Pay 17 EUR for puzzle pieces\./)
   assert.match(s, /You may have forgotten: Call Jonas back\./)
-  assert.match(s, /Plus 2 more in Kier\./)
+  assert.match(s, /Plus 2 more in Vahti\./)
 })
 
 test('an empty day is said plainly', () => {
@@ -50,7 +50,7 @@ test('an empty day is said plainly', () => {
 
 test('small numbers are written out for the voice model, times and dates are left alone', async () => {
   const { spoken } = await import('../lib/speak.mjs')
-  assert.equal(spoken('Plus 5 more in Kier.'), 'Plus five more in Kier.')
+  assert.equal(spoken('Plus 5 more in Vahti.'), 'Plus five more in Vahti.')
   assert.equal(spoken('Pay 40 EUR at 14:30 on 2026-10-29'), 'Pay forty EUR at 14:30 on 2026-10-29')
   assert.equal(spoken('Send 21 photos'), 'Send twenty-one photos')
 })

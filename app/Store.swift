@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-// What Kier's window shows comes from the daemon's local API, the same one Claude reads through.
+// What Vahti's window shows comes from the daemon's local API, the same one Claude reads through.
 
 // SQLite hands booleans over as 0 or 1, the task list as true or false.
 struct Flag: Codable, Hashable {
@@ -174,7 +174,7 @@ struct Item: Codable, Identifiable, Hashable {
   let amount: String?
 }
 
-// One exchange with Kier in the orb's panel.
+// One exchange with Vahti in the orb's panel.
 // Who the owner is, drafted by the local model (lib/profile.mjs) and corrected by them.
 struct Profile: Codable, Equatable {
   struct Entry: Codable, Identifiable, Equatable {
@@ -218,7 +218,7 @@ struct Handoff: Decodable {
   let session: Session?
 }
 
-// One of your conversations with Kier on the panel's list: its key, the last thing you asked, and when.
+// One of your conversations with Vahti on the panel's list: its key, the last thing you asked, and when.
 struct Conversation: Decodable, Identifiable {
   let key: String
   let q: String?
@@ -231,9 +231,9 @@ struct Turn: Identifiable {
   let q: String
   let a: String
   let from: String
-  // What Kier took into your profile from what you said, if anything.
+  // What Vahti took into your profile from what you said, if anything.
   var note: String? = nil
-  // Changes Kier offers for what you asked ("put it back", "not mine"): buttons, so nothing changes until you click.
+  // Changes Vahti offers for what you asked ("put it back", "not mine"): buttons, so nothing changes until you click.
   var actions: [ChatAction] = []
 }
 
@@ -248,7 +248,7 @@ struct ChatAction: Identifiable, Hashable {
 // A day also says which date it is; search results don't.
 struct Items: Codable { let items: [Item] }
 
-// "On this Mac": what Kier read today, its local model, and what went to Claude or Codex (by size only).
+// "On this Mac": what Vahti read today, its local model, and what went to Claude or Codex (by size only).
 struct Privacy: Decodable {
   struct To: Decodable { let agent: String?; let bytes: Int }
   let read: Int
@@ -262,13 +262,13 @@ struct Privacy: Decodable {
   var local: Bool? = nil
 }
 
-// What Kier may read, and whether your Claude may double-check stuck cards.
+// What Vahti may read, and whether your Claude may double-check stuck cards.
 struct Settings: Decodable {
   struct Source: Decodable, Identifiable { let id: String; let label: String; let detail: String?; var on: Bool; let count: Int }
   var sources: [Source]
   var claudeCheck: Bool
   let claude: Bool
-  // The internet connections Kier makes of its own: off unless the owner turns them on.
+  // The internet connections Vahti makes of its own: off unless the owner turns them on.
   var online: Bool
 }
 
@@ -382,7 +382,7 @@ enum Page: String, CaseIterable, Identifiable {
 }
 
 let sourceNames = [
-  "kier": "Kier", "whatsapp": "WhatsApp", "imessage": "iMessage", "calls": "Calls", "calendar": "Calendar", "browser": "Web", "downloads": "Downloads",
+  "vahti": "Vahti", "whatsapp": "WhatsApp", "imessage": "iMessage", "calls": "Calls", "calendar": "Calendar", "browser": "Web", "downloads": "Downloads",
   "mcp": "MCP", "mail": "Mail", "notifications": "Notifications", "clipboard": "Copied", "apps": "Apps", "screen": "On screen", "ai": "AI chats", "git": "Code",
   "discord": "Discord", "chat": "Chats", "social": "Threads and X",
 ]
@@ -428,7 +428,7 @@ final class Store {
   var showChat: String?
   // Set to open the panel on What's new (the card after an update, the island's menu).
   var showNotes = false
-  // Conversations with Kier: "general", and one per waiting item, keyed by its id.
+  // Conversations with Vahti: "general", and one per waiting item, keyed by its id.
   var chats: [String: [Turn]] = [:]
   // The question being answered right now, shown at once instead of after the answer.
   var pending: [String: String] = [:]
@@ -569,7 +569,7 @@ final class Store {
     struct Report: Decodable { let text: String }
     guard let r: Report = await get("/api/diagnostics") else { return nil }
     let info = Bundle.main.infoDictionary
-    return "Kier \(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))\n\(r.text)"
+    return "Vahti \(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))\n\(r.text)"
   }
 
   func card(_ id: String) async -> Card? {
@@ -580,7 +580,7 @@ final class Store {
     await get("/api/event?id=\(id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? id)")
   }
 
-  // Check now: Kier collects everything and the done-check looks at every open card, right away. It takes up to a
+  // Check now: Vahti collects everything and the done-check looks at every open card, right away. It takes up to a
   // couple of minutes, so it waits longer than an ordinary request.
   var checking = false
   func checkNow() {
@@ -816,7 +816,7 @@ final class Store {
     if s.opensIn == "app" { Deliver.open(session: s.title, done: done); return }
     Task {
       let r: OpenResult? = await post("/api/handoff", ["id": id, "open": true])
-      done(r == nil ? "Kier isn't running" : r?.error)
+      done(r == nil ? "Vahti isn't running" : r?.error)
     }
   }
 
@@ -834,7 +834,7 @@ final class Store {
 
   func loadProfile() async { profile = await get("/api/profile") ?? profile }
 
-  // Only what you changed is sent, and it's kept as you wrote it when Kier learns again.
+  // Only what you changed is sent, and it's kept as you wrote it when Vahti learns again.
   func saveProfile(_ p: Profile) {
     guard let old = profile else { return }
     var body: [String: Any] = [:]
@@ -885,8 +885,8 @@ final class Store {
     struct Turns: Decodable { let turns: [Saved] }
     guard chats[key] == nil, let k = key.addingPercentEncoding(withAllowedCharacters: .alphanumerics),
           let r: Turns = await get("/api/chat?key=\(k)") else { return }
-    let names = ["claude": "Claude", "codex": "Codex", "kier": "Kier"]
-    if chats[key] == nil { chats[key] = r.turns.map { Turn(q: $0.q, a: $0.a, from: "\(names[$0.agent ?? ""] ?? "Kier"), \($0.seconds ?? 0)s") } }
+    let names = ["claude": "Claude", "codex": "Codex", "vahti": "Vahti"]
+    if chats[key] == nil { chats[key] = r.turns.map { Turn(q: $0.q, a: $0.a, from: "\(names[$0.agent ?? ""] ?? "Vahti"), \($0.seconds ?? 0)s") } }
   }
 
   // Cloud assistants may take longer than normal requests. Include recent exchanges for follow-up
@@ -912,7 +912,7 @@ final class Store {
           if let t = o["text"] as? String { partial[key] = t }
           if let s = o["status"] as? String { step[key] = s }
           if o["done"] as? Bool == true { answered = finish(q, agent: agent, key: key, o) }
-          // What Kier took into your profile comes a moment after the answer.
+          // What Vahti took into your profile comes a moment after the answer.
           if let noted = o["noted"] as? String, let answered, let i = chats[key]?.firstIndex(where: { $0.id == answered }) {
             chats[key]?[i].note = noted
             await loadProfile()
@@ -929,7 +929,7 @@ final class Store {
   // The finished answer takes the place of the one being written in a single step, so nothing shows twice.
   @discardableResult
   private func finish(_ q: String, agent: String, key: String, _ r: [String: Any]) -> UUID {
-    let names = ["claude": "Claude", "codex": "Codex", "kier": "Kier"]
+    let names = ["claude": "Claude", "codex": "Codex", "vahti": "Vahti"]
     let a = (r["out"] as? String) ?? partial[key].flatMap { $0.isEmpty ? nil : $0 } ?? (r["error"] as? String).map { "Couldn't ask: \($0)" } ?? "No answer."
     let offered = (r["actions"] as? [[String: Any]] ?? []).compactMap { o -> ChatAction? in
       guard let task = o["id"] as? String, let status = o["status"] as? String, let label = o["label"] as? String else { return nil }

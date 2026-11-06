@@ -11,4 +11,4 @@ export function sidecarToken() {
   if (!/^[a-f0-9]{64}$/.test(token)) throw Error('SIDECAR_TOKEN_FAILED')
   return token
 }
-export const sidecarHeaders = () => ({ 'content-type': 'application/json', 'x-kier-token': sidecarToken() })
+export const sidecarHeaders = () => ({ 'content-type': 'application/json', 'x-vahti-token': sidecarToken() })

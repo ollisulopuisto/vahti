@@ -4,7 +4,7 @@ import SwiftUI
 // fill with no rim or shadow, plain icons, Apple's own system font at a Mac app's sizes, and text in white at a few
 // stepped opacities instead of system greys. Semibold only for page titles and card titles; everything else regular
 // or medium.
-enum Kier {
+enum Vahti {
   static let peri = Color(red: 0.557, green: 0.608, blue: 0.890)       // #8e9be3
   static let periLight = Color(red: 0.690, green: 0.725, blue: 0.957)  // a step lighter, for peri on black
   static let lavender = Color(red: 0.812, green: 0.784, blue: 0.949)   // #cfc8f2
@@ -25,17 +25,17 @@ enum Kier {
 }
 
 extension Font {
-  static let kierTitle = Font.system(size: 19, weight: .medium)       // a page's title
-  static let kierHeadline = Font.system(size: 14, weight: .medium)    // the app's name, a sheet's title
-  static let kierCardTitle = Font.system(size: 13, weight: .medium)
-  static let kierBody = Font.system(size: 13)
-  static let kierRow = Font.system(size: 13)                            // a sidebar row
-  static let kierRowSelected = Font.system(size: 13, weight: .medium)   // the selected one
-  static let kierSmall = Font.system(size: 12)
-  static let kierLabel = Font.system(size: 12, weight: .medium)         // a section's name above its rows
-  static let kierCount = Font.system(size: 11, weight: .medium).monospacedDigit()
-  static let kierMono = Font.system(size: 11, design: .monospaced)      // only for code-like values
-  static let kierStat = Font.system(size: 20, weight: .medium).monospacedDigit()
+  static let vahtiTitle = Font.system(size: 19, weight: .medium)       // a page's title
+  static let vahtiHeadline = Font.system(size: 14, weight: .medium)    // the app's name, a sheet's title
+  static let vahtiCardTitle = Font.system(size: 13, weight: .medium)
+  static let vahtiBody = Font.system(size: 13)
+  static let vahtiRow = Font.system(size: 13)                            // a sidebar row
+  static let vahtiRowSelected = Font.system(size: 13, weight: .medium)   // the selected one
+  static let vahtiSmall = Font.system(size: 12)
+  static let vahtiLabel = Font.system(size: 12, weight: .medium)         // a section's name above its rows
+  static let vahtiCount = Font.system(size: 11, weight: .medium).monospacedDigit()
+  static let vahtiMono = Font.system(size: 11, design: .monospaced)      // only for code-like values
+  static let vahtiStat = Font.system(size: 20, weight: .medium).monospacedDigit()
 }
 
 // A card: a flat, slightly lighter fill with rounded corners. No rim, no gradient, no shadow.
@@ -52,8 +52,8 @@ struct PageHeader: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 3) {
-      Text(title).font(.kierTitle).foregroundStyle(Kier.bright)
-      if let lede { Text(lede).font(.kierSmall).foregroundStyle(Kier.dim).fixedSize(horizontal: false, vertical: true) }
+      Text(title).font(.vahtiTitle).foregroundStyle(Vahti.bright)
+      if let lede { Text(lede).font(.vahtiSmall).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true) }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
   }
@@ -70,8 +70,8 @@ struct Panel<Content: View, Accessory: View>: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack(alignment: .firstTextBaseline, spacing: 8) {
-        Text(title).font(.kierLabel).foregroundStyle(Kier.dim)
-        if let count { Text("\(count)").font(.kierSmall.monospacedDigit()).foregroundStyle(Kier.faint) }
+        Text(title).font(.vahtiLabel).foregroundStyle(Vahti.dim)
+        if let count { Text("\(count)").font(.vahtiSmall.monospacedDigit()).foregroundStyle(Vahti.faint) }
         Spacer()
         accessory()
       }
@@ -81,7 +81,7 @@ struct Panel<Content: View, Accessory: View>: View {
       }
       .padding(.horizontal, 18).padding(.vertical, 6)
       .surface()
-      if let footer { Text(footer).font(.kierSmall).foregroundStyle(Kier.faint).padding(.horizontal, 4).fixedSize(horizontal: false, vertical: true) }
+      if let footer { Text(footer).font(.vahtiSmall).foregroundStyle(Vahti.faint).padding(.horizontal, 4).fixedSize(horizontal: false, vertical: true) }
     }
   }
 }
@@ -96,7 +96,7 @@ extension Panel where Accessory == EmptyView {
 struct Hairlines: _VariadicView_MultiViewRoot {
   func body(children: _VariadicView.Children) -> some View {
     ForEach(children) { child in
-      if child.id != children.first?.id { Rectangle().fill(Kier.hair).frame(height: 1) }
+      if child.id != children.first?.id { Rectangle().fill(Vahti.hair).frame(height: 1) }
       child
     }
   }
@@ -110,7 +110,7 @@ struct CardStack<Front: View>: View {
 
   var body: some View {
     front()
-      .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Kier.raised))
+      .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Vahti.raised))
       .background(alignment: .bottom) {
         ZStack(alignment: .bottom) {
           ForEach(Array((0..<min(behind, 2)).reversed()), id: \.self) { i in
@@ -189,7 +189,7 @@ extension Item { var brand: String? { Brand.of(source: source, thread: thread, s
 struct IconTile: View {
   let symbol: String
   var brand: String? = nil
-  var tint: Color = Kier.dim
+  var tint: Color = Vahti.dim
   var size: CGFloat = 30
 
   var body: some View {
@@ -214,13 +214,13 @@ struct Stat: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
-      Text(label).font(.kierSmall).foregroundStyle(Kier.dim)
+      Text(label).font(.vahtiSmall).foregroundStyle(Vahti.dim)
       HStack(spacing: 7) {
         if let ok { Circle().fill(ok ? Color.green : Color.orange).frame(width: 7, height: 7) }
-        Text(value).font(.kierStat).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+        Text(value).font(.vahtiStat).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
       }
       // Always a line here, so tiles side by side are the same height.
-      Text(under ?? " ").font(.kierSmall).foregroundStyle(Kier.faint).lineLimit(1)
+      Text(under ?? " ").font(.vahtiSmall).foregroundStyle(Vahti.faint).lineLimit(1)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(16)
@@ -390,7 +390,7 @@ struct Shimmer: ViewModifier {
   }
 }
 
-// What Kier offers to change for a chat question: one pill each, the first the main one; clicked, it says it took.
+// What Vahti offers to change for a chat question: one pill each, the first the main one; clicked, it says it took.
 struct ActionButtons: View {
   @Environment(Store.self) var store
   let actions: [ChatAction]

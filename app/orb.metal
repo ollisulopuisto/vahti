@@ -4,7 +4,7 @@
 #include <SwiftUI/SwiftUI_Metal.h>
 using namespace metal;
 
-// Kier's world: a pastel sky over a calm sea, the backdrop of its island and what its chrome reflects, so the glass
+// Vahti's world: a pastel sky over a calm sea, the backdrop of its island and what its chrome reflects, so the glass
 // belongs to the place. y is elevation (+1 straight up, 0 the horizon, -1 straight down), x runs along the horizon.
 // dusk, twilight and night (0 to 1) turn it to golden hour, a purple twilight and night with getkier.com's own tints
 // (Appearance in Setup).
@@ -108,8 +108,8 @@ static float hover_blades(float2 p, float px, float extension, float age) {
   return (ray + bloom) * smoothstep(0.09, 0.20, r) * twinkle;
 }
 
-// The orb in a box of `size` points, premultiplied, as the island's layer draws it (kierIsland). Kier's windows show the
-// white mark instead (KierMark in Orb.swift).
+// The orb in a box of `size` points, premultiplied, as the island's layer draws it (vahtiIsland). Vahti's windows show the
+// white mark instead (VahtiMark in Orb.swift).
 static float4 orb_pixel(float2 position, float2 size, float time, float2 mouse, float attention,
                         float dusk, float twilight, float night, float working, float pixelScale,
                         float4 hover, texture2d<float> artwork) {
@@ -300,7 +300,7 @@ struct IslandUniforms {
 struct IslandVertex { float4 position [[position]]; };
 
 // One triangle that covers the window.
-vertex IslandVertex kierIslandVertex(uint id [[vertex_id]]) {
+vertex IslandVertex vahtiIslandVertex(uint id [[vertex_id]]) {
   float2 p = float2((id << 1) & 2, id & 2);
   return { float4(p * 2.0 - 1.0, 0.0, 1.0) };
 }
@@ -338,7 +338,7 @@ static float3 hsv(float h, float s, float v) {
   return v * mix(float3(1.0), k, s);
 }
 
-fragment float4 kierIsland(IslandVertex in [[stage_in]], constant IslandUniforms &u [[buffer(0)]],
+fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniforms &u [[buffer(0)]],
                            texture2d<float> artwork [[texture(0)]]) {
   float2 p = in.position.xy / u.scale;
   float2 q = p - float2(u.width - u.islandWidth, (u.height - u.islandHeight) * 0.5);

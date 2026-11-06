@@ -3,7 +3,7 @@ means, so search finds "the chat about poster sizes" without the words matching.
 reads images and audio, but those weights are never loaded (prepare() saves the text part on its own).
 
 The model code is from mlx-vlm (github.com/Blaizzy/mlx-vlm, MIT, mlx_vlm/models/embedding_gemma2/language.py at
-3d87e88), where its MLX support lives only on a development branch; trimmed to text and to what Kier needs."""
+3d87e88), where its MLX support lives only on a development branch; trimmed to text and to what Vahti needs."""
 import json, os
 import mlx.core as mx
 import mlx.nn as nn

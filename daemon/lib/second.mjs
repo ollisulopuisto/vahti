@@ -17,7 +17,7 @@ export const SECOND = {
   // arrive, minutes apart: 5 minutes keeps it through a burst and frees it in the gaps.
   idle: 300,
   ...config.secondOpinion,
-  // What runs is never taken from config.json: anything there would run with Kier's Full Disk Access.
+  // What runs is never taken from config.json: anything there would run with Vahti's Full Disk Access.
   socket: sockets.decision,
   python: resolve(dataDir, 'py/bin/python'),
   model: resolve(dataDir, 'models/d1-2B'),
@@ -41,8 +41,8 @@ function start() {
   if (child || !installed()) return
   child = spawn(SECOND.python, ['-I', '-E', SCRIPT, SECOND.model, SECOND.socket], {
     env: {
-      KIER_SIDECAR_TOKEN: sidecarToken(), HF_HUB_OFFLINE: '1', TRANSFORMERS_OFFLINE: '1', TOKENIZERS_PARALLELISM: 'false', KIER_IDLE: String(SECOND.idle),
-      KIER_OWNER: config.me, KIER_PRONOUN: config.pronoun, ...(config.decisionAbout && { KIER_DECISION_ABOUT: config.decisionAbout }),
+      VAHTI_SIDECAR_TOKEN: sidecarToken(), HF_HUB_OFFLINE: '1', TRANSFORMERS_OFFLINE: '1', TOKENIZERS_PARALLELISM: 'false', VAHTI_IDLE: String(SECOND.idle),
+      VAHTI_OWNER: config.me, VAHTI_PRONOUN: config.pronoun, ...(config.decisionAbout && { VAHTI_DECISION_ABOUT: config.decisionAbout }),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })

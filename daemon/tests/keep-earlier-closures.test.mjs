@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-keep-closures-'))
-after(() => rmSync(process.env.KIER_DATA_DIR, { recursive: true, force: true }))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-keep-closures-'))
+after(() => rmSync(process.env.VAHTI_DATA_DIR, { recursive: true, force: true }))
 const { open, addItems, now } = await import('../lib/db.mjs')
 
 test('an update keeps earlier closures: answered chat cards stay closed, AI asks and fresh cards do not, Reminders deletions count as the owner', () => {
-  const path = join(process.env.KIER_DATA_DIR, 'kier.db')
+  const path = join(process.env.VAHTI_DATA_DIR, 'vahti.db')
   let db = open(path)
   const old = now() - 5 * 86400, fresh = now() - 3600
   addItems(db, [

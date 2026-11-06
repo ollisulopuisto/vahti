@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
-process.env.KIER_DATA_DIR = mkdtempSync(join(tmpdir(), 'kier-context-'))
-after(() => rmSync(process.env.KIER_DATA_DIR, { recursive: true, force: true }))
+process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-context-'))
+after(() => rmSync(process.env.VAHTI_DATA_DIR, { recursive: true, force: true }))
 const { contextFor } = await import('../lib/tagger.mjs')
 
 // Invented subjects, so the old paste is plainly unrelated to the new request.

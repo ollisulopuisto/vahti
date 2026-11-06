@@ -25,7 +25,7 @@ function permittedRows(db, filter) {
     const cache = permittedCache.get(db) || { tables: [] }
     const hit = cache.tables.find((t) => t.filter === filter && t.changes === changes())
     if (hit) return hit.name
-    const name = `kier_scope_${++permittedSeq}`
+    const name = `vahti_scope_${++permittedSeq}`
     db.exec(`create temp table ${name} (id integer primary key, item text not null unique)`)
     db.prepare(`insert into temp.${name} select rowid, id from main.items where ${filter}`).run()
     cache.tables.push({ name, filter, changes: changes() })
@@ -47,7 +47,7 @@ export function readScope(db, auth) {
   const restricted = auth.allowedSources !== null || auth.disabledSources.length > 0 || !!hiddenMcp
   const list = (xs) => xs.map((s) => `'${s}'`).join(',') || "''"
   const condition = `${auth.allowedSources === null ? '1' : `source in (${list(auth.allowedSources)})`} and source not in (${list(auth.disabledSources)})`
-  const filter = `${condition} and (source != 'mcp' or source_id in (${list(activeMcp)})) and kier_origin_permitted(source, thread, meta, '${JSON.stringify(auth.disabledSources)}', source_id) and not exists (select 1 from main.forgotten where key = kier_forget_key('item', id) or key = kier_forget_key('thread', source, coalesce(thread, '')))`
+  const filter = `${condition} and (source != 'mcp' or source_id in (${list(activeMcp)})) and vahti_origin_permitted(source, thread, meta, '${JSON.stringify(auth.disabledSources)}', source_id) and not exists (select 1 from main.forgotten where key = vahti_forget_key('item', id) or key = vahti_forget_key('thread', source, coalesce(thread, '')))`
   const permitted = permittedRows(db, filter)
   const views = [permitted ? `items as (select rowid, * from main.items where rowid in (select id from temp.${permitted}))`
     : `items as (select rowid, * from main.items where ${filter})`]

@@ -4,17 +4,17 @@ import { execFileSync, spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, statSync, readFileSync, writeFileSync, chmodSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-const dir = mkdtempSync(join(tmpdir(), 'kier-sidecar-test-'))
-process.env.KIER_DATA_DIR = dir
+const dir = mkdtempSync(join(tmpdir(), 'vahti-sidecar-test-'))
+process.env.VAHTI_DATA_DIR = dir
 writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam', runtime: 'mlx' }))
 after(() => rmSync(dir, { recursive: true, force: true }))
 const { sidecarHeaders, sidecarToken } = await import('../lib/sidecar-auth.mjs')
 test('sidecar token is stable and private for all daemon clients', () => {
   const token = sidecarToken(); assert.equal(token.length, 64)
-  assert.equal(sidecarHeaders()['x-kier-token'], token)
+  assert.equal(sidecarHeaders()['x-vahti-token'], token)
   assert.equal(statSync(join(dir, 'sidecar-token')).mode & 0o777, 0o600)
   for (const file of ['meaning', 'second', 'diagnostics', 'model-provider']) assert.match(readFileSync(new URL(`../lib/${file}.mjs`, import.meta.url), 'utf8'), /sidecarFetch\(/)
-  for (const file of ['runtime', 'second']) assert.match(readFileSync(new URL(`../lib/${file}.mjs`, import.meta.url), 'utf8'), /KIER_SIDECAR_TOKEN: sidecarToken\(\)/)
+  for (const file of ['runtime', 'second']) assert.match(readFileSync(new URL(`../lib/${file}.mjs`, import.meta.url), 'utf8'), /VAHTI_SIDECAR_TOKEN: sidecarToken\(\)/)
 })
 test('both actual Python handler classes enforce auth, host, JSON, limits and safe errors', () => {
   execFileSync('python3', [new URL('./sidecar-security.py', import.meta.url).pathname], { timeout: 15000, stdio: 'pipe' })
@@ -22,7 +22,7 @@ test('both actual Python handler classes enforce auth, host, JSON, limits and sa
 
 test('real daemon clients use private Unix sockets for chat, embedding, health and decisions', async t => {
   const child = spawn('python3', [new URL('./sidecar-security.py', import.meta.url).pathname, '--serve-fixture'], {
-    env: { ...process.env, KIER_SIDECAR_TOKEN: sidecarToken() }, stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, VAHTI_SIDECAR_TOKEN: sidecarToken() }, stdio: ['ignore', 'pipe', 'pipe'],
   })
   t.after(() => child.kill())
   const endpoints = await new Promise((resolve, reject) => {

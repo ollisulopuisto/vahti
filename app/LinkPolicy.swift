@@ -18,7 +18,7 @@ enum LinkPolicy {
     return NSWorkspace.shared.open(url)
   }
 
-  // "Open in Claude" or Codex: the session address Kier built from its own session records, never a link from a
+  // "Open in Claude" or Codex: the session address Vahti built from its own session records, never a link from a
   // message. Only these exact shapes open; everything else still goes through the web-only rule above.
   static func allowsSession(_ url: URL) -> Bool {
     let text = url.absoluteString

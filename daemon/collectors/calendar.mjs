@@ -30,11 +30,11 @@ export function collect(db) {
     }
     // Future events can still move or be cancelled, so they are replaced on every run; past ones stay.
     db.prepare('delete from items where source = ? and ts > ?').run(source, now() - 3600)
-    // Skip cancelled events and internal bookkeeping. Do not read Kier’s calendar back into
+    // Skip cancelled events and internal bookkeeping. Do not read Vahti’s calendar back into
     // itself. Timed reminders can also appear here; when reminder collection is enabled, avoid
-    // duplicating those cards or feeding Kier’s own reminders back into the system.
+    // duplicating those cards or feeding Vahti’s own reminders back into the system.
     const cards = new Set(db.prepare('select summary from tags where is_task = 1 and summary is not null').all().map((t) => t.summary))
-    const items = rows.filter((r) => r.summary && !r.hidden && r.status !== 3 && r.cal !== 'Kier' && !r.completed
+    const items = rows.filter((r) => r.summary && !r.hidden && r.status !== 3 && r.cal !== 'Vahti' && !r.completed
       && !(r.cal === 'Scheduled Reminders' && (myReminders() || cards.has(r.summary)))).map((r) => {
       const ts = Math.floor(r.start + APPLE_EPOCH)
       return {
