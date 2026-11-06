@@ -95,6 +95,22 @@ export function serve(db, { install, port = config.port } = {}) {
   const secret = readSecret(tokenPath, true), verify = verifier(secret, () => Date.now(), resolve(tmpDir, 'http-nonces.json'))
   const launch = randomUUID()
   const tickets = new Map(), browserTokens = new Map()
+  // Rate limit: 120 requests per minute per client. A runaway local script
+  // cannot drown the daemon in collection, model or ingest calls. All requests
+  // are counted, authenticated or not, so the check also slows auth probing.
+  const rateLimit = new Map()
+  const RATE_WINDOW_MS = 60 * 1000
+  const RATE_MAX = 120
+  const rateLimited = (ip) => {
+    const now = Date.now()
+    let entry = rateLimit.get(ip)
+    if (!entry || now > entry.reset) {
+      entry = { count: 0, reset: now + RATE_WINDOW_MS }
+      rateLimit.set(ip, entry)
+    }
+    entry.count++
+    return entry.count > RATE_MAX
+  }
   const authedBrowser = req => {
     const session = browserTokens.get(req.headers['x-kier-token'])
     return session && session.expires > Date.now() && session.origin === `http://${req.headers.host}`
@@ -140,6 +156,8 @@ export function serve(db, { install, port = config.port } = {}) {
       if (nonce) signResponse(res, secret, nonce)
       if (!hosts.has(req.headers.host)) return json(res, { error: 'forbidden' }, 403)
       if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return json(res, { error: 'forbidden origin' }, 403)
+      const ip = req.socket.remoteAddress || '127.0.0.1'
+      if (rateLimited(ip)) return json(res, { error: 'too many requests' }, 429)
       // Native bodies are encrypted too: a port squatter must not receive captured text.
       const requestBody = nonce && wire.length ? openBody(secret, wire).toString('utf8') : wire.toString('utf8')
       const url = new URL(req.url, `http://${req.headers.host}`)
