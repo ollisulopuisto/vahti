@@ -29,3 +29,9 @@
 **Learning:** `adultHost()` was running an O(N) array search with `.some()` and `.endsWith()` against 53 adult domains for every host extracted from URLs in every ingested item. In addition, checking sub-labels allocated intermediate arrays via `.slice().flatMap().split('-')`. Replacing `ADULT_SITES` with a `Set` and checking domain suffixes via `indexOf('.')` while using simple loops over label tokens cuts `adultHost` micro-benchmark latency by ~4.7x (942ms → 199ms for 400k checks) and `addItems` for 5K items with links by ~35% (265ms → 170ms).
 
 **Action:** Prefer `Set.has()` plus suffix slicing on `indexOf('.')` over `Array.some(d => host.endsWith('.' + d))` whenever filtering domain names on high-throughput collectors. Avoid `.flatMap()` and `.slice()` inside per-hostname filter loops.
+
+## 2026-11-07 - Precompute people(me) once per tasks() call; fix null-?? re-call bug
+
+**Learning:** The earlier "cache replyQuestion in db.tasks()" optimization was ineffective: `precomputedAsked = null` combined with `null ?? replyQuestion()` always re-ran `replyQuestion` (null is nullish). Worse, `people(me)` (clean + Set + sort + join) was rebuilt inside `replyQuestion`, `actionTitle` and `priorityStatement` for every row — up to 5 `people()` calls plus 3 redundant `replyQuestion()` calls per row in `tasks()`. Fix: export `people` and `plain` from `owner-action.mjs`, precompute `people(me)` and `people(me.map(plain))` once in `tasks()`, pass them through, and replace `null` default with a `Symbol()` sentinel so an explicitly-computed `null` result isn't misread as "not provided".
+
+**Action:** ~15-22% faster at 5K tasks (interleaved baseline ~512ms → ~436ms mean). All 746 passing tests unchanged; 8 pre-existing date-related failures unaffected by this change.

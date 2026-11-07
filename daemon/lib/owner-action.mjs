@@ -8,8 +8,13 @@ const plain = s => clean(s).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase(
 const literal = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const sources = new Set(['whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'chat', 'social'])
 const owner = () => [...names(), config.fullName, ...Object.values(handles()).flat()].filter(Boolean)
-export { owner }
-const people = me => [...new Set(me.map(clean).filter(Boolean))].sort((a, b) => b.length - a.length).map(literal).join('|')
+export { owner, plain }
+// The owner's name alternatives, built once per call site and reused across every row
+// instead of being rebuilt (clean + set + sort + join) inside replyQuestion/actionTitle/priorityStatement.
+export const people = me => [...new Set(me.map(clean).filter(Boolean))].sort((a, b) => b.length - a.length).map(literal).join('|')
+// Sentinel for "caller did not precompute": null is a valid computed result (not a question),
+// so null ?? replyQuestion() would wrongly re-run the work.
+const NOT_COMPUTED = Symbol()
 const message = item => {
   const discord = discordMessage(item)
   const sender = discord?.sender ?? clean(item.sender)
@@ -33,18 +38,18 @@ function work(text) {
   return false
 }
 
-export function replyQuestion(item, me = owner()) {
+export function replyQuestion(item, me = owner(), named) {
   if (item.from_me || item.amount || ['relay', 'later'].includes(item.model) || !sources.has(item.source)) return null
   if (item.card && !['todo', 'reply', 'appointment'].includes(item.card)) return null
   const { text } = message(item)
-  const named = people(me)
-  if (!named || !text.includes('?')) return null
-  const mine = new RegExp(`^@?(?:${named})$`, 'iu')
+  const names = named === undefined ? people(me) : named
+  if (!names || !text.includes('?')) return null
+  const mine = new RegExp(`^@?(?:${names})$`, 'iu')
   const mentions = [...text.matchAll(/(?<![\p{L}\p{N}_.@])@[\p{L}\p{N}_][\p{L}\p{N}_.-]*/gu)]
   if (mentions.some(m => !mine.test(m[0]))) return null
   // Only a direct address, never a name inside reported speech or a question about them.
-  const start = new RegExp(`^(?:(?:hey|hi|hello|ej|hej|bok)\\s*[,!]?(?:\\s+))?@?(?:${named})(?=$|[^\\p{L}\\p{N}_.-])\\s*[,!:]?\\s*`, 'iu')
-  const end = new RegExp(`(?:,\\s*@?|\\s+@)(?:${named})\\s*([?!.]*)$`, 'iu')
+  const start = new RegExp(`^(?:(?:hey|hi|hello|ej|hej|bok)\\s*[,!]?(?:\\s+))?@?(?:${names})(?=$|[^\\p{L}\\p{N}_.-])\\s*[,!:]?\\s*`, 'iu')
+  const end = new RegExp(`(?:,\\s*@?|\\s+@)(?:${names})\\s*([?!.]*)$`, 'iu')
   let body = text.replace(start, '')
   if (body === text) body = text.replace(end, '$1').trim()
   if (body === text || !body.trim()) return null
@@ -55,18 +60,18 @@ export function replyQuestion(item, me = owner()) {
 }
 
 // quote the question so an unfamiliar feature cannot become an invented event.
-export function actionTitle(summary, item, me = owner(), precomputedAsked = null) {
+export function actionTitle(summary, item, me = owner(), precomputedAsked = NOT_COMPUTED, named) {
   if (item.from_me || !sources.has(item.source)) return summary
   const { sender } = message(item)
-  const asked = precomputedAsked ?? replyQuestion(item, me)
+  const asked = precomputedAsked === NOT_COMPUTED ? replyQuestion(item, me, named) : precomputedAsked
   if (asked && sender) {
     const prefix = `Answer ${sender}: "`
     const room = Math.max(0, 199 - prefix.length)
     return `${prefix}${asked.length > room ? `${asked.slice(0, room - 1).trimEnd()}…` : asked}"`
   }
-  const named = people(me)
-  if (!named) return summary
-  const match = clean(summary).match(new RegExp(`^(.+?)\\s+(?:asks|asked|is asking)\\s+(?:${named})\\s+to\\s+(.+)$`, 'iu'))
+  const names = named === undefined ? people(me) : named
+  if (!names) return summary
+  const match = clean(summary).match(new RegExp(`^(.+?)\\s+(?:asks|asked|is asking)\\s+(?:${names})\\s+to\\s+(.+)$`, 'iu'))
   if (!match || me.some(n => plain(n) === plain(match[1]))) return summary
   return match[2][0].toUpperCase() + match[2].slice(1)
 }
@@ -77,10 +82,10 @@ const arrangement = /\b(?:meet|meeting|appointment|call|visit|join|attend|come|d
 const timing = /\b(?:today|tomorrow|tonight|yesterday|now|later|noon|midnight|morning|afternoon|evening|monday|tuesday|wednesday|thursday|friday|saturday|sunday|danas|denes|sutra|zutra|prekosutra|preksutra|naksutra|jutri|veceras|navecer|jutro|vjutro|podne|ponoc|sad|sada|kasnije|ponedjeljak|ponedeljak|utorak|srijed[a-z]*|sred[a-z]*|cetvrtak|petak|petek|subot[a-z]*|nedjelj[a-z]*|nedelj[a-z]*)\b|\b(?:this|next)\s+(?:week|month|weekend)\b|\b(?:u|v|at|ob)\s+(?:\d{1,2}|pon|uto|sri|cet|pet|sub|ned|jedan|dva|tri|cetiri|pet|sest|sedam|osam|devet|deset|jedanaest|dvanaest)\b|\b\d{1,2}(?::\d{2}|\.\d{1,2}\b)|\b\d{1,2}\s*(?:am|pm)\b|\b\d{4}-\d{2}-\d{2}\b/
 const arrangementEvidence = text => arrangement.test(text.replace(/\bcome\s+(?:first|last)\b/g, '')) || timing.test(text)
 
-export function actionCard(card, item, me = owner(), precomputedAsked = null) {
+export function actionCard(card, item, me = owner(), precomputedAsked = NOT_COMPUTED, named) {
   if (card !== 'appointment' || !sources.has(item.source)) return card
   if (arrangementEvidence(plain(message(item).text))) return card
-  const asked = precomputedAsked ?? replyQuestion(item, me)
+  const asked = precomputedAsked === NOT_COMPUTED ? replyQuestion(item, me, named) : precomputedAsked
   return asked ? 'reply' : 'todo'
 }
 
@@ -97,12 +102,12 @@ const fragment = /^(?:(?:pa|onda|zatim|then|and)\s+)*[\p{L}\p{N}]+$/u
 // conjunction is enough to keep a mixed message, even if this also keeps a noun.
 const possibleCommand = /\b(?:pa|onda|zatim|i)\s+\p{L}*(?:aj|ajte|i|ite)\b(?=\s+(?!(?:ko|kao|je|su|bu|bude)\b)\p{L})/u
 
-export function priorityStatement(item, me = owner()) {
+export function priorityStatement(item, me = owner(), named) {
   if (item.from_me || item.amount || ['relay', 'later'].includes(item.model) || !sources.has(item.source)) return false
   const text = plain(message(item).text)
   if (!text || /[?¿]/.test(text) || reported.test(text) || request.test(text) || directive.test(text) || possibleCommand.test(text) || arrangementEvidence(text)) return false
-  const named = people(me.map(plain))
-  if (named && new RegExp(`(?<![\\p{L}\\p{N}_])@?(?:${named})(?![\\p{L}\\p{N}_])`, 'iu').test(text)) return false
+  const names = named === undefined ? people(me.map(plain)) : named
+  if (names && new RegExp(`(?<![\\p{L}\\p{N}_])@?(?:${names})(?![\\p{L}\\p{N}_])`, 'iu').test(text)) return false
   if (/@[\p{L}\p{N}_]/u.test(text)) return false
   const clauses = text.split(/[\n.!;]+/).flatMap(s => pairedOrder.test(s.trim()) ? [s] : s.split(','))
     .map(s => s.trim().replace(orderLead, '')).filter(Boolean)
