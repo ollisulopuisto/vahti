@@ -1,5 +1,27 @@
 [
   {
+    "version": "0.7.11",
+    "date": "2026-11-07",
+    "title": "Solmu and Postilaatikko",
+    "summary": "Read Beeper-backed Solmu chats through a dedicated local reader.",
+    "notes": [
+      "Opt-in Solmu source for messages, promises, search and completion evidence.",
+      "Opt-in Postilaatikko cached-mail reader in Setup, without provider calls or read markers.",
+      "Uses a revocable read-only reader credential, not the Beeper write token.",
+      "Native WhatsApp, multi-origin chats and live server behavior remain unverified."
+    ]
+  },
+  {
+    "version": "0.7.10",
+    "date": "2026-11-07",
+    "title": "Safer Brief window layout",
+    "summary": "Keep window sizing independent of the active page.",
+    "notes": [
+      "Disable content-derived window sizing when switching pages or loading Brief cards.",
+      "Window resizing, the saved frame and the existing minimum size stay controlled by AppKit."
+    ]
+  },
+  {
     "version": "0.7.9",
     "date": "2026-11-06",
     "title": "Open in Claude works again",

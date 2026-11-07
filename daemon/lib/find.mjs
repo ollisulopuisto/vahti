@@ -13,12 +13,12 @@ import { dayLabel, isoDay, plusDays, tasks, today } from './tasks.mjs'
 import { datesOf, plans, shows } from './plans.mjs'
 
 const N = 8
-const LABEL = { whatsapp: 'WhatsApp', imessage: 'iMessage', discord: 'Discord', mail: 'Mail', notifications: 'Notification', social: 'Reply', chat: 'Vahti chat',
+const LABEL = { solmu: 'Solmu', whatsapp: 'WhatsApp', imessage: 'iMessage', discord: 'Discord', mail: 'Mail', notifications: 'Notification', social: 'Reply', chat: 'Vahti chat',
   ai: 'Claude session', downloads: 'Download', browser: 'Web page', calendar: 'Calendar', calls: 'Call' }
-const APPS = { whatsapp: 'net.whatsapp.WhatsApp', imessage: 'com.apple.MobileSMS', discord: 'com.hnc.Discord' }
+const APPS = { solmu: 'me.paolino.fastsapp', whatsapp: 'net.whatsapp.WhatsApp', imessage: 'com.apple.MobileSMS', discord: 'com.hnc.Discord' }
 // What the model may say a request is about, and the sources each covers.
 const KINDS = {
-  ai: ['ai'], chat: ['whatsapp', 'imessage', 'discord', 'notifications', 'social'], mail: ['mail', 'notifications'],
+  ai: ['ai'], chat: ['solmu', 'whatsapp', 'imessage', 'discord', 'notifications', 'social'], mail: ['mail', 'notifications'],
   file: ['downloads'], page: ['browser'], event: ['calendar'], call: ['calls'],
 }
 const UNDERSTAND = `Turn a search request into JSON: {"kind": one of "ai" (a Claude or Codex session), "chat" (a message in WhatsApp, iMessage, Discord and the like), "mail", "file" (something downloaded), "page" (a web page visited), "event" (a calendar event), "call", "task" (something to do), or "any"; "person": the name of the person or chat it is with, or ""; "topic": what it is about, in a few plain words, without the kind or the person}. Claude and Codex are AI assistants, not people. Reply with only the JSON.`
@@ -41,7 +41,8 @@ function result(db, r, cards, score) {
   if (r.source === 'browser') return { id: r.id, kind: 'page', title: clean(r.text), detail: `${clean(r.thread)} · ${when}`, open: r.url ? { url: r.url } : {}, score }
   if (r.source === 'calendar') return { id: r.id, kind: 'event', title: clean(r.text), detail: `Calendar · ${when}`, open: { event: r.id }, score }
   const who = r.from_me ? 'You' : clean(r.sender)
-  const where = r.thread && clean(r.thread) !== who ? ` in ${clean(r.thread)}` : ''
+  const place = r.source === 'solmu' ? meta.chatTitle : r.thread
+  const where = place && clean(place) !== who ? ` in ${clean(place)}` : ''
   // A Claude notice names its session ("session-local_…") and opens that conversation: opening the app did nothing
   // while Claude was already in front. A session since deleted opens the app.
   const session = r.source === 'notifications' && /^session-(local_[\w-]+)$/.exec(meta.conversation || '')?.[1]

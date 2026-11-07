@@ -1,3 +1,5 @@
+import { storePath as postilaatikkoPath } from '../collectors/postilaatikko.mjs'
+import { save, isOff, setSource } from './settings.mjs'
 import { gmailStep, connectGmail, disconnectGmail } from './google.mjs'
 import { mailSetup } from '../collectors/mail.mjs'
 import { modelFetch } from './model-provider.mjs'
@@ -198,6 +200,13 @@ export async function steps(db, eyes = {}) {
         : 'Lets Vahti read conversations in apps like Discord while you have them open. Open the settings and turn on Vahti under Accessibility.',
       { id: 'accessibility', label: 'Open settings' }, true),
     step('chatapps', 'Your messaging apps', false, chatApps(), viber ? null : { id: 'viber', label: 'Get Viber for Mac' }, true),
+    step('postilaatikko', 'Postilaatikko cached mail', config.postilaatikkoCache === true && !isOff('postilaatikko') && !isOff('mail') && lastRun(db, 'postilaatikko')?.ok === 1,
+      !existsSync(postilaatikkoPath()) ? 'No local Postilaatikko cache found. Open Postilaatikko and let it sync first.'
+        : config.postilaatikkoCache ? 'Reads locally cached personal mail only. Mail and Postilaatikko switches must be on. Unfetched bodies remain incomplete; no provider fetches, drafts, attachments or read markers.'
+        : 'Off until enabled. Reads cached personal mail on this Mac, not credentials, drafts or attachments. It never fetches providers or marks mail read.',
+      existsSync(postilaatikkoPath()) ? { id: config.postilaatikkoCache ? 'postilaatikkooff' : 'postilaatikko', label: config.postilaatikkoCache ? 'Disconnect' : 'Enable cached mail' } : null, true),
+    step('solmu', 'Solmu local reader', count(db, 'solmu') > 0 && !isOff('solmu'),
+      'Opt-in Beeper-backed chats through solmu-reader. Run the included connect-solmu helper with a dedicated token file first. Native WhatsApp is not supported. At most the newest 100 chats and 100 messages per chat; older history may be missing.', null, true),
     await gmailStep(),
     step('mail', 'Mail', mail.enabled && lastRun(db, 'mail')?.ok === 1, mail.detail, null, true),
   ]
@@ -206,6 +215,8 @@ export async function steps(db, eyes = {}) {
 export async function act(id, { install, collect } = {}) {
   cache.clear()
   switch (id) {
+    case 'postilaatikko': setSource('postilaatikko', true); return save({ postilaatikkoCache: true })
+    case 'postilaatikkooff': setSource('postilaatikko', false); return save({ postilaatikkoCache: false })
     case 'gmail': return connectGmail()
     case 'gmailoff': return disconnectGmail()
     case 'terms': return acceptTerms()
