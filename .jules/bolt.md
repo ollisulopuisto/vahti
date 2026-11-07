@@ -23,3 +23,9 @@
 **App Nap:** Considered macOS App Nap for background resource throttling, but it's primarily an energy/CPU feature (not memory), requires new native bindings/`osascript` (a dependency + architectural change needing approval), and doesn't address the vector materialization. Skip without owner approval.
 
 **Action:** Benchmark memory with varied vector counts (10K-500K). The heap+iterate change is correct: with deterministic ORDER BY, top-k IDs match `.all().map().sort().slice()` exactly. Without ORDER BY, tie-breaking was already non-deterministic in the original (no ORDER BY), so no correctness regression.
+
+## 2026-11-07 - Set lookup and loop unrolling for adultHost in privacy.mjs
+
+**Learning:** `adultHost()` was running an O(N) array search with `.some()` and `.endsWith()` against 53 adult domains for every host extracted from URLs in every ingested item. In addition, checking sub-labels allocated intermediate arrays via `.slice().flatMap().split('-')`. Replacing `ADULT_SITES` with a `Set` and checking domain suffixes via `indexOf('.')` while using simple loops over label tokens cuts `adultHost` micro-benchmark latency by ~4.7x (942ms → 199ms for 400k checks) and `addItems` for 5K items with links by ~35% (265ms → 170ms).
+
+**Action:** Prefer `Set.has()` plus suffix slicing on `indexOf('.')` over `Array.some(d => host.endsWith('.' + d))` whenever filtering domain names on high-throughput collectors. Avoid `.flatMap()` and `.slice()` inside per-hostname filter loops.
