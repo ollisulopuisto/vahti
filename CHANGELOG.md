@@ -14,6 +14,11 @@ and this project adheres to [Calendar Versioning](https://calver.org/).
 ### Fixed
 - Includes the Brief window-sizing fix from PR #14 (0.7.10).
 
+## [0.7.10] - 2026-11-07
+
+### Fixed
+- Disable content-derived hosting-controller sizing to avoid re-entrant constraint updates when switching to Brief.
+
 ## [v26.11.07.27] - 2026-11-07
 
 ### Added
