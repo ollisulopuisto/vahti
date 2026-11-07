@@ -1,5 +1,5 @@
 import { storePath as postilaatikkoPath } from '../collectors/postilaatikko.mjs'
-import { save, isOff } from './settings.mjs'
+import { save, isOff, setSource } from './settings.mjs'
 import { gmailStep, connectGmail, disconnectGmail } from './google.mjs'
 import { mailSetup } from '../collectors/mail.mjs'
 import { modelFetch } from './model-provider.mjs'
