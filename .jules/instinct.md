@@ -28,3 +28,13 @@ focused workflow contract checks pass locally; native CI must validate the
 build and real notarization only happens on the subsequent manual run.
 Maintainer approved this workflow PR's merge once green, then the build.
 Rollback: revert this workflow PR. No main push or new service/cost.
+
+## 2026-11-07 - PR10 conflict repair
+
+Instinct merged current main into the adultHost Set-lookup branch, preserving
+both conflicting Bolt journal sections and all newer tasks/find changes.
+Focused privacy/profile-privacy tests pass locally (5 tests, synthetic data).
+Full local tests on Node22/Linux have platform/locale failures; macOS Node24
+CI remains the acceptance gate. No layout, collection policy or identifiers
+changed. Maintainer approved merging this task's open PRs once green, then
+notarized GitHub DMGs. No merge until current checks pass. Rollback: revert PR10.
