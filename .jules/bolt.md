@@ -23,3 +23,9 @@
 **App Nap:** Considered macOS App Nap for background resource throttling, but it's primarily an energy/CPU feature (not memory), requires new native bindings/`osascript` (a dependency + architectural change needing approval), and doesn't address the vector materialization. Skip without owner approval.
 
 **Action:** Benchmark memory with varied vector counts (10K-500K). The heap+iterate change is correct: with deterministic ORDER BY, top-k IDs match `.all().map().sort().slice()` exactly. Without ORDER BY, tie-breaking was already non-deterministic in the original (no ORDER BY), so no correctness regression.
+
+## 2026-11-07 - Bucket plans.group() by source+thread+weekday
+
+**Learning:** `plans.group()` rescanned every existing plan for each incoming row via `plans.find(...)`, an O(n) per-row scan (O(n^2) overall) that dominates plan computation for chats with many plan rows. Bucketing by source+thread+weekday with a Map restricts each lookup to plans that can actually match (same chat and weekday), preserving insertion order so the first matching group still wins. Results are identical to the brute-force version.
+
+**Action:** ~6x at n=500 up to ~18x at n=4000 (baseline ~2600 ms -> ~140 ms at n=4000), now ~linear. Verified identical output across 200 randomized inputs; existing group tests pass. Only pre-existing date-resolution test failures remain on main (current-date vs fixed 2028 expectations), unrelated to this change. PR: bolt/perf-plans-group-map (#11).
