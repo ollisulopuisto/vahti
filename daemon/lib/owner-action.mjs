@@ -6,7 +6,7 @@ import { handles } from '../collectors/screenchats.mjs'
 const clean = s => String(s || '').normalize('NFKC').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').trim()
 const plain = s => clean(s).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 const literal = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const sources = new Set(['whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'chat', 'social'])
+const sources = new Set(['solmu', 'whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'chat', 'social'])
 const owner = () => [...names(), config.fullName, ...Object.values(handles()).flat()].filter(Boolean)
 export { owner, plain }
 // The owner's name alternatives, built once per call site and reused across every row

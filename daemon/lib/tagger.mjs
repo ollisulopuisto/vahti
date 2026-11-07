@@ -15,7 +15,7 @@ import { resolveDue } from './dates.mjs'
 import { now } from './db.mjs'
 import { cards, decide } from './second.mjs'
 
-const TAGGED_SOURCES = ['whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'chat', 'social']
+const TAGGED_SOURCES = ['solmu', 'whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'chat', 'social']
 const BALANCE = wordRegex('balance')
 const OWED = wordRegex('owed')
 const LATER = wordRegex('later')
@@ -153,7 +153,7 @@ export function contextLine(c, itemTs) {
 
 // Tag a thought typed across several short messages once, after the burst and immediate
 // reactions settle. Reactions help distinguish a request from banter.
-const CHATS = new Set(['whatsapp', 'imessage', 'discord', 'chat', 'social'])
+const CHATS = new Set(['solmu', 'whatsapp', 'imessage', 'discord', 'chat', 'social'])
 const BURST_GAP = 90
 export const SETTLE = 3 * 60
 const AFTER_WINDOW = 10 * 60
@@ -281,7 +281,7 @@ export function contextForTag(db, item, text = item.text) {
   let meta = {}
   try { meta = typeof item.meta === 'object' ? item.meta || {} : JSON.parse(item.meta || '{}') } catch {}
   const direct = ['whatsapp', 'imessage'].includes(item.source)
-    || ['discord', 'chat'].includes(item.source) && meta.group === false
+    || ['solmu', 'discord', 'chat'].includes(item.source) && meta.group === false
   if (!item.from_me && direct && !meta.group && String(text || '').trim().length <= 320) {
     const previous = db.prepare(`select * from items where source = ? and thread = ?
       and (ts < ? or (ts = ? and rowid < coalesce((select rowid from items where id = ?), 0)))
@@ -358,7 +358,7 @@ export function pending(db, limit) {
     where t.item_id is null and i.source in (${marks}) and i.ts > ? and json_extract(i.meta, '$.quiet') is null
     and coalesce(json_extract(i.meta, '$.ownerCreated'), 0) != 1
     and (i.source != 'notifications' or lower(coalesce(json_extract(i.meta, '$.app'), '')) != 'com.apple.reminders')
-    and (i.source not in ('whatsapp', 'imessage', 'discord', 'chat', 'social') or i.ts < ?) order by i.ts desc limit ?`)
+    and (i.source not in ('solmu', 'whatsapp', 'imessage', 'discord', 'chat', 'social') or i.ts < ?) order by i.ts desc limit ?`)
     .all(...TAGGED_SOURCES, now() - config.tagBackfillDays * 86400, now() - SETTLE, limit)
 }
 

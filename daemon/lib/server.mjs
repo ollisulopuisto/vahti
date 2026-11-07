@@ -214,7 +214,7 @@ export function serve(db, { install, port = config.port } = {}) {
       // only ever what Vahti handed to Claude or Codex for you. There's no account and no server of Vahti's to send to.
       if (url.pathname === '/api/privacy') {
         const day = dayRange(today())[0]
-        const read = db.prepare(`select count(*) n from items where ts >= ? and source in ('whatsapp', 'imessage', 'discord', 'chat', 'social', 'mail', 'notifications')`).get(day).n
+        const read = db.prepare(`select count(*) n from items where ts >= ? and source in ('solmu', 'whatsapp', 'imessage', 'discord', 'chat', 'social', 'mail', 'notifications')`).get(day).n
         const out = db.prepare('select agent, sum(bytes) bytes from outbound where ts >= ? group by agent').all(day)
         // With your own model server, where it runs: this Mac (a local address) or elsewhere, by host only.
         const server = usesExternalModel ? (() => { try { return new URL(config.externalModel.endpoint).hostname } catch { return '' } })() : null
@@ -235,7 +235,7 @@ export function serve(db, { install, port = config.port } = {}) {
         return json(res, {
           runs: db.prepare('select * from runs order by source').all(),
           counts: db.prepare('select source, count(*) n from items group by source').all(),
-          untagged: db.prepare("select count(*) n from items i left join tags t on t.item_id = i.id where t.item_id is null and i.source in ('whatsapp', 'imessage', 'discord', 'chat', 'social', 'mail') and i.ts > ?").get(now() - config.tagBackfillDays * 86400).n,
+          untagged: db.prepare("select count(*) n from items i left join tags t on t.item_id = i.id where t.item_id is null and i.source in ('solmu', 'whatsapp', 'imessage', 'discord', 'chat', 'social', 'mail') and i.ts > ?").get(now() - config.tagBackfillDays * 86400).n,
         })
       }
       // Writes take JSON only, so a cross site form post can't trigger them.

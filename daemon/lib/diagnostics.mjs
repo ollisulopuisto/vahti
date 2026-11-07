@@ -90,7 +90,7 @@ export async function diagnostics(db, { steps = [] } = {}) {
   lines.push(
     '',
     'Reading:',
-    `  waiting to be read: ${count("select count(*) n from items i left join tags t on t.item_id = i.id where t.item_id is null and i.ts > ? and i.source in ('whatsapp', 'imessage', 'discord', 'chat', 'mail', 'notifications', 'social')", now() - 7 * 86400)} from the last week`,
+    `  waiting to be read: ${count("select count(*) n from items i left join tags t on t.item_id = i.id where t.item_id is null and i.ts > ? and i.source in ('solmu', 'whatsapp', 'imessage', 'discord', 'chat', 'mail', 'notifications', 'social')", now() - 7 * 86400)} from the last week`,
     `  read in the last day: ${count('select count(*) n from tags where tagged_at > ?', day)}, of them tasks: ${count('select count(*) n from tags where tagged_at > ? and is_task = 1', day)}, doubted by the second opinion: ${count('select count(*) n from tags where tagged_at > ? and is_task = 1 and second is not null and second < 0.15', day)}`,
     `  open cards: ${count("select count(*) n from tags t left join task_state s on s.item_id = t.item_id where t.is_task = 1 and s.item_id is null")}`,
     `  messages searchable by meaning: ${fingerprinted}`,

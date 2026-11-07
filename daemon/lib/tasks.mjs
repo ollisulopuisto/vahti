@@ -44,7 +44,7 @@ const moment = (t) => MOMENTS.has(t.card) || /^(attend|join|go to|be at)\b/i.tes
 // only: a one to one chat is the person, and in a group only what that sender asked of you, never your promises to the
 // whole group. The island shows each once per message (Orb.swift remindOwed).
 const OWED_MINUTES = 20
-const OWED_SOURCES = ['whatsapp', 'imessage', 'discord', 'chat', 'notifications']
+const OWED_SOURCES = ['solmu', 'whatsapp', 'imessage', 'discord', 'chat', 'notifications']
 export function owed(db, live, at = now(), minutes = OWED_MINUTES) {
   const fresh = db.prepare(`select source, thread, sender, max(ts) ts, max(json_extract(meta, '$.group')) grp from items
     where from_me = 0 and ts > ? and source in (${OWED_SOURCES.map(() => '?').join(', ')}) ${offClause('source')}
@@ -60,10 +60,11 @@ export function owed(db, live, at = now(), minutes = OWED_MINUTES) {
 
 const sourceFilter = (sources) => `${sources ? `and i.source in (${sources.map((s) => `'${s.replace(/'/g, '')}'`).join(', ')})` : ''} ${offClause()}`
 // Where Reply takes you when a card has no link of its own: the app the conversation lives in.
-const APPS = { whatsapp: 'net.whatsapp.WhatsApp', imessage: 'com.apple.MobileSMS', discord: 'com.hnc.Discord', reminders: 'com.apple.reminders' }
+const APPS = { solmu: 'me.paolino.fastsapp', whatsapp: 'net.whatsapp.WhatsApp', imessage: 'com.apple.MobileSMS', discord: 'com.hnc.Discord', reminders: 'com.apple.reminders' }
 const openApp = (r) => {
   if (r.url) return null
-  try { return r.source === 'notifications' ? JSON.parse(r.meta || '{}').app || null : APPS[r.source] || null } catch { return null }
+  try { if (JSON.parse(r.meta || '{}').client === 'postilaatikko') return 'com.wails.postilaatikko'
+    return r.source === 'notifications' ? JSON.parse(r.meta || '{}').app || null : APPS[r.source] || null } catch { return null }
 }
 
 // Used by the native Confirm action and other explicit owner marks.

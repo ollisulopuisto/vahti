@@ -2,6 +2,8 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { config, configPath } from './config.mjs'
 const identities = {
+  postilaatikko: ['postilaatikko', 'com.wails.postilaatikko'],
+  solmu: ['solmu', 'me.paolino.fastsapp'],
   mail: ['com.apple.mail', 'com.readdle.smartemail-macos', 'com.readdle.smartemail-macos-setapp', 'com.readdle.sparkdesktop', 'mail', 'apple mail', 'spark', 'spark mail', 'spark desktop'],
   whatsapp: ['net.whatsapp.whatsapp', 'whatsapp'],
   imessage: ['com.apple.mobilesms', 'messages', 'imessage'],
@@ -52,7 +54,7 @@ export function permitsItem(item, disabled = capturePolicy().disabled) {
   if (wellFormed && !names.some((name) => text.includes(name))) return true
   let meta = item.meta || {}
   if (typeof meta === 'string') { try { meta = JSON.parse(meta) } catch { return false } }
-  const fields = [meta?.app, meta?.bundle, meta?.bundleId, meta?.bundle_id, meta?.appName]
+  const fields = [meta?.client, meta?.app, meta?.bundle, meta?.bundleId, meta?.bundle_id, meta?.appName]
   // Legacy captures sometimes have only a display name, or "App: window title".
   if (['screen', 'notifications', 'clipboard', 'apps', 'chat'].includes(item.source)) fields.push(String(item.thread || '').split(':')[0])
   return !fields.some(name => disabled.includes(appSources[String(name || '').trim().toLowerCase()]))

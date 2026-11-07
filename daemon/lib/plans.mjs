@@ -12,7 +12,7 @@ import { RELATIVE, WEEKDAYS } from './lang.mjs'
 import { offClause } from './settings.mjs'
 import { dayLabel, dayRange, isoDay, plusDays } from './tasks.mjs'
 
-export const PLAN_SOURCES = ['whatsapp', 'imessage', 'discord']
+export const PLAN_SOURCES = ['solmu', 'whatsapp', 'imessage', 'discord']
 const marks = PLAN_SOURCES.map(() => '?').join(', ')
 // How far back a plan still counts: a weekly one mentioned last eight weeks ago may well have stopped.
 const KEEP_DAYS = 120

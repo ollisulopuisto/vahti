@@ -384,7 +384,7 @@ enum Page: String, CaseIterable, Identifiable {
 let sourceNames = [
   "vahti": "Vahti", "whatsapp": "WhatsApp", "imessage": "iMessage", "calls": "Calls", "calendar": "Calendar", "browser": "Web", "downloads": "Downloads",
   "mcp": "MCP", "mail": "Mail", "notifications": "Notifications", "clipboard": "Copied", "apps": "Apps", "screen": "On screen", "ai": "AI chats", "git": "Code",
-  "discord": "Discord", "chat": "Chats", "social": "Threads and X",
+  "solmu": "Solmu", "discord": "Discord", "chat": "Chats", "social": "Threads and X",
 ]
 func sourceName(_ s: String) -> String { sourceNames[s] ?? s }
 let isoDay: DateFormatter = { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f }()

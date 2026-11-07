@@ -205,7 +205,7 @@ export function evidence(db, task, auth = localAuthorization(), { evidenceLabels
   // Payment confirmation may arrive through a different conversation. Include candidate
   // confirmations and let the done-check determine whether they concern this payment.
   const paid = PAYING.test(task.summary || '') || task.card === 'payment' || task.amount
-    ? db.prepare(`select * from items where source in ('whatsapp', 'imessage', 'discord', 'chat', 'mail', 'notifications')
+    ? db.prepare(`select * from items where source in ('solmu', 'whatsapp', 'imessage', 'discord', 'chat', 'mail', 'notifications')
         and ts > ? and ts <= ? and not (source = ? and thread = ?) order by ts desc limit 400`).all(task.ts, until, task.source, task.thread)
         .map(m => ({ ...m, text: authoredText(m) })).filter((m) => PAID.test(m.text || '')).slice(0, 6).reverse()
         .map((m) => ({ kind: 'chat', record: evidenceRecord(m), text: m.text, owner: ownerAuthored(m), ts: m.ts, line: evidenceLabels ? evidenceLine(m, `[${m.source === 'mail' ? 'email' : m.source}, ${m.thread}, ${clock(m.ts)}] ${String(m.text || '').slice(0, 200)}`) : `[${m.source === 'mail' ? 'email' : m.source}, ${m.thread}, ${clock(m.ts)}] ${m.from_me ? N : m.sender}: ${String(m.text || '').replace(/\s+/g, ' ').slice(0, 200)}` }))
