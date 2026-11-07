@@ -215,8 +215,8 @@ export async function steps(db, eyes = {}) {
 export async function act(id, { install, collect } = {}) {
   cache.clear()
   switch (id) {
-    case 'postilaatikko': return save({ postilaatikkoCache: true, off: (config.off || []).filter(id => id !== 'postilaatikko') })
-    case 'postilaatikkooff': return save({ postilaatikkoCache: false, off: [...new Set([...(config.off || []), 'postilaatikko'])] })
+    case 'postilaatikko': setSource('postilaatikko', true); return save({ postilaatikkoCache: true })
+    case 'postilaatikkooff': setSource('postilaatikko', false); return save({ postilaatikkoCache: false })
     case 'gmail': return connectGmail()
     case 'gmailoff': return disconnectGmail()
     case 'terms': return acceptTerms()
