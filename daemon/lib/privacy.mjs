@@ -7,7 +7,8 @@ import { dataDir, tmpDir } from './config.mjs'
 
 // Adult sites and searches are never kept, whichever app they come through. Private and incognito windows
 // keep no history of their own, and Vahti.app skips what is copied in them.
-const ADULT_SITES = [
+// Exact domain set enables O(1) checks for known domains and subdomain suffixes instead of O(N) array scans.
+const ADULT_SITES = new Set([
   'pornhub.com', 'xvideos.com', 'xnxx.com', 'xhamster.com', 'redtube.com', 'youporn.com', 'tube8.com', 'spankbang.com',
   'eporner.com', 'beeg.com', 'tnaflix.com', 'empflix.com', 'drtuber.com', 'nuvid.com', 'upornia.com', 'txxx.com', 'hclips.com',
   'thumbzilla.com', 'youjizz.com', 'motherless.com', 'heavy-r.com', 'daftsex.com', 'hqporner.com', 'porntrex.com', '4tube.com',
@@ -16,7 +17,7 @@ const ADULT_SITES = [
   'naughtyamerica.com', 'mofos.com', 'digitalplayground.com', 'vixen.com', 'tushy.com', 'blacked.com', 'nhentai.net',
   'hanime.tv', 'e621.net', 'gelbooru.com', 'danbooru.donmai.us', 'imagefap.com', 'literotica.com', 'f95zone.to', 'erome.com',
   'redgifs.com', 'fapello.com', 'coomer.su', 'adultfriendfinder.com',
-]
+])
 const ADULT_TLDS = new Set(['xxx', 'porn', 'sex', 'adult', 'sexy'])
 // Parts of a host name, split on dots and dashes: "free-porn-tube.net" has "porn".
 const ADULT_LABEL = /porn|xxx|hentai|nsfw|^(sex|sexy|sexcam|nude|nudes|milf|fap|camgirls?|escorts?|erotic|erotica|erotik|rule34)$/
@@ -28,10 +29,21 @@ const WORD_SOURCES = new Set(['browser', 'downloads', 'clipboard'])
 export function adultHost(host) {
   const h = String(host || '').toLowerCase().replace(/^www\./, '')
   if (!h) return false
-  if (ADULT_SITES.some((d) => h === d || h.endsWith(`.${d}`))) return true
+  // Check exact domain or subdomain suffixes via Set lookup to avoid linear scans over ADULT_SITES.
+  if (ADULT_SITES.has(h)) return true
+  let dot = -1
+  while ((dot = h.indexOf('.', dot + 1)) !== -1) {
+    if (ADULT_SITES.has(h.slice(dot + 1))) return true
+  }
   const labels = h.split('.')
-  if (ADULT_TLDS.has(labels.at(-1))) return true
-  return labels.slice(0, -1).flatMap((l) => l.split('-')).some((l) => ADULT_LABEL.test(l))
+  if (ADULT_TLDS.has(labels[labels.length - 1])) return true
+  // Check dashed tokens without allocating intermediate arrays from slice/flatMap.
+  for (let i = 0; i < labels.length - 1; i++) {
+    for (const part of labels[i].split('-')) {
+      if (ADULT_LABEL.test(part)) return true
+    }
+  }
+  return false
 }
 
 export const adultWords = (text) => ADULT_WORDS.test(String(text || ''))

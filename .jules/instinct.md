@@ -13,3 +13,13 @@
 **Decisions:** keep the getkier.com/terms link in Setup; Sparkle update checks off (`SUEnableAutomaticChecks` false, with the reason noted in Updater.swift) until a Sparkle key pair exists; the What's-new "All changes" button now opens the fork's releases page instead of getkier.com/changelog; Kier's orb artwork stays.
 
 **Learning:** a Swift source that names the fork's repository URL sits outside privacy-gate's five approved identity paths, so a future publish run will flag app/Orb.swift. Accepted: the publish pipeline is upstream machinery the fork does not run, and the alternative (no changelog link) is worse.
+
+## 2026-11-07 - PR10 conflict repair
+
+Instinct merged current main into the adultHost Set-lookup branch, preserving
+both conflicting Bolt journal sections and all newer tasks/find changes.
+Focused privacy/profile-privacy tests pass locally (5 tests, synthetic data).
+Full local tests on Node22/Linux have platform/locale failures; macOS Node24
+CI remains the acceptance gate. No layout, collection policy or identifiers
+changed. Maintainer approved merging this task's open PRs once green, then
+notarized GitHub DMGs. No merge until current checks pass. Rollback: revert PR10.
