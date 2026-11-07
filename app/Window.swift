@@ -30,7 +30,7 @@ final class Viewer: NSObject, NSWindowDelegate {
   private func open(_ path: String) {
     store.page = Page(path: path)
     if window == nil {
-      let host = NSHostingController(rootView: ContentView().environment(store).environment(\.openURL, LinkPolicy.action))
+      let host = makeWindowHost(ContentView().environment(store).environment(\.openURL, LinkPolicy.action))
       // The SwiftUI toolbar, title and search field belong in the window's own title bar.
       host.sceneBridgingOptions = [.toolbars, .title]
       let w = NSWindow(contentViewController: host)

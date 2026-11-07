@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.10] - 2026-11-07
+
+### Fixed
+- Disable content-derived hosting-controller window sizing to avoid re-entrant constraint updates when switching to Brief. Includes a macOS page-switch, inspector and resize stress regression. The reported macOS 15.8.1 crash still needs live verification.
+
 ## [v26.11.07.27] - 2026-11-07
 
 ### Added

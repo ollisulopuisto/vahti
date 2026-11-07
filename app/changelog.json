@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.7.10",
+    "date": "2026-11-07",
+    "title": "Safer Brief window layout",
+    "summary": "Keep window sizing independent of the active page.",
+    "notes": [
+      "Disable content-derived window sizing when switching pages or loading Brief cards.",
+      "Window resizing, the saved frame and the existing minimum size stay controlled by AppKit."
+    ]
+  },
+  {
     "version": "0.7.9",
     "date": "2026-11-06",
     "title": "Open in Claude works again",
