@@ -13,3 +13,18 @@
 **Decisions:** keep the getkier.com/terms link in Setup; Sparkle update checks off (`SUEnableAutomaticChecks` false, with the reason noted in Updater.swift) until a Sparkle key pair exists; the What's-new "All changes" button now opens the fork's releases page instead of getkier.com/changelog; Kier's orb artwork stays.
 
 **Learning:** a Swift source that names the fork's repository URL sits outside privacy-gate's five approved identity paths, so a future publish run will flag app/Orb.swift. Accepted: the publish pipeline is upstream machinery the fork does not run, and the alternative (no changelog link) is worse.
+
+## 2026-11-07 - Manual notarized release delivery
+
+Instinct adds fail-closed credential checks for requested notarization and
+versioned DMG/SHA256 uploads directly to a draft GitHub release. Workflow
+artifacts removed to avoid separately metered retention. Final bytes are
+mounted and checked for signatures, Developer ID team, stapled tickets,
+Gatekeeper acceptance, Vahti identity and arm64 app/runtime presence. Public
+repo and standard macos-latest runner verified live. Prior manual-run logs
+proved the certificate/notary credentials worked; secret listing is unavailable.
+No changes to the app, data paths, Sparkle settings or UI. Shell syntax and
+focused workflow contract checks pass locally; native CI must validate the
+build and real notarization only happens on the subsequent manual run.
+Maintainer approved this workflow PR's merge once green, then the build.
+Rollback: revert this workflow PR. No main push or new service/cost.

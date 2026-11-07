@@ -65,3 +65,15 @@ Vahti is a fork of Kier; the upstream copyright holder is named in [LICENSE](LIC
 ## No warranty
 
 Vahti is free and provided as is, without warranty of any kind. Keeping your Mac secure (login, FileVault, updates, backups) is up to you. See [LICENSE](LICENSE) for the license terms.
+
+### Notarized GitHub downloads
+
+Run **Build & Package Vahti** manually with **notarize** enabled (the default).
+It requires both the Developer ID certificate and Apple notary credentials;
+missing credentials fail rather than produce an ad-hoc download. After signing,
+Apple acceptance, stapling and Gatekeeper checks on the mounted app and DMG,
+it uploads a numbered Apple Silicon DMG and SHA256 file directly to the
+**Vahti manual builds** draft release. The repository owner can download it
+there. Tag builds publish through the tag's release. Builds do not retain
+workflow artifacts. The app still needs native permission/setup acceptance;
+notarization is not a claim that every workflow has been tested.

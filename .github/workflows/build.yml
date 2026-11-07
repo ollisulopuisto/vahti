@@ -12,7 +12,10 @@ on:
         description: 'Notarize with Apple (requires secrets)'
         required: false
         type: boolean
-        default: false
+        default: true
+
+permissions:
+  contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -22,6 +25,8 @@ jobs:
   build:
     name: Build macOS App & DMG
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -97,8 +102,12 @@ jobs:
 
       - name: Build and Package App
         run: |
-          SHOULD_NOTARIZE="${{ github.event.inputs.notarize || (steps.certs.outputs.has_notary == 'true' && startsWith(github.ref, 'refs/tags/v')) }}"
-          if [ "$SHOULD_NOTARIZE" = "true" ] && [ "${{ steps.certs.outputs.has_cert }}" = "true" ]; then
+          SHOULD_NOTARIZE="${{ (github.event_name == 'workflow_dispatch' && inputs.notarize) || startsWith(github.ref, 'refs/tags/v') }}"
+          if [ "$SHOULD_NOTARIZE" = "true" ]; then
+            if [ "${{ steps.certs.outputs.has_cert }}" != "true" ] || [ "${{ steps.certs.outputs.has_notary }}" != "true" ]; then
+              echo "::error::Notarized builds require both Developer ID certificate and notary credentials."
+              exit 1
+            fi
             echo "==> Building Release Package (Notarized)..."
             scripts/package-app.sh --release
           else
@@ -106,21 +115,44 @@ jobs:
             scripts/package-app.sh
           fi
 
-      - name: Upload DMG Artifact
-        uses: actions/upload-artifact@v4
+      # No workflow artifacts: public standard-runner builds are free, but
+      # artifact retention is separately metered. Deliver only to Releases.
+      - name: Verify and name the notarized download
+        if: (github.event_name == 'workflow_dispatch' && inputs.notarize) || startsWith(github.ref, 'refs/tags/v')
+        run: |
+          bash scripts/verify-notarized.sh dist/Vahti.dmg
+          version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' app/Info.plist)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            name="Vahti-$version-manual.${{ github.run_number }}-macos-arm64.dmg"
+          else
+            name="Vahti-$version-macos-arm64.dmg"
+          fi
+          mkdir -p release
+          cp dist/Vahti.dmg "release/$name"
+          (cd release && shasum -a 256 "$name" > "$name.sha256")
+          echo "Verified download: $name"
+          cat "release/$name.sha256"
+
+      - name: Deliver manual notarized DMG to draft release
+        if: github.event_name == 'workflow_dispatch' && inputs.notarize
+        uses: softprops/action-gh-release@v2
         with:
-          name: Vahti-macOS
-          path: |
-            dist/Vahti.dmg
-            dist/Vahti-*.dmg
-          if-no-files-found: error
+          tag_name: manual-vahti
+          target_commitish: ${{ github.sha }}
+          name: Vahti manual builds
+          body: |
+            Notarized Apple Silicon builds from manual runs. Download the newest numbered DMG and its SHA256 file.
+          draft: true
+          prerelease: true
+          make_latest: false
+          fail_on_unmatched_files: true
+          files: release/*
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/Vahti-*.dmg
-            dist/Vahti.dmg
+          fail_on_unmatched_files: true
+          files: release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
