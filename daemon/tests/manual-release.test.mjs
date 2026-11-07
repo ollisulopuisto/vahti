@@ -13,5 +13,13 @@ test('manual notarized builds fail closed and deliver to Releases without artifa
   assert.doesNotMatch(workflow, /uses: actions\/upload-artifact/)
 })
 test('release verification checks final DMG and mounted Vahti app', () => {
-  for (const check of ['stapler validate "$DMG"', 'stapler validate "$APP"', 'hdiutil attach', 'TeamIdentifier=LWSR8T5392', 'to.sulopuis.vahti', 'lipo -verify_arch arm64', 'spctl --assess --type execute']) assert.ok(verify.includes(check), check)
+  for (const check of ['stapler validate "$DMG"', 'stapler validate "$APP"', 'hdiutil attach', 'TeamIdentifier=LWSR8T5392', 'to.sulopuis.vahti', 'lipo "$APP/Contents/MacOS/Vahti" -verify_arch arm64', 'lipo "$APP/Contents/Resources/runtime/node" -verify_arch arm64', 'spctl --assess --type execute']) assert.ok(verify.includes(check), check)
+})
+
+test('lipo input precedes variadic verify_arch option', () => {
+  const lines = verify.split('\n').filter(line => line.startsWith('lipo '))
+  assert.equal(lines.length, 2)
+  for (const line of lines) {
+    assert.match(line, /^lipo "[^"\n]+" -verify_arch arm64$/)
+  }
 })

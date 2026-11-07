@@ -38,3 +38,14 @@ Full local tests on Node22/Linux have platform/locale failures; macOS Node24
 CI remains the acceptance gate. No layout, collection policy or identifiers
 changed. Maintainer approved merging this task's open PRs once green, then
 notarized GitHub DMGs. No merge until current checks pass. Rollback: revert PR10.
+
+## 2026-11-07 - Correct final architecture check argument order
+
+Manual build 42352407175 received Apple Accepted for the app and DMG and passed
+both staple and Gatekeeper checks, then final verification failed because lipo
+interpreted the filename after its variadic -verify_arch option as another
+architecture. Move both input filenames before -verify_arch arm64. Add exact
+argument-order regression coverage. Keep fail-closed verification and no upload
+on failure; no bypass, app/data or signing-policy changes. Focused contract tests
+and shell syntax pass locally. Green native CI remains the gate. Revert this
+follow-up PR to roll back; no direct main push.

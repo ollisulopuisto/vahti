@@ -16,7 +16,7 @@ codesign -dvv "$APP" 2>&1 | grep -F 'TeamIdentifier=LWSR8T5392'
 xcrun stapler validate "$APP"
 spctl --assess --type execute --verbose=2 "$APP"
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" = 'to.sulopuis.vahti'
-lipo -verify_arch arm64 "$APP/Contents/MacOS/Vahti"
+lipo "$APP/Contents/MacOS/Vahti" -verify_arch arm64
 test -x "$APP/Contents/Resources/runtime/node"
-lipo -verify_arch arm64 "$APP/Contents/Resources/runtime/node"
+lipo "$APP/Contents/Resources/runtime/node" -verify_arch arm64
 printf 'Verified notarized Vahti app, bundled runtime and disk image.\n'
