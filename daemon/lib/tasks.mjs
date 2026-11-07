@@ -7,7 +7,7 @@ import { authoredText, ownerCompletion, ownerCompletionClaim } from './completio
 import { now } from './db.mjs'
 import { planEvents } from './plans.mjs'
 import { SECOND } from './second.mjs'
-import { actionCard, actionTitle, owner, priorityStatement, replyQuestion } from './owner-action.mjs'
+import { actionCard, actionTitle, owner, people, plain, priorityStatement, replyQuestion } from './owner-action.mjs'
 import { isOff, offClause } from './settings.mjs'
 
 const pad = (n) => String(n).padStart(2, '0')
@@ -93,12 +93,16 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
   // A callback task's linked promise is looked up per row; prepare once instead of per iteration.
   const promiseSource = db.prepare('select source from items where id = ?')
   const me = owner()
-  return rows.filter(r => r.confirmed === 1 || r.status || !priorityStatement(r)).map((r) => {
+  // Build the owner's name alternatives once: replyQuestion, actionTitle, actionCard and
+  // priorityStatement each rebuild them (clean + set + sort + join) for every row otherwise.
+  const named = people(me)
+  const plainNamed = people(me.map(plain))
+  return rows.filter(r => r.confirmed === 1 || r.status || !priorityStatement(r, me, plainNamed)).map((r) => {
     // old tags get the same wording and card rule without rewriting the vault.
-    const asked = replyQuestion(r, me)
-    r.summary = actionTitle(r.summary, r, me, asked)
+    const asked = replyQuestion(r, me, named)
+    r.summary = actionTitle(r.summary, r, me, asked, named)
     if (asked) r.card = 'reply'
-    r.card = actionCard(r.card, r, me, asked)
+    r.card = actionCard(r.card, r, me, asked, named)
     if (r.card === 'reply' && WORK.test(r.summary || '')) r.card = 'todo'
     let state = r.status || 'open'
     let reason = r.reason || null
