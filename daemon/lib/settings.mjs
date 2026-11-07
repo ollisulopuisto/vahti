@@ -6,6 +6,8 @@ import { invalidateProfile } from './profile-state.mjs'
 import { now } from './db.mjs'
 
 export const SOURCES = [
+  { id: 'postilaatikko', label: 'Postilaatikko', detail: 'Opt-in cached personal mail only. Enable in Setup; Mail must also be on. No provider fetches or read-marker changes' },
+  { id: 'solmu', label: 'Solmu', detail: 'Opt-in local read-only reader; configure its dedicated token file first. Beeper-backed chats only' },
   { id: 'whatsapp', label: 'WhatsApp' },
   { id: 'mcp', label: 'MCP sources', detail: 'Only servers and read tools you explicitly enable' },
   { id: 'mail', label: 'Mail', detail: 'Personal mail from Apple Mail, Spark and connected Gmail' },

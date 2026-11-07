@@ -6,7 +6,7 @@ import { config } from './config.mjs'
 import { MLX, embedReady } from './runtime.mjs'
 import { offClause } from './settings.mjs'
 
-export const SOURCES = ['whatsapp', 'imessage', 'mail', 'mcp', 'discord', 'chat', 'notifications', 'ai', 'downloads', 'social']
+export const SOURCES = ['solmu', 'whatsapp', 'imessage', 'mail', 'mcp', 'discord', 'chat', 'notifications', 'ai', 'downloads', 'social']
 export const ready = () => embedReady()
 
 export async function embed(texts, { query = false } = {}) {

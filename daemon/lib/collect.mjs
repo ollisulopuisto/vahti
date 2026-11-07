@@ -7,6 +7,8 @@ import * as calendar from '../collectors/calendar.mjs'
 import * as calls from '../collectors/calls.mjs'
 import * as downloads from '../collectors/downloads.mjs'
 import * as git from '../collectors/git.mjs'
+import * as postilaatikko from '../collectors/postilaatikko.mjs'
+import * as solmu from '../collectors/solmu.mjs'
 import * as mcp from '../collectors/mcp.mjs'
 import * as gmail from '../collectors/gmail.mjs'
 import * as mail from '../collectors/mail.mjs'
@@ -19,7 +21,7 @@ import { open, recordRun } from './db.mjs'
 import { isOff } from './settings.mjs'
 
 // screenchats reads what Eyes captured on screen, so it runs after everything else.
-export const collectors = [whatsapp, imessage, mail, gmail, mcp, calls, calendar, notifications, browser, downloads, ai, git, screenchats]
+export const collectors = [whatsapp, imessage, mail, gmail, mcp, solmu, postilaatikko, calls, calendar, notifications, browser, downloads, ai, git, screenchats]
 
 // A collector that fails (no permission, app not installed) never stops the others.
 export async function collectAll(db, only) {

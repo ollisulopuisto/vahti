@@ -106,7 +106,7 @@ export async function build(db, infer = local) {
   building = (async () => {
     const old = profile() || { people: [], groups: [] }
     const since = now() - 30 * 86400
-    const chats = "source in ('whatsapp', 'imessage', 'discord', 'chat')"
+    const chats = "source in ('solmu', 'whatsapp', 'imessage', 'discord', 'chat')"
 
     const mine = db.prepare(`select from_me, sender, text from items where ${chats} and from_me = 1 and ts > ? and length(text) between 25 and 400 order by random() limit 70`).all(since)
     const repos = db.prepare(`select thread, count(*) n from items where source = 'git' and ts > ? group by thread order by n desc limit 8`).all(since).map((r) => r.thread)

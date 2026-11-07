@@ -44,7 +44,7 @@ export function candidates(db, b = brief(db)) {
 }
 
 // The last month's messages with any of the words in them, newest first; the model decides which are really about it.
-const SOURCES = ['whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'ai']
+const SOURCES = ['solmu', 'whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'ai']
 // Search in two steps: identify the event’s likely subject, then translate those terms into
 // stems for each configured language.
 const WORDS = (label, text) => `${N} has "${label}" coming up (on his calendar as "${text}"). List 2 to 5 English words people would use in chats about it beforehand: the thing itself and what it is most likely for (a pottery class may need clay or tools; a rehearsal may need an instrument or sheet music). Single lowercase words. Reply with only JSON: {"words": ["..."]}`
@@ -133,7 +133,7 @@ export async function eventInfo(db, id) {
   // Guessing from the title, only conversations count: notifications and sessions share too many words by chance.
   const seen = new Set()
   const said = (await related(db, words.length ? words : own, title))
-    .filter((m) => words.length || ['whatsapp', 'imessage', 'mail', 'discord'].includes(m.source))
+    .filter((m) => words.length || ['solmu', 'whatsapp', 'imessage', 'mail', 'discord'].includes(m.source))
     .filter((m) => !seen.has(m.text) && seen.add(m.text)).slice(0, 6)
   const allDay = (() => { try { return !!JSON.parse(item.meta || '{}').allDay } catch { return false } })()
   return {
