@@ -58,3 +58,15 @@ test('the day comes from the message, never from the model', () => {
   const moved = { id: 'y', ts: at('2028-02-11'), text: 'Danas je klub od 13:10 do 14:40.' }
   assert.equal(parse('{"plan": true, "when": "", "start": "13:10", "end": "14:40", "what": "Puzzle club"}', moved).day, '2028-02-11')
 })
+
+test('bucket delimiter collisions never merge distinct source/thread pairs', () => {
+  const a = row('a', '2028-02-04', 'Puzzle club', '2028-02-11', '', '', { source: 'x\0y', thread: 'z' })
+  const b = row('b', '2028-02-05', 'Puzzle club', '2028-02-11', '', '', { source: 'x', thread: 'y\0z' })
+  assert.deepEqual(group([a, b]).map((p) => p.items), [['a'], ['b']])
+})
+
+test('invalid weekdays retain the original strict equality semantics', () => {
+  const a = row('a', '2028-02-04', 'Puzzle club', 'invalid', '', '', { cancelled: 1 })
+  const b = row('b', '2028-02-05', 'Puzzle club', 'invalid', '', '', { cancelled: 1 })
+  assert.deepEqual(group([a, b]).map((p) => p.items), [['a'], ['b']])
+})
