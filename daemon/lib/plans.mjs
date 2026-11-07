@@ -111,10 +111,19 @@ const NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday',
 // Plan rows (with their message's thread and ts) as plans: same chat, same weekday, a word of what in common.
 export function group(rows) {
   const plans = []
+  // Bucket by source+thread+weekday so the per-row merge lookup only scans plans that
+  // can actually match (same chat and weekday), turning the plans.find scan from O(n)
+  // into a small bucket scan. Insertion order inside a bucket matches plans.find order,
+  // so the first matching group still wins.
+  const buckets = new Map()
   for (const r of [...rows].sort((a, b) => a.ts - b.ts)) {
     const ws = words(r.what)
-    const p = plans.find((g) => g.source === r.source && g.thread === r.thread && g.weekday === weekday(r.day) && g.words.some((w) => ws.includes(w)))
-    if (p) { p.rows.push(r); for (const w of ws) if (!p.words.includes(w)) p.words.push(w) } else plans.push({ source: r.source, thread: r.thread, weekday: weekday(r.day), words: ws, rows: [r] })
+    const key = `${r.source}\0${r.thread}\0${weekday(r.day)}`
+    let bucket = buckets.get(key)
+    if (!bucket) { bucket = []; buckets.set(key, bucket) }
+    const p = bucket.find((g) => g.source === r.source && g.thread === r.thread && g.weekday === weekday(r.day) && g.words.some((w) => ws.includes(w)))
+    if (p) { p.rows.push(r); for (const w of ws) if (!p.words.includes(w)) p.words.push(w) }
+    else { const g = { source: r.source, thread: r.thread, weekday: weekday(r.day), words: ws, rows: [r] }; bucket.push(g); plans.push(g) }
   }
   return plans.map((p) => {
     const on = p.rows.filter((r) => !r.cancelled)
