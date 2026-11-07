@@ -139,16 +139,21 @@ export function addItems(db, all) {
   // Avoids redacting the same row twice (once in keep(), once in the final map).
   const items = []
   for (const i of trusted.filter(i => permitsItem(i))) {
+    let redacted
     if (i.source === 'mail') {
       const { current, aliases } = mailIdentity(i)
-      const stored = mailIdentity(redactItem({ ...i, id: current }))
+      // Canonicalize the id first, then redact the row once and reuse that exact redacted row for the
+      // stored-identity check, instead of redacting the same content a second time for mail.
+      i.id = current
+      redacted = redactItem(i)
+      const stored = mailIdentity(redacted)
       if ([...aliases, ...stored.aliases].some(id => gone.has(forgetKey('item', id)))) {
         migrated.push(current)
         continue
       }
-      i.id = current
+    } else {
+      redacted = redactItem(i)
     }
-    const redacted = redactItem(i)
     if (!keep(i, gone) || !keep(redacted, gone)) continue
     items.push(redacted)
   }

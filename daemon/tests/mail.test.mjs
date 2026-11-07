@@ -448,6 +448,21 @@ test('mail ids and the adult host filter are unchanged by redaction', t => {
   assert.equal(db.prepare("select count(*) n from items where url like '%porn%'").get().n, 0)
 })
 
+test('a mail row is stored once under its canonical copy id with its content redacted', t => {
+  const db = open(':memory:'); t.after(() => db.close())
+  const token = ['sk', 'synthetic_fixture_only_1234567890'].join('-')
+  const item = { id: 'mail:dedup-canonical', source: 'mail', thread: 'Invoice', sender: 'Sam', fromMe: true, ts: at,
+    text: `The invoice is ready. ${token}`,
+    meta: { ownerSent: true, client: 'spark', messageId: 'dedup-1@example.test', subject: 'Invoice',
+      from: [{ name: 'Sam', email: 'sam@example.test' }], to: [{ email: 'nika@example.test' }] } }
+  assert.equal(addItems(db, [item]), 1)
+  const row = db.prepare('select * from items').get()
+  assert.equal(row.id, 'mail:dedup-canonical:copy:sent', 'the canonical copy id is applied to the stored row')
+  assert.doesNotMatch(row.text, /synthetic_fixture_only/, 'the secret is redacted')
+  assert.match(row.text, /\[SECRET\]/)
+  assert.equal(addItems(db, [{ ...item }]), 0, 'replaying the same message dedups to the single stored row')
+})
+
 test('Forget holds against the stored form: no-id mail, coded threads, and digit-only differences stay apart', async t => {
   const { forget } = await import('../lib/privacy.mjs')
   const db = open(':memory:'); t.after(() => db.close())
