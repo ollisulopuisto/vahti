@@ -50,3 +50,9 @@ weekdays must not merge rows the original scan kept separate. Added regression
 coverage for both. Bucketing is not guaranteed linear: one same-chat/weekday
 bucket can still contain all groups, so worst-case remains quadratic. Original
 benchmark claims are not revalidated. Full macOS CI is the merge gate.
+
+## 2026-11-07 - Redact mail items once in db.addItems()
+
+**Learning:** `addItems()` redacted every mail item twice: once for the stored-identity check (`mailIdentity(redactItem({...i, id: current}))`) and again for the row actually stored (`redactItem(i)` after `i.id = current`). Both calls run every `RULES` regex over thread, sender, text, url and the nested meta, so the mail ingestion path did ~2x the necessary redaction. Non-mail items already redacted once. The function's own comment ("redact each item once") was only true for non-mail.
+
+**Action:** Canonicalize `i.id = current` first, then call `redactItem(i)` once and reuse that exact redacted row for both the stored-identity check and storage. Behavior is identical: the reused row is structurally equal to the old two (same own properties, `redactItem` is pure), and the forget check now uses the very row that is stored. No new dependency; ~11 lines. Disproof A/B on the same corpus (3000 items, median of 8 reps): 100%-mail 101ms → 80ms (−21%, 33.8→26.7 µs/item); 25%-mail mixed 43.5ms → 38ms (−13–15%); 0%-mail 22.4ms → 22.4ms (0%, unchanged non-mail path). The win scales linearly with mail fraction, confirming the mechanism and ruling out noise/corpus artifacts. Full suite 784/784 green under `VAHTI_LANGUAGES='en,hr'` (the 6 local date/accent failures are environment-dependent and pass in CI). PR: bolt/perf-additems-mail-redact-once.
