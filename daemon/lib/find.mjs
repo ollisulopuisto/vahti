@@ -92,9 +92,12 @@ async function rank(db, text, { sources = [], who = null, meant = text, extras =
   }
   // Search card titles independently because translated titles may share no words with the
   // original messages. Search plans by their own descriptions too.
-  const cards = new Map(tasks(db, { days: 90 }).map((t) => [t.id, t]))
+  // tasks() recomputes every card (per-row regex, owner lookups, callback checks), so only
+  // pay for it when there are query words to match titles against.
+  const cards = new Map()
   const lead = []
   if (extras && ws.length) {
+    for (const t of tasks(db, { days: 90 })) cards.set(t.id, t)
     const hit = (s) => { const h = String(s).toLowerCase(); return ws.filter((w) => h.includes(w)).length / ws.length }
     for (const t of cards.values()) {
       if (!['open', 'overdue'].includes(t.state) || (who && !`${t.thread} ${t.sender}`.toLowerCase().includes(who.toLowerCase()))) continue

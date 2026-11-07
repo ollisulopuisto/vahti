@@ -29,3 +29,18 @@
 **Learning:** `plans.group()` rescanned every existing plan for each incoming row via `plans.find(...)`, an O(n) per-row scan (O(n^2) overall) that dominates plan computation for chats with many plan rows. Bucketing by source+thread+weekday with a Map restricts each lookup to plans that can actually match (same chat and weekday), preserving insertion order so the first matching group still wins. Results are identical to the brute-force version.
 
 **Action:** ~6x at n=500 up to ~18x at n=4000 (baseline ~2600 ms -> ~140 ms at n=4000), now ~linear. Verified identical output across 200 randomized inputs; existing group tests pass. Only pre-existing date-resolution test failures remain on main (current-date vs fixed 2028 expectations), unrelated to this change. PR: bolt/perf-plans-group-map (#11).
+
+## 2026-11-07 - Precompute people(me) once per tasks() call; fix null-?? re-call bug
+
+**Learning:** The earlier "cache replyQuestion in db.tasks()" optimization was ineffective: `precomputedAsked = null` combined with `null ?? replyQuestion()` always re-ran `replyQuestion` (null is nullish). Worse, `people(me)` (clean + Set + sort + join) was rebuilt inside `replyQuestion`, `actionTitle` and `priorityStatement` for every row — up to 5 `people()` calls plus 3 redundant `replyQuestion()` calls per row in `tasks()`. Fix: export `people` and `plain` from `owner-action.mjs`, precompute `people(me)` and `people(me.map(plain))` once in `tasks()`, pass them through, and replace `null` default with a `Symbol()` sentinel so an explicitly-computed `null` result isn't misread as "not provided".
+
+**Action:** ~15-22% faster at 5K tasks (interleaved baseline ~512ms → ~436ms mean). All 746 passing tests unchanged; 8 pre-existing date-related failures unaffected by this change.
+
+## 2026-11-07 - PR11 conflict and equivalence repair
+
+Instinct preserves both journal sections during main merge. Bucket lookup
+retains strict source/thread/weekday matching: delimiter collisions and NaN
+weekdays must not merge rows the original scan kept separate. Added regression
+coverage for both. Bucketing is not guaranteed linear: one same-chat/weekday
+bucket can still contain all groups, so worst-case remains quadratic. Original
+benchmark claims are not revalidated. Full macOS CI is the merge gate.

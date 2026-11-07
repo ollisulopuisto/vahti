@@ -121,7 +121,7 @@ export function group(rows) {
     const key = `${r.source}\0${r.thread}\0${weekday(r.day)}`
     let bucket = buckets.get(key)
     if (!bucket) { bucket = []; buckets.set(key, bucket) }
-    const p = bucket.find((g) => g.words.some((w) => ws.includes(w)))
+    const p = bucket.find((g) => g.source === r.source && g.thread === r.thread && g.weekday === weekday(r.day) && g.words.some((w) => ws.includes(w)))
     if (p) { p.rows.push(r); for (const w of ws) if (!p.words.includes(w)) p.words.push(w) }
     else { const g = { source: r.source, thread: r.thread, weekday: weekday(r.day), words: ws, rows: [r] }; bucket.push(g); plans.push(g) }
   }
