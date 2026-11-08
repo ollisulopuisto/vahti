@@ -48,17 +48,27 @@ export function adultHost(host) {
 
 export const adultWords = (text) => ADULT_WORDS.test(String(text || ''))
 
-function hosts(item) {
-  const found = []
-  for (const s of [item.url, ...(String(item.text || '').match(/https?:\/\/[^\s<>"')]+/g) || [])]) {
-    try { if (s) found.push(new URL(s).hostname) } catch {}
+// Check for adult URLs without allocating intermediate arrays or parsing URLs when no adult host is present.
+const URL_RE = /https?:\/\/[^\s<>"')]+/g
+function hasAdultHost(item) {
+  if (item.url) {
+    try { if (adultHost(new URL(item.url).hostname)) return true } catch {}
   }
-  if (item.source === 'browser') found.push(item.thread)
-  return found
+  const text = typeof item.text === 'string' ? item.text : String(item.text || '')
+  // Only execute URL regex if 'http' substring is present in text
+  if (text.includes('http')) {
+    URL_RE.lastIndex = 0
+    let match
+    while ((match = URL_RE.exec(text)) !== null) {
+      try { if (adultHost(new URL(match[0]).hostname)) return true } catch {}
+    }
+  }
+  if (item.source === 'browser' && item.thread && adultHost(item.thread)) return true
+  return false
 }
 
 export function adult(item) {
-  if (hosts(item).some(adultHost)) return true
+  if (hasAdultHost(item)) return true
   return WORD_SOURCES.has(item.source) && (adultWords(item.text) || adultWords(item.thread))
 }
 
