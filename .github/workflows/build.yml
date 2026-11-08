@@ -92,13 +92,13 @@ jobs:
             echo "has_cert=false" >> "$GITHUB_OUTPUT"
           fi
 
-          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_PASSWORD" ]; then
+          if [ -n "$BUILD_CERT_BASE64" ] && [ -n "$P12_PWD" ] && [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_PASSWORD" ]; then
             echo "Configuring Apple ID for Notarization..."
             export KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
             python3 scripts/macos_ci_credentials.py store-notary-credentials
             echo "has_notary=true" >> "$GITHUB_OUTPUT"
           else
-            echo "No notarytool secrets found."
+            echo "Signing certificate or notary credentials missing; notarization setup skipped."
             echo "has_notary=false" >> "$GITHUB_OUTPUT"
           fi
 

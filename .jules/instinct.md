@@ -69,3 +69,9 @@ pattern, with dummy-data regression tests and an actual disposable macOS keychai
 smoke check before real credential setup. Bare-filename checksums are retained.
 Release routes remain direct GitHub Releases without cache/artifact writes.
 PR only, no merge/tag/build. Native smoke validation awaits macOS CI.
+
+### Missing signing-certificate path
+
+Only store notary credentials after certificate import created the keychain.
+Without signing secrets, nonrelease test builds can still skip signing/notary
+setup; requested notarized release builds fail at the existing credential gate.
