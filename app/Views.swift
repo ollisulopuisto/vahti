@@ -110,21 +110,25 @@ struct ContentView: View {
       Sidebar()
         .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
     } detail: {
-      // Every page you've opened stays built, stacked in one place: switching only cross-fades, softly, like
-      // CodeNotch's settings, with nothing rebuilt, and each page keeps where you'd scrolled to.
+      // Every page you've opened stays built, stacked in one place: switching is instant, with nothing rebuilt,
+      // and each page keeps where you'd scrolled to. No crossfade or blur on the swap, on purpose: animating the
+      // page change kept SwiftUI's display-link async renderer busy while AppKit ran the window's constraint pass
+      // for the toolbar/title swap, and NSHostingView cancelling that rendering marked constraints dirty mid-pass,
+      // which AppKit rejects with an uncaught NSException (EXC_BREAKPOINT in -[NSWindow
+      // _postWindowNeedsUpdateConstraints]). That is the 0.7.9 Vault crash and the 0.7.11 Timeline crash; the
+      // heavier the incoming page, the wider the collision window, which is why the Timeline still crashed after
+      // 0.7.10. Instant swaps leave the async renderer idle at constraint time.
       ZStack {
         ForEach(Page.allCases) { p in
           if visited.contains(p) || store.page == p {
             page(p)
               .frame(maxWidth: .infinity, maxHeight: .infinity)
               .opacity(store.page == p ? 1 : 0)
-              .blur(radius: store.page == p ? 0 : 8)
               .allowsHitTesting(store.page == p)
               .accessibilityHidden(store.page != p)
           }
         }
       }
-      .animation(.easeOut(duration: 0.22), value: store.page)
       .onChange(of: store.page, initial: true) { visited.insert(store.page) }
       // A card's side panel, for the brief. Here rather than on the brief itself, so its split view is built once and
       // not again every time you come back to the brief.
@@ -236,7 +240,9 @@ private struct Sidebar: View {
     store.page == .chats && (key == nil ? store.chatKey.map { k in !store.conversations.contains { $0.key == k } } ?? true : store.chatKey == key)
   }
 
-  private func go(_ change: () -> Void) { withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) { change() } }
+  // No spring on selection changes: animating the pill across a page swap has the same async-renderer/constraint-pass
+  // collision described above. The pill still lands on the right row, just without the slide.
+  private func go(_ change: () -> Void) { change() }
 }
 
 private struct SidebarRow: View {

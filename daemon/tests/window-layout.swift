@@ -18,7 +18,26 @@ struct LayoutFixture: View {
           if state.loaded {
             ScrollView { VStack { ForEach(0..<40) { n in Text("Synthetic card \(n)").padding(18) } } }
           } else { ProgressView() }
-        } else { Text("Other page").frame(maxWidth: .infinity, maxHeight: .infinity) }
+        } else {
+          // Timeline-like page: a long lazy list with per-row rounded backgrounds and a monospaced
+          // hour gutter, swapped in and out instantly across display cycles. This is the page that
+          // still crashed in 0.7.11 when page swaps were animated.
+          ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+              ForEach(0..<400, id: \.self) { n in
+                HStack(alignment: .top, spacing: 14) {
+                  Text(n % 12 == 0 ? "12:00" : "").font(.system(size: 11).monospacedDigit())
+                    .frame(width: 44, alignment: .trailing)
+                  Text("Synthetic timeline row \(n)").padding(11)
+                }
+                .background(
+                  RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(0.045)))
+              }
+            }
+            .padding(32)
+          }
+        }
       }
       .inspector(isPresented: $state.inspector) { Text("Context").inspectorColumnWidth(min: 300, ideal: 360, max: 480) }
     }
