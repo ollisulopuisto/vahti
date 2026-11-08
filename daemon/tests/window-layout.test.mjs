@@ -50,7 +50,14 @@ test('native host survives page switches, loading, inspector changes and window 
   try {
     const binary = join(dir, 'layout')
     execFileSync('swiftc', ['../app/WindowHosting.swift', 'tests/window-layout.swift', '-o', binary], { timeout: 60000, stdio: 'pipe' })
-    execFileSync(binary, [], { timeout: 30000, stdio: 'pipe' })
+    try {
+      execFileSync(binary, [], { timeout: 30000, stdio: 'pipe' })
+    } catch (error) {
+      // The fixture prints each step to stdout so a trap on CI can be placed exactly.
+      if (error.stdout?.length) console.log('fixture stdout:\n' + error.stdout)
+      if (error.stderr?.length) console.log('fixture stderr:\n' + error.stderr)
+      throw error
+    }
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 test('page switches are instant, never animated', () => {
@@ -70,4 +77,48 @@ test('sidebar rows never animate press or hover', () => {
   const row = views.slice(views.indexOf('private struct SidebarRow'), views.indexOf('// MARK: Brief'))
   assert.doesNotMatch(row, /\.animation\(/)
   assert.doesNotMatch(row, /withAnimation\(/)
+})
+
+test('production and fixture masonry normalize measurement and arrangement consistently', () => {
+  const production = readFileSync('../app/Design.swift', 'utf8').split('struct Masonry: Layout')[1].split('// Show the assistant')[0]
+  const fixture = readFileSync('tests/window-layout.swift', 'utf8').split('struct MasonryFixture: Layout')[1].split('struct FlowFixture')[0]
+  const helpers = source => source.slice(source.indexOf('  private func layoutWidth'), source.indexOf('\n  }', source.indexOf('  private func columns')) + 4)
+  assert.equal(helpers(production), helpers(fixture))
+  for (const source of [production, fixture]) {
+    assert.match(source, /let width = layoutWidth\(proposal\.width \?\? minWidth \* 3 \+ spacing \* 2\)/)
+    assert.match(source, /return CGSize\(width: width,/)
+    assert.match(source, /let width = layoutWidth\(proposed\)/)
+    assert.match(source, /proposed\.isFinite && proposed > 0 && proposed <= 1_000_000/)
+  }
+})
+
+test('production masonry math handles invalid and extreme widths without trapping', { skip: process.platform !== 'darwin' }, () => {
+  const production = readFileSync('../app/Design.swift', 'utf8')
+  const start = production.indexOf('  private func layoutWidth', production.indexOf('struct Masonry: Layout'))
+  const end = production.indexOf('\n  }', production.indexOf('  private func columns', start)) + 4
+  const helpers = production.slice(start, end).replaceAll('private func', 'func')
+  const script = `import Foundation
+struct MathFixture {
+  var minWidth: CGFloat = 270
+  var spacing: CGFloat = 16
+${helpers}
+}
+let math = MathFixture()
+let invalid: [CGFloat] = [.infinity, -.infinity, .nan, 0, -1, .greatestFiniteMagnitude]
+for proposed in invalid {
+  let width = math.layoutWidth(proposed)
+  let columns = math.columns(proposed)
+  precondition(width == 270 && width.isFinite)
+  precondition(columns.count == 1 && columns.width == width)
+}
+let valid: [CGFloat] = [0.5, 270, 556, 980, 1_000_000]
+for proposed in valid {
+  let width = math.layoutWidth(proposed)
+  let columns = math.columns(proposed)
+  precondition(width == proposed && columns.count >= 1)
+  precondition(columns.width.isFinite && columns.width > 0)
+  precondition(abs(CGFloat(columns.count) * columns.width + CGFloat(columns.count - 1) * 16 - width) < 0.001)
+}
+`
+  execFileSync('swift', ['-'], { input: script, timeout: 60000, stdio: 'pipe' })
 })

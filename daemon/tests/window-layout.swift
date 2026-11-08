@@ -131,13 +131,20 @@ struct MasonryFixture: Layout {
   var minWidth: CGFloat = 270
   var spacing: CGFloat = 16
 
-  private func columns(_ width: CGFloat) -> (count: Int, width: CGFloat) {
+  private func layoutWidth(_ proposed: CGFloat) -> CGFloat {
+    // SwiftUI may ask with infinity/NaN while probing a split view. Reject values
+    // outside a practical window range before Int conversion or column allocation.
+    proposed.isFinite && proposed > 0 && proposed <= 1_000_000 ? proposed : minWidth
+  }
+
+  private func columns(_ proposed: CGFloat) -> (count: Int, width: CGFloat) {
+    let width = layoutWidth(proposed)
     let n = max(1, Int((width + spacing) / (minWidth + spacing)))
     return (n, (width - spacing * CGFloat(n - 1)) / CGFloat(n))
   }
 
   func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-    let width = proposal.width ?? minWidth * 3 + spacing * 2
+    let width = layoutWidth(proposal.width ?? minWidth * 3 + spacing * 2)
     let (n, w) = columns(width)
     var heights = Array(repeating: CGFloat(0), count: n)
     for tile in subviews {
@@ -217,10 +224,19 @@ struct FlowFixture: Layout {
       state.loaded = n % 2 == 0
       state.inspector = n % 4 == 0
       window.setContentSize(NSSize(width: 980 + (n % 3) * 40, height: 720))
+      // Progress to stdout, flushed: if the host traps on CI, the log names the exact step.
+      print("layout iteration \(n): page=\(state.page) loaded=\(state.loaded) inspector=\(state.inspector)")
+      fflush(stdout)
       RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+      print("layout iteration \(n): runloop settled")
+      fflush(stdout)
       window.updateConstraintsIfNeeded()
       window.contentView?.layoutSubtreeIfNeeded()
+      print("layout iteration \(n): constraints laid out")
+      fflush(stdout)
       window.displayIfNeeded()
+      print("layout iteration \(n): displayed")
+      fflush(stdout)
       assert(host.sizingOptions.isEmpty)
       // AppKit/NavigationSplitView may recompute minSize after adding the
       // inspector. Its exact value is not the contract under test: the host

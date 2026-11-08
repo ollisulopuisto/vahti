@@ -49,3 +49,12 @@ argument-order regression coverage. Keep fail-closed verification and no upload
 on failure; no bypass, app/data or signing-policy changes. Focused contract tests
 and shell syntax pass locally. Green native CI remains the gate. Revert this
 follow-up PR to roll back; no direct main push.
+
+## 2026-11-08 - PR26 production masonry width correction
+
+Both Devin findings apply: move width validation into production Masonry and
+return that same normalized width from sizeThatFits. Mirror the helpers in the
+window fixture. Non-finite/non-positive/out-of-practical-range widths fall back
+to minWidth, avoiding Int traps and pathological column allocations. Version
+0.7.15/build107 with What's New. Add shared-source and native math regressions.
+No merge, no manual build/publish. Native compile/UI acceptance remains macOS CI.

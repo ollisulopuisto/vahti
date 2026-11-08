@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.7.15",
+    "date": "2026-11-08",
+    "title": "Safer Vault layout",
+    "summary": "Vault handles unusual window layout sizes safely.",
+    "notes": [
+      "Split-view layout probes with invalid widths no longer reach an unchecked column conversion. Vault reports the same safe width it uses to arrange cards."
+    ]
+  },
+  {
     "version": "0.7.14",
     "date": "2026-11-08",
     "title": "Todoist tasks",
