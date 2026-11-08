@@ -290,9 +290,13 @@ private struct SidebarRow: View {
       }
     }
     .contentShape(Rectangle())
+    // Press and hover feedback change instantly, never animated: a click selects the row in the same
+    // gesture (onEnded below), so the press spring was still running while the page swap replaced the
+    // toolbar, title and inspector - display-link async rendering in flight across AppKit's window
+    // constraint pass, the crash family behind 0.7.9 Vault and 0.7.11 Timeline. The heaviest page,
+    // Vault, still crashed on 0.7.12 (manual.64) because this row animation survived the swap fix.
     .scaleEffect(pressed && !reduceMotion ? 0.97 : 1)
-    .animation(.spring(response: 0.22, dampingFraction: 0.6), value: pressed)
-    .onHover { h in withAnimation(.easeOut(duration: 0.14)) { hovered = h } }
+    .onHover { h in hovered = h }
     // Down is when it reacts; up is when it selects, unless the pointer moved off to drag or scroll.
     .gesture(
       DragGesture(minimumDistance: 0)
@@ -1116,7 +1120,9 @@ struct VaultView: View {
             if v.reads.recent.isEmpty {
               Text("No AI has read your vault yet.").font(.vahtiBody).foregroundStyle(Vahti.dim).padding(.vertical, 13)
             } else {
-              ForEach(v.reads.recent) { r in
+              // Enumerated, not Read.id: ts+tool repeats when one AI reads twice in the same second,
+              // and duplicate ForEach ids are undefined behavior in SwiftUI.
+              ForEach(Array(v.reads.recent.enumerated()), id: \.offset) { _, r in
                 HStack(alignment: .firstTextBaseline, spacing: 14) {
                   Text("\(dateLabel(r.ts)) \(timeLabel(r.ts))").font(.vahtiSmall.monospacedDigit()).foregroundStyle(Vahti.faint).frame(width: 96, alignment: .leading)
                   VStack(alignment: .leading, spacing: 2) {

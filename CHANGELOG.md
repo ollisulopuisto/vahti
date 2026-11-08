@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.13] - 2026-11-08
+
+### Fixed
+- Vault crash when clicking the Vault sidebar row (0.7.12/manual.64): the row's press spring and hover fade were still animating when the click's page swap replaced the toolbar, title and inspector, keeping SwiftUI's display-link async renderer busy across AppKit's window-constraint pass - the same uncaught NSException family as 0.7.9 Vault and 0.7.11 Timeline (EXC_BREAKPOINT in -[NSWindow _postWindowNeedsUpdateConstraints]), through the one animation the 0.7.12 swap fix left on the click path. Sidebar press and hover feedback are now instant. The window-layout regression test builds a Vault-like masonry page during swaps and a source check keeps sidebar rows animation-free.
+- The "Who read your vault" list no longer relies on timestamp+tool as a row identity, which repeats when an AI reads twice in the same second.
+
 ## [0.7.12] - 2026-11-08
 
 ### Fixed
