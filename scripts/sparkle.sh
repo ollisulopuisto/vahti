@@ -9,7 +9,7 @@ DIR="$CACHE/Sparkle-$VERSION"
 if [[ ! -d "$DIR/Sparkle.framework" ]]; then
   mkdir -p "$CACHE"
   TARBALL="$CACHE/Sparkle-$VERSION.tar.xz"
-  [[ -f "$TARBALL" ]] || curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/$VERSION/Sparkle-$VERSION.tar.xz" -o "$TARBALL"
+  [[ -f "$TARBALL" ]] || curl -fsSL --retry 8 --retry-all-errors --retry-delay 15 --retry-max-time 600 "https://github.com/sparkle-project/Sparkle/releases/download/$VERSION/Sparkle-$VERSION.tar.xz" -o "$TARBALL"
   echo "$SUM  $TARBALL" | shasum -a 256 -c - >/dev/null || { rm -f "$TARBALL"; echo "sparkle: download failed its checksum" >&2; exit 1; }
   mkdir -p "$DIR"
   tar -xJf "$TARBALL" -C "$DIR"
