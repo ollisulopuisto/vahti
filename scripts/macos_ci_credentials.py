@@ -24,7 +24,8 @@ def child_env():
         "KEYCHAIN_PASSWORD", "P12_PASSWORD", "APPLE_APP_PASSWORD",
         "BUILD_CERTIFICATE_BASE64", "BUILD_CERT_BASE64", "SIGNING_CERTIFICATE_P12",
         "SIGNING_CERTIFICATE_PASSWORD", "P12_PWD", "KEYCHAIN_PWD",
-        "NOTARY_APP_PASSWORD",
+        "NOTARY_APP_PASSWORD", "APP_CERTIFICATE_PASSWORD", "INSTALLER_CERTIFICATE_PASSWORD",
+        "TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
     }}
 
 
@@ -35,8 +36,25 @@ def security(*args):
         ["/usr/bin/security", "-i"], input=line, text=True,
         capture_output=True, env=child_env(), check=False,
     )
-    if result.returncode:
+    # One command per interpreter. Also fail on its explicit status diagnostic,
+    # even on OS versions where the interpreter's exit status may differ.
+    diagnostics = [line.strip() for line in (result.stderr or "").split("\n") if line.strip()]
+    success_status = re.compile(r"^[a-z][a-z-]*: returned 0$")
+    if result.returncode or any(not success_status.fullmatch(line) for line in diagnostics):
         raise RuntimeError("Keychain operation failed (output withheld)")
+
+
+
+def parse_keychain_list(output):
+    paths = []
+    for line in output.split("\n"):
+        value = line.strip()
+        if not value:
+            continue
+        if len(value) < 3 or not value.startswith('"/') or not value.endswith('"') or "\x00" in value:
+            raise RuntimeError("Unexpected keychain search list output (withheld)")
+        paths.append(value[1:-1])
+    return paths
 
 
 def import_certificate():
@@ -49,7 +67,12 @@ def import_certificate():
              os.environ["P12_PASSWORD"], "-T", "/usr/bin/codesign", "-k", keychain)
     security("set-key-partition-list", "-S", "apple-tool:,apple:,codesign:",
              "-s", "-k", password, keychain)
-    security("list-keychains", "-d", "user", "-s", keychain)
+    current = subprocess.run(["/usr/bin/security", "list-keychains", "-d", "user"],
+                             capture_output=True, text=True, env=child_env(), check=True)
+    search = parse_keychain_list(current.stdout)
+    if keychain not in search:
+        search.append(keychain)
+    security("list-keychains", "-d", "user", "-s", *search)
 
 
 def store_notary_credentials():
