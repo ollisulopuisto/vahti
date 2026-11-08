@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.14] - 2026-11-08
+
+### Added
+- Opt-in Todoist source: your active tasks, read every few minutes from the Todoist REST API with your own API token. Paste the token in Setup's Sources tab (Todoist Settings, Integrations, Developer); it is validated, stored owner-only on this Mac, and never in config.json, logs or chat. Tasks land in the vault with project, priority, due date and labels, flow through the same tagging, search and forget pipelines as every other source, and can be switched off in What Vahti reads. Completed tasks disappear from the API and stay in the vault as history; closing the loop (ticking a Todoist task off when Vahti sees it done, the way reminders work) is follow-up work. Reads are GET-only against the tasks and projects routes; Todoist is not in the default AI read scopes.
+
 ## [0.7.12] - 2026-11-08
 
 ### Fixed

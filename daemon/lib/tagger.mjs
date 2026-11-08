@@ -15,7 +15,7 @@ import { resolveDue } from './dates.mjs'
 import { now } from './db.mjs'
 import { cards, decide } from './second.mjs'
 
-const TAGGED_SOURCES = ['solmu', 'whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'chat', 'social']
+const TAGGED_SOURCES = ['solmu', 'whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'chat', 'social', 'todoist']
 const BALANCE = wordRegex('balance')
 const OWED = wordRegex('owed')
 const LATER = wordRegex('later')
