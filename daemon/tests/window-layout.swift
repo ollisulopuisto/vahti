@@ -5,40 +5,65 @@ import SwiftUI
   var brief = false
   var loaded = false
   var inspector = false
+  var visited: Set<String> = []
 }
 struct LayoutFixture: View {
   var state: Fixture
+
+  private var briefPage: some View {
+    Group {
+      if state.loaded {
+        ScrollView { VStack { ForEach(0..<40) { n in Text("Synthetic card \(n)").padding(18) } } }
+      } else { ProgressView() }
+    }
+  }
+
+  // Timeline-like page: a long lazy list with per-row rounded backgrounds and a monospaced
+  // hour gutter, retained in the stack once visited.
+  private var timelinePage: some View {
+    ScrollView {
+      LazyVStack(alignment: .leading, spacing: 0) {
+        ForEach(0..<400, id: \.self) { n in
+          HStack(alignment: .top, spacing: 14) {
+            Text(n % 12 == 0 ? "12:00" : "").font(.system(size: 11).monospacedDigit())
+              .frame(width: 44, alignment: .trailing)
+            Text("Synthetic timeline row \(n)").padding(11)
+          }
+          .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+              .fill(Color.white.opacity(0.045)))
+        }
+      }
+      .padding(32)
+    }
+  }
+
   var body: some View {
     @Bindable var state = state
     NavigationSplitView {
       Text("Sidebar").navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
     } detail: {
-      Group {
-        if state.brief {
-          if state.loaded {
-            ScrollView { VStack { ForEach(0..<40) { n in Text("Synthetic card \(n)").padding(18) } } }
-          } else { ProgressView() }
-        } else {
-          // Timeline-like page: a long lazy list with per-row rounded backgrounds and a monospaced
-          // hour gutter, swapped in and out instantly across display cycles. This is the page that
-          // still crashed in 0.7.11 when page swaps were animated.
-          ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-              ForEach(0..<400, id: \.self) { n in
-                HStack(alignment: .top, spacing: 14) {
-                  Text(n % 12 == 0 ? "12:00" : "").font(.system(size: 11).monospacedDigit())
-                    .frame(width: 44, alignment: .trailing)
-                  Text("Synthetic timeline row \(n)").padding(11)
-                }
-                .background(
-                  RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.white.opacity(0.045)))
-              }
-            }
-            .padding(32)
-          }
+      // Mirrors ContentView's real page lifecycle: a page is first BUILT during the swap that
+      // opens it (visited gate, like `visited.contains(p) || store.page == p`), then stays built
+      // in the stack; switching only flips opacity and hit-testing, instantly - never an
+      // animation or a blur (the 0.7.9 Vault / 0.7.11 Timeline crashes).
+      ZStack {
+        if state.visited.contains("brief") || state.brief {
+          briefPage
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .opacity(state.brief ? 1 : 0)
+            .allowsHitTesting(state.brief)
+            .accessibilityHidden(!state.brief)
+        }
+        if state.visited.contains("timeline") || !state.brief {
+          timelinePage
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .opacity(state.brief ? 0 : 1)
+            .allowsHitTesting(!state.brief)
+            .accessibilityHidden(state.brief)
         }
       }
+      .onChange(of: state.brief, initial: true) { _, now in state.visited.insert(now ? "brief" : "timeline") }
       .inspector(isPresented: $state.inspector) { Text("Context").inspectorColumnWidth(min: 300, ideal: 360, max: 480) }
     }
     .navigationTitle(state.brief ? "Brief" : "Timeline")
