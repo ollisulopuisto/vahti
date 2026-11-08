@@ -21,7 +21,14 @@ test('native host survives page switches, loading, inspector changes and window 
   try {
     const binary = join(dir, 'layout')
     execFileSync('swiftc', ['../app/WindowHosting.swift', 'tests/window-layout.swift', '-o', binary], { timeout: 60000, stdio: 'pipe' })
-    execFileSync(binary, [], { timeout: 30000, stdio: 'pipe' })
+    try {
+      execFileSync(binary, [], { timeout: 30000, stdio: 'pipe' })
+    } catch (error) {
+      // The fixture prints each step to stdout so a trap on CI can be placed exactly.
+      if (error.stdout?.length) console.log('fixture stdout:\n' + error.stdout)
+      if (error.stderr?.length) console.log('fixture stderr:\n' + error.stderr)
+      throw error
+    }
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 test('page switches are instant, never animated', () => {
