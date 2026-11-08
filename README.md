@@ -22,7 +22,7 @@ its Node runtime and daemon; you do not need Homebrew Node just to run it.
    to the **Vahti manual builds** draft, which needs repository write access to
    view. Draft links are not public downloads.
 2. Download the numbered arm64 DMG and its matching SHA256 file. In the download
-   folder, run `shasum -a 256 -c <actual-DMG-filename>.sha256`.
+   folder, replace the example filename and run `shasum -a 256 -c 'Vahti-actual-build-name.dmg.sha256'`.
 3. Open the DMG, copy Vahti to Applications and launch it.
 4. Follow Setup to choose sources, grant the required macOS permissions and
    install the managed local model or choose a model endpoint.
