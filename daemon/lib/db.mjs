@@ -2,7 +2,7 @@ import { mailIdentity } from './mail-identity.mjs'
 import { createHash } from 'node:crypto'
 import { externalSender, ownerAuthored, evidenceMeta } from './evidence-trust.mjs'
 import { mcpThread } from './mcp-identity.mjs'
-import { redact } from './redact.mjs'
+import { redact, redactLines } from './redact.mjs'
 import { invalidateProfile } from './profile-state.mjs'
 import { permitsItem } from './app-permissions.mjs'
 import { DatabaseSync } from 'node:sqlite'
@@ -192,13 +192,9 @@ export function redactValue(value) {
   if (typeof value === 'string') return redact(value).text
   if (Array.isArray(value)) {
     // A capture's message lines are kept one per element, which can split a multi-line secret like a
-    // PEM block so no element shows both markers. Redact the joined lines too; a mask spanning lines
-    // collapses them to one.
-    if (value.length > 1 && value.every((v) => typeof v === 'string')) {
-      const joined = value.join('\n')
-      const out = redact(joined).text
-      return out === joined ? value : out.split('\n')
-    }
+    // PEM block so no element shows both markers. redactLines catches those without losing element
+    // boundaries: only the elements a block actually covers collapse.
+    if (value.length > 1 && value.every((v) => typeof v === 'string')) return redactLines(value)
     return value.map(redactValue)
   }
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, v]) => [key, redactValue(v)]))

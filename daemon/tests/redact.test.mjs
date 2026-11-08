@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { redact } from '../lib/redact.mjs'
+import { redact, redactLines } from '../lib/redact.mjs'
 
 test('IBAN and OIB are masked', () => {
   const { text, found } = redact('IBAN računa: HR' + '0'.repeat(19) + ' OIB: ' + '8'.repeat(11))
@@ -48,6 +48,14 @@ test('PEM private key blocks are masked', () => {
   assert.deepEqual(res.found, ['secret'])
   const ec = '-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEI\n-----END EC PRIVATE KEY-----'
   assert.equal(redact(ec).text, '[PRIVATE KEY]')
+})
+
+test('line arrays keep their element boundaries', () => {
+  const lines = ['first\nsecond', 'sk-' + 'a'.repeat(24)]
+  assert.deepEqual(redactLines(lines), ['first\nsecond', '[SECRET]'])
+  const pem = ['look at this', '-----BEGIN RSA PRIVATE KEY-----', 'MIIEowIBAAKCAQEA0', '-----END RSA PRIVATE KEY-----', 'keep it safe']
+  assert.deepEqual(redactLines(pem), ['look at this', '[PRIVATE KEY]', 'keep it safe'])
+  assert.deepEqual(redactLines(['hello', 'world']), ['hello', 'world'])
 })
 
 test('a truncated key block swallows neither text nor the next block', () => {
