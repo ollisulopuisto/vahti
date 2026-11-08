@@ -23,6 +23,7 @@ class OrbFallbackTest(unittest.TestCase):
             (out / 'main.swift').write_text(r'''
 import AppKit
 import SwiftUI
+MainActor.assumeIsolated {
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 let model = OrbModel()
@@ -51,6 +52,7 @@ for tucked in [false, true] {
   print("Fallback painted, tucked=\(tucked), opaque pixels=\(painted)")
 }
 window.orderOut(nil)
+}
 ''')
             executable = out / 'orb-smoke'
             subprocess.run(['xcrun', 'swiftc', str(ROOT / 'app/Island.swift'),
