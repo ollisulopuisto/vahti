@@ -15,6 +15,10 @@ class OrbFallbackTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='vahti-orb-') as directory:
             out = pathlib.Path(directory)
             source = (ROOT / 'app/Orb.swift').read_text()
+            # Keep the production palette used by VahtiMark without the unrelated application views.
+            design = (ROOT / 'app/Design.swift').read_text()
+            palette = 'import SwiftUI\n' + design[design.index('enum Vahti {'):design.index('\nextension Font')]
+            (out / 'Palette.swift').write_text(palette)
             (out / 'OrbFixture.swift').write_text(source.split("// The island's window content:")[0])
             (out / 'main.swift').write_text(r'''
 import AppKit
@@ -50,7 +54,7 @@ window.orderOut(nil)
 ''')
             executable = out / 'orb-smoke'
             subprocess.run(['xcrun', 'swiftc', str(ROOT / 'app/Island.swift'),
-                            str(ROOT / 'app/IslandArtwork.swift'), str(out / 'OrbFixture.swift'),
+                            str(ROOT / 'app/IslandArtwork.swift'), str(out / 'Palette.swift'), str(out / 'OrbFixture.swift'),
                             str(out / 'main.swift'), '-o', str(executable)], check=True)
             subprocess.run([str(executable)], check=True, timeout=20)
 
