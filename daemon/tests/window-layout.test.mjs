@@ -16,6 +16,19 @@ test('main window uses explicit AppKit sizing before content is attached', () =>
   assert.match(window, /w\.minSize = NSSize\(width: 640, height: 480\)/)
   assert.match(window, /w\.setFrameAutosaveName\("Vahti"\)/)
 })
+test('all floating panels and hosting views disable content-derived sizingOptions', () => {
+  const orb = readFileSync('../app/Orb.swift', 'utf8')
+  // Island view host disables sizingOptions
+  assert.match(orb, /let host = NSHostingView\(rootView: IslandView[\s\S]*?host\.sizingOptions = \[\]/)
+  // Find panel host disables sizingOptions
+  assert.match(orb, /let host = NSHostingView\(rootView: view\.environment[\s\S]*?host\.sizingOptions = \[\]/)
+  // Companion chat panel host disables sizingOptions
+  assert.match(orb, /let host = NSHostingView\(rootView: CompanionView[\s\S]*?host\.sizingOptions = \[\]/)
+  // Toast / nudge presenter disables sizingOptions
+  assert.match(orb, /private func present<V: View>\(_ host: NSHostingView<V>[\s\S]*?host\.sizingOptions = \[\]/)
+  // FirstClickHost sets sizingOptions = [] in init
+  assert.match(orb, /final class FirstClickHost: NSHostingView<AnyView>[\s\S]*?self\.sizingOptions = \[\]/)
+})
 test('native host survives page switches, loading, inspector changes and window resizing', { skip: process.platform !== 'darwin' }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'vahti-window-layout-'))
   try {

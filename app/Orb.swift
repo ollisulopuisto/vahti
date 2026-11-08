@@ -762,6 +762,7 @@ final class Companion: NSObject {
       let view = FindView(model: find, open: { [weak self] r in self?.openFound(r) }, ask: { [weak self] q in self?.askFound(q) },
                           close: { [weak self] in self?.closeFind() })
       let host = NSHostingView(rootView: view.environment(\.openURL, LinkPolicy.action))
+      host.sizingOptions = []
       let p = KeyPanel(contentRect: NSRect(origin: .zero, size: FindView.size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
       p.isFloatingPanel = true
       p.level = .floating
@@ -834,6 +835,7 @@ final class Companion: NSObject {
     if mode == .hover { setTucked(false) }
     if chatPanel == nil {
       let host = NSHostingView(rootView: CompanionView(close: { [weak self] in self?.closeChat() }).environment(store).environment(\.openURL, LinkPolicy.action))
+      host.sizingOptions = []
       let p = KeyPanel(contentRect: NSRect(origin: .zero, size: panelSize), styleMask: [.borderless, .nonactivatingPanel, .resizable],
                        backing: .buffered, defer: false)
       p.isFloatingPanel = true
@@ -1241,6 +1243,7 @@ final class FirstClickHost: NSHostingView<AnyView> {
   convenience init<Content: View>(rootView: Content) { self.init(rootView: AnyView(rootView)) }
   required init(rootView: AnyView) {
     super.init(rootView: AnyView(rootView.environment(\.openURL, LinkPolicy.action)))
+    self.sizingOptions = []
   }
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("Unavailable") }
