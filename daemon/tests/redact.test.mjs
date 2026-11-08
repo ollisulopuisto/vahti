@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { redact } from '../lib/redact.mjs'
+import { redact, redactLines } from '../lib/redact.mjs'
 
 test('IBAN and OIB are masked', () => {
   const { text, found } = redact('IBAN računa: HR' + '0'.repeat(19) + ' OIB: ' + '8'.repeat(11))
@@ -33,6 +33,38 @@ test('mentions and links with long ids are not cards', () => {
 test('keys and passwords', () => {
   assert.equal(redact('key ' + ['sk', 'ant', 'api03', 'a'.repeat(24)].join('-')).text, 'key [SECRET]')
   assert.equal(redact('lozinka: Tajna123!').text, 'lozinka: [PASSWORD]')
+  assert.equal(redact('github token gho_' + 'b'.repeat(30)).text, 'github token [SECRET]')
+  assert.equal(redact('aws session ASIA' + 'C'.repeat(16)).text, 'aws session [SECRET]')
+  assert.equal(redact('user token ghu_' + 'u'.repeat(22)).text, 'user token [SECRET]')
+  assert.equal(redact('server token ghs_' + 's'.repeat(22)).text, 'server token [SECRET]')
+  assert.equal(redact('refresh token ghr_' + 'r'.repeat(22)).text, 'refresh token [SECRET]')
+  assert.equal(redact('pat github_pat_' + 'p'.repeat(20)).text, 'pat [SECRET]')
+})
+
+test('PEM private key blocks are masked', () => {
+  const pk = '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0\n-----END RSA PRIVATE KEY-----'
+  const res = redact('Here is my key:\n' + pk + '\nPlease keep safe.')
+  assert.equal(res.text, 'Here is my key:\n[PRIVATE KEY]\nPlease keep safe.')
+  assert.deepEqual(res.found, ['secret'])
+  const ec = '-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEI\n-----END EC PRIVATE KEY-----'
+  assert.equal(redact(ec).text, '[PRIVATE KEY]')
+})
+
+test('line arrays keep their element boundaries', () => {
+  const lines = ['first\nsecond', 'sk-' + 'a'.repeat(24)]
+  assert.deepEqual(redactLines(lines), ['first\nsecond', '[SECRET]'])
+  const multiInline = ['a -----BEGIN RSA PRIVATE KEY----- key -----END RSA PRIVATE KEY----- b -----BEGIN EC PRIVATE KEY----- key2 -----END EC PRIVATE KEY----- c']
+  assert.deepEqual(redactLines(multiInline), ['a [PRIVATE KEY] b [PRIVATE KEY] c'])
+  const pem = ['look at this', '-----BEGIN RSA PRIVATE KEY-----', 'MIIEowIBAAKCAQEA0', '-----END RSA PRIVATE KEY-----', 'keep it safe']
+  assert.deepEqual(redactLines(pem), ['look at this', '[PRIVATE KEY]', 'keep it safe'])
+  assert.deepEqual(redactLines(['hello', 'world']), ['hello', 'world'])
+})
+
+test('a truncated key block swallows neither text nor the next block', () => {
+  const s = '-----BEGIN RSA PRIVATE KEY-----\nMeeting at 3\n-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEI\n-----END EC PRIVATE KEY-----'
+  assert.equal(redact(s).text, '-----BEGIN RSA PRIVATE KEY-----\nMeeting at 3\n[PRIVATE KEY]')
+  const mismatched = '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0\n-----END EC PRIVATE KEY-----'
+  assert.equal(redact(mismatched).text, mismatched)
 })
 
 test('ordinary text is untouched', () => {
