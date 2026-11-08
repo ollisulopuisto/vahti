@@ -270,6 +270,10 @@ struct Settings: Decodable {
   let claude: Bool
   // The internet connections Vahti makes of its own: off unless the owner turns them on.
   var online: Bool
+  // A Todoist API token is saved on this Mac; the token itself never comes back from the daemon.
+  var todoist: Bool? = nil
+  // The daemon's last failed Todoist read, so a token that stopped working shows instead of going silently stale.
+  var todoistError: String? = nil
 }
 
 // Model connections expose only whether a saved key exists; the key never comes back from the daemon.
@@ -384,7 +388,7 @@ enum Page: String, CaseIterable, Identifiable {
 let sourceNames = [
   "vahti": "Vahti", "whatsapp": "WhatsApp", "imessage": "iMessage", "calls": "Calls", "calendar": "Calendar", "browser": "Web", "downloads": "Downloads",
   "mcp": "MCP", "mail": "Mail", "notifications": "Notifications", "clipboard": "Copied", "apps": "Apps", "screen": "On screen", "ai": "AI chats", "git": "Code",
-  "solmu": "Solmu", "discord": "Discord", "chat": "Chats", "social": "Threads and X",
+  "solmu": "Solmu", "discord": "Discord", "chat": "Chats", "social": "Threads and X", "todoist": "Todoist",
 ]
 func sourceName(_ s: String) -> String { sourceNames[s] ?? s }
 let isoDay: DateFormatter = { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f }()
@@ -676,6 +680,22 @@ final class Store {
   func loadSettings() async { settings = await get("/api/settings") ?? settings }
 
   // Switched at once here, so the toggle doesn't wait on the daemon.
+  // The token goes to the daemon once and is stored owner-only on this Mac; the field clears either way.
+  // Returns nil on success, else the daemon's reason so a refused token and a network failure read differently.
+  func connectTodoist(_ token: String) async -> String? {
+    struct Reply: Decodable { let ok: Bool; let todoist: Bool?; let error: String? }
+    let reply: Reply? = await post("/api/todoist", ["token": token])
+    settings?.todoist = reply?.todoist
+    if reply?.ok == true { return nil }
+    return reply?.error ?? "That token didn't work. Paste the API token from Todoist Settings, Integrations, Developer."
+  }
+
+  func disconnectTodoist() async {
+    struct Reply: Decodable { let ok: Bool; let todoist: Bool? }
+    let reply: Reply? = await post("/api/todoist", ["disconnect": true])
+    if reply?.ok == true { settings?.todoist = reply?.todoist }
+  }
+
   func setSource(_ id: String, on: Bool) {
     if let i = settings?.sources.firstIndex(where: { $0.id == id }) { settings?.sources[i].on = on }
     Task {

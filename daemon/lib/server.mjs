@@ -29,6 +29,7 @@ import { handoff, reopen, start as startSession, warm as warmHandoffs } from './
 import { build as buildProfile, edit as editProfile, isBuilding as profileBuilding, learn as learnFromChat, profile } from './profile.mjs'
 import { burstOf, ollamaUp, sameConversation } from './tagger.mjs'
 import { isOff, myReminders, off, SOURCES, setClaudeCheck, setOnline, setSource } from './settings.mjs'
+import { connectTodoist, disconnectTodoist, todoistConnected } from './todoist.mjs'
 import { markTask, donePage, brief, briefText, dayRange, icsFor, isoDay, plusDays, tasks, today } from './tasks.mjs'
 import { phoneItems } from './phone.mjs'
 import { syncReminders } from './reminders.mjs'
@@ -229,6 +230,8 @@ export function serve(db, { install, port = config.port } = {}) {
         return json(res, {
           sources: SOURCES.map((s) => ({ ...s, on: s.id === 'reminders' ? myReminders() : !isOff(s.id), count: counts[s.id] || 0 })),
           claudeCheck: config.claudeCheck === true, claude: !!CLAUDE, online: config.online === true,
+          todoist: todoistConnected(),
+          todoistError: db.prepare("select error from runs where source = 'todoist' and ok = 0").get()?.error ?? null,
         })
       }
       if (url.pathname === '/api/status') {
@@ -268,6 +271,20 @@ export function serve(db, { install, port = config.port } = {}) {
           setTimeout(() => process.exit(0), 1000).unref()
           return
         } catch (error) { return json(res, { ok: false, error: String(error.message || 'Could not connect.').slice(0, 300) }, 400) }
+      }
+      // The owner's own Todoist API token, entered in the app's Setup. The token is validated, written
+      // to a private file and never echoed, logged or returned.
+      if (url.pathname === '/api/todoist' && post) {
+        if (requestBody.length > 2000) return json(res, { ok: false, error: 'Request too large.' }, 400)
+        try {
+          const input = JSON.parse(requestBody || '{}')
+          if (input.disconnect === true) { disconnectTodoist(); return json(res, { ok: true, todoist: false }) }
+          await connectTodoist({ token: input.token })
+          return json(res, { ok: true, todoist: true })
+        } catch (error) {
+          const message = error?.message === 'TODOIST_VERIFY_FAILED' ? 'Todoist could not be reached. Check the connection and try again.' : 'Could not use this token. Paste the API token from Todoist Settings, Integrations, Developer.'
+          return json(res, { ok: false, error: message }, 400)
+        }
       }
       if (url.pathname === '/api/settings' && post) {
         const body = requestBody

@@ -248,7 +248,7 @@ let sourceSymbols = [
   "whatsapp": "message", "imessage": "message.fill", "discord": "bubble.left.and.bubble.right", "mail": "envelope",
   "notifications": "bell", "calls": "phone", "calendar": "calendar", "browser": "globe", "downloads": "arrow.down.circle",
   "clipboard": "doc.on.clipboard", "apps": "macwindow", "screen": "text.viewfinder", "ai": "sparkles", "git": "arrow.triangle.branch",
-  "social": "at",
+  "social": "at", "todoist": "checklist",
 ]
 func sourceSymbol(_ s: String) -> String { sourceSymbols[s] ?? "circle" }
 
