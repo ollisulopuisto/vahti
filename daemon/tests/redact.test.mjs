@@ -33,6 +33,17 @@ test('mentions and links with long ids are not cards', () => {
 test('keys and passwords', () => {
   assert.equal(redact('key ' + ['sk', 'ant', 'api03', 'a'.repeat(24)].join('-')).text, 'key [SECRET]')
   assert.equal(redact('lozinka: Tajna123!').text, 'lozinka: [PASSWORD]')
+  assert.equal(redact('github token gho_' + 'b'.repeat(30)).text, 'github token [SECRET]')
+  assert.equal(redact('aws session ASIA' + 'C'.repeat(16)).text, 'aws session [SECRET]')
+})
+
+test('PEM private key blocks are masked', () => {
+  const pk = '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0\n-----END RSA PRIVATE KEY-----'
+  const res = redact('Here is my key:\n' + pk + '\nPlease keep safe.')
+  assert.equal(res.text, 'Here is my key:\n[PRIVATE KEY]\nPlease keep safe.')
+  assert.deepEqual(res.found, ['secret'])
+  const ec = '-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEI\n-----END EC PRIVATE KEY-----'
+  assert.equal(redact(ec).text, '[PRIVATE KEY]')
 })
 
 test('ordinary text is untouched', () => {
