@@ -58,3 +58,14 @@ window fixture. Non-finite/non-positive/out-of-practical-range widths fall back
 to minWidth, avoiding Int traps and pathological column allocations. Version
 0.7.15/build107 with What's New. Add shared-source and native math regressions.
 No merge, no manual build/publish. Native compile/UI acceptance remains macOS CI.
+
+## 2026-11-08 - Release credential transport hardening
+
+Keep certificate/keychain passwords out of process argv via security -i stdin;
+store notary credentials via echo-disabled private TTY and use keychain profiles
+for submit/log. Child environments drop secret aliases, errors withhold output,
+and line-protocol values reject newline/NUL injection. Reuse the Kuulas transport
+pattern, with dummy-data regression tests and an actual disposable macOS keychain
+smoke check before real credential setup. Bare-filename checksums are retained.
+Release routes remain direct GitHub Releases without cache/artifact writes.
+PR only, no merge/tag/build. Native smoke validation awaits macOS CI.

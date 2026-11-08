@@ -59,6 +59,12 @@ jobs:
         run: |
           npm --prefix daemon test
 
+      - name: Credential transport guards
+        run: python3 -m unittest discover -s scripts/tests -p test_release_credentials.py -v
+
+      - name: Native dummy-keychain transport smoke check
+        run: python3 tests/manual/test_macos_keychain_transport.py -v
+
       - name: Set up Apple Code Signing & Notarization
         id: certs
         env:
@@ -76,15 +82,10 @@ jobs:
 
             echo "$BUILD_CERT_BASE64" | base64 --decode > "$CERT_PATH"
 
-            security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
-            security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-            security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
-
-            security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$P12_PWD" -T /usr/bin/codesign -T /usr/bin/security
-            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
-
-            security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
-            security default-keychain -s "$KEYCHAIN_PATH"
+            export KEYCHAIN_PATH CERTIFICATE_PATH="$CERT_PATH"
+            export KEYCHAIN_PASSWORD="$KEYCHAIN_PWD" P12_PASSWORD="$P12_PWD"
+            python3 scripts/macos_ci_credentials.py import-certificate
+            rm -f "$CERT_PATH"
             echo "has_cert=true" >> "$GITHUB_OUTPUT"
           else
             echo "No signing certificate secret found; build will use ad-hoc / local signing."
@@ -93,10 +94,8 @@ jobs:
 
           if [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_PASSWORD" ]; then
             echo "Configuring Apple ID for Notarization..."
-            xcrun notarytool store-credentials "vahti" \
-              --apple-id "$APPLE_ID" \
-              --team-id "$APPLE_TEAM_ID" \
-              --password "$APPLE_APP_PASSWORD"
+            export KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+            python3 scripts/macos_ci_credentials.py store-notary-credentials
             echo "has_notary=true" >> "$GITHUB_OUTPUT"
           else
             echo "No notarytool secrets found."
@@ -118,6 +117,10 @@ jobs:
             scripts/package-app.sh
           fi
 
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/build.keychain" || true
+
       # No workflow artifacts: public standard-runner builds are free, but
       # artifact retention is separately metered. Deliver only to Releases.
       - name: Verify and name the notarized download
@@ -132,7 +135,7 @@ jobs:
           fi
           mkdir -p release
           cp dist/Vahti.dmg "release/$name"
-          (cd release && shasum -a 256 "$name" > "$name.sha256")
+          (cd release && shasum -a 256 "$name" > "$name.sha256" && shasum -a 256 -c "$name.sha256")
           echo "Verified download: $name"
           cat "release/$name.sha256"
 
