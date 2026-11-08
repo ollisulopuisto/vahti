@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.7.12",
+    "date": "2026-11-08",
+    "title": "Timeline opens without crashing",
+    "summary": "Page switches no longer crash the window.",
+    "notes": [
+      "Opening the Timeline (or any page) no longer crashes the window: page switches and sidebar selection are instant instead of animated, which keeps SwiftUI's renderer out of AppKit's window-constraint pass.",
+      "Faster adult-site checks and mail redaction."
+    ]
+  },
+  {
     "version": "0.7.11",
     "date": "2026-11-07",
     "title": "Solmu and Postilaatikko",
