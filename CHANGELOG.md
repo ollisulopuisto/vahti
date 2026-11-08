@@ -10,6 +10,12 @@ and this project adheres to [Calendar Versioning](https://calver.org/).
 ### Added
 - Opt-in Todoist source: your active tasks, read every few minutes from the Todoist REST API with your own API token. Paste the token in Setup's Sources tab (Todoist Settings, Integrations, Developer); it is verified against Todoist before it is saved, stored owner-only on this Mac, and never in config.json, logs or chat. Tasks land in the vault with project, priority, due date and labels, and their Todoist due date goes straight onto the task card, so deadlines make the brief without model tagging. Tasks flow through the same search and forget pipelines as every other source and can be switched off in What Vahti reads. Edits in Todoist sync back: changed text, project, moment and due date update the kept item, its card and its embedding, while your renames and tick-offs are kept. Completed tasks disappear from the API and stay in the vault as history; closing the loop (ticking a Todoist task off when Vahti sees it done, the way reminders work) is follow-up work. Reads are GET-only against the tasks and projects routes; Todoist is not in the default AI read scopes. A failed read shows in Setup instead of going silently stale.
 
+## [0.7.13] - 2026-11-08
+
+### Fixed
+- Vault crash when clicking the Vault sidebar row (0.7.12/manual.64): the row's press spring and hover fade were still animating when the click's page swap replaced the toolbar, title and inspector, keeping SwiftUI's display-link async renderer busy across AppKit's window-constraint pass - the same uncaught NSException family as 0.7.9 Vault and 0.7.11 Timeline (EXC_BREAKPOINT in -[NSWindow _postWindowNeedsUpdateConstraints]), through the one animation the 0.7.12 swap fix left on the click path. Sidebar press and hover feedback are now instant. The window-layout regression test builds a Vault-like masonry page during swaps and a source check keeps sidebar rows animation-free.
+- The "Who read your vault" list no longer relies on timestamp+tool as a row identity, which repeats when an AI reads twice in the same second.
+
 ## [0.7.12] - 2026-11-08
 
 ### Fixed

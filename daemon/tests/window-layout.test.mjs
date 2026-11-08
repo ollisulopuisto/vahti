@@ -33,3 +33,12 @@ test('page switches are instant, never animated', () => {
   // The page stack itself carries no animation modifier and no blur.
   assert.doesNotMatch(views, /\.blur\(/)
 })
+test('sidebar rows never animate press or hover', () => {
+  const views = readFileSync('../app/Views.swift', 'utf8')
+  // A click selects the row in the same gesture that ends the press, so an animated press/hover is
+  // still running when the page swap replaces the toolbar, title and inspector: display-link async
+  // rendering in flight across AppKit's constraint pass (the 0.7.12/manual.64 Vault crash).
+  const row = views.slice(views.indexOf('private struct SidebarRow'), views.indexOf('// MARK: Brief'))
+  assert.doesNotMatch(row, /\.animation\(/)
+  assert.doesNotMatch(row, /withAnimation\(/)
+})

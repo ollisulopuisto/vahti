@@ -11,6 +11,15 @@
     ]
   },
   {
+    "version": "0.7.13",
+    "date": "2026-11-08",
+    "title": "Vault opens without crashing",
+    "summary": "Clicking Vault no longer crashes the window.",
+    "notes": [
+      "Opening Vault (or any page) by clicking its sidebar row no longer crashes the window: the row's press and hover feedback is instant instead of animated, so nothing is still animating while the page swap updates the window."
+    ]
+  },
+  {
     "version": "0.7.12",
     "date": "2026-11-08",
     "title": "Timeline opens without crashing",
