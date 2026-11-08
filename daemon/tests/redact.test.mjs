@@ -35,6 +35,10 @@ test('keys and passwords', () => {
   assert.equal(redact('lozinka: Tajna123!').text, 'lozinka: [PASSWORD]')
   assert.equal(redact('github token gho_' + 'b'.repeat(30)).text, 'github token [SECRET]')
   assert.equal(redact('aws session ASIA' + 'C'.repeat(16)).text, 'aws session [SECRET]')
+  assert.equal(redact('user token ghu_' + 'u'.repeat(22)).text, 'user token [SECRET]')
+  assert.equal(redact('server token ghs_' + 's'.repeat(22)).text, 'server token [SECRET]')
+  assert.equal(redact('refresh token ghr_' + 'r'.repeat(22)).text, 'refresh token [SECRET]')
+  assert.equal(redact('pat github_pat_' + 'p'.repeat(20)).text, 'pat [SECRET]')
 })
 
 test('PEM private key blocks are masked', () => {
@@ -44,6 +48,13 @@ test('PEM private key blocks are masked', () => {
   assert.deepEqual(res.found, ['secret'])
   const ec = '-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEI\n-----END EC PRIVATE KEY-----'
   assert.equal(redact(ec).text, '[PRIVATE KEY]')
+})
+
+test('a truncated key block swallows neither text nor the next block', () => {
+  const s = '-----BEGIN RSA PRIVATE KEY-----\nMeeting at 3\n-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEI\n-----END EC PRIVATE KEY-----'
+  assert.equal(redact(s).text, '-----BEGIN RSA PRIVATE KEY-----\nMeeting at 3\n[PRIVATE KEY]')
+  const mismatched = '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0\n-----END EC PRIVATE KEY-----'
+  assert.equal(redact(mismatched).text, mismatched)
 })
 
 test('ordinary text is untouched', () => {

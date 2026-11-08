@@ -11,8 +11,10 @@ const luhn = (digits) => {
 }
 
 const RULES = [
-  // Private key blocks and common provider tokens: mask so credentials never enter the vault.
-  ['secret', /-----BEGIN (?:[A-Z0-9_-]+ )?PRIVATE KEY-----[\s\S]*?-----END (?:[A-Z0-9_-]+ )?PRIVATE KEY-----/g, () => '[PRIVATE KEY]'],
+  // Private key blocks and common provider tokens: mask so credentials never enter the vault. BEGIN and
+  // END must carry the same label, and another BEGIN ends the candidate, so a truncated block cannot
+  // swallow unrelated text or the block after it.
+  ['secret', /-----BEGIN(?: ([A-Z0-9_-]+))? PRIVATE KEY-----(?:(?!-----BEGIN)[\s\S])*?-----END(?: \1)? PRIVATE KEY-----/g, () => '[PRIVATE KEY]'],
   ['secret', /\b(?:sk-[A-Za-z0-9_-]{20,}|sk_live_[A-Za-z0-9]{16,}|gh[opurs]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|(?:AKIA|ASIA)[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35})\b/g],
   ['iban', /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,3})?\b/g],
   ['oib', /\b(OIB|JMBG)(\s*[:#]?\s*)\d{11,13}\b/gi, (m, label, sep) => `${label}${sep}[OIB]`],

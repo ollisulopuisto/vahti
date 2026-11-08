@@ -38,13 +38,37 @@ test('startup repairs legacy rows and cached text once, with an idempotent migra
   const snapshot = JSON.stringify(db.prepare('select * from items order by id').all())
   assert.ok(!snapshot.includes(token))
   assert.ok(!JSON.stringify(db.prepare('select * from chats').all()).includes(token))
-  assert.equal(db.prepare("select count(*) n from migrations where id = 'redact-persisted-content-v1'").get().n, 1)
-  const at = db.prepare("select at from migrations where id = 'redact-persisted-content-v1'").get().at
+  assert.equal(db.prepare("select count(*) n from migrations where id = 'redact-persisted-content-v2'").get().n, 1)
+  const at = db.prepare("select at from migrations where id = 'redact-persisted-content-v2'").get().at
   db.close()
   db = open(path)
   try {
     assert.equal(JSON.stringify(db.prepare('select * from items order by id').all()), snapshot)
-    assert.equal(db.prepare("select at from migrations where id = 'redact-persisted-content-v1'").get().at, at)
+    assert.equal(db.prepare("select at from migrations where id = 'redact-persisted-content-v2'").get().at, at)
+  } finally { db.close() }
+})
+const pem = ['-----BEGIN RSA PRIVATE KEY-----', 'MIIEowIBAAKCAQEA0', '-----END RSA PRIVATE KEY-----']
+test('a PEM block split across message lines is masked on insert', () => {
+  const db = open(':memory:')
+  try {
+    addItems(db, [{ id: 'screen-pem', source: 'screen', ts: 1, thread: 'Signal: Sam', text: 'capture',
+      meta: { messages: [{ heading: 'Sam', text: ['look at this', ...pem, 'keep it safe'] }] } }])
+    const stored = JSON.parse(db.prepare("select meta from items where id = 'screen-pem'").get().meta)
+    assert.deepEqual(stored.messages[0].text, ['look at this', '[PRIVATE KEY]', 'keep it safe'])
+  } finally { db.close() }
+})
+test('the v2 repair masks a PEM split across lines in already-stored metadata', () => {
+  const path = join(dir, 'pem.db')
+  let db = open(path)
+  db.exec('delete from migrations')
+  db.prepare('insert into items (id,source,ts,thread,sender,text,url,meta) values (?,?,?,?,?,?,?,?)')
+    .run('pem-legacy', 'screen', 1, 'Signal: Sam', 'Sam', 'capture', null, JSON.stringify({ messages: [{ heading: 'Sam', text: ['here', ...pem] }] }))
+  db.close()
+  db = open(path)
+  try {
+    const stored = JSON.parse(db.prepare("select meta from items where id = 'pem-legacy'").get().meta)
+    assert.deepEqual(stored.messages[0].text, ['here', '[PRIVATE KEY]'])
+    assert.equal(db.prepare("select count(*) n from migrations where id = 'redact-persisted-content-v2'").get().n, 1)
   } finally { db.close() }
 })
 test('the repair keeps search fingerprints of unchanged messages and drops only redacted ones', () => {
