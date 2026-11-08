@@ -42,3 +42,12 @@ test('both packaging routes always retain shader source', () => {
     assert.match(script, /fi\n[^\n]*\ncp app\/orb\.metal/)
   }
 })
+
+test('placement and dragging move every visible companion panel with the orb', () => {
+  const place = orb.slice(orb.indexOf('private func place()'), orb.indexOf('// The island grew'))
+  assert.match(place, /setFrame[\s\S]*?movedIsland\(\)/)
+  assert.match(place, /if let p = chatPanel, p\.isVisible \{ beside\(p, size: p\.frame\.size\) \}/)
+  assert.match(place, /if let b = bubble, b\.isVisible \{ beside\(b, size: b\.frame\.size\) \}/)
+  const drag = orb.slice(orb.indexOf('private func drag('), orb.indexOf('private func menu()'))
+  assert.match(drag, /movedIsland\(\)/)
+})

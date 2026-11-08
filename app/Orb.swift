@@ -748,7 +748,14 @@ final class Companion: NSObject {
     let center = mid > 0 ? mid : old > 0 ? old + 52 : s.minY + s.height * 0.3
     let y = min(max(center - size.height / 2, s.minY + 4), s.maxY - size.height - 4)
     islandPanel.setFrame(NSRect(x: s.maxX - size.width, y: y, width: size.width, height: size.height), display: true)
+    movedIsland()
+  }
+
+  // Every placement route keeps separate chat/nudge windows attached, including display changes and Show.
+  private func movedIsland() {
     island.track()
+    if let p = chatPanel, p.isVisible { beside(p, size: p.frame.size) }
+    if let b = bubble, b.isVisible { beside(b, size: b.frame.size) }
   }
 
   // The island grew or shrank inside its window: hovering and clicking follow its new outline.
@@ -763,9 +770,7 @@ final class Companion: NSObject {
     f.origin.y = min(max(f.origin.y + dy, screen.minY + 4), screen.maxY - size.height - 4)
     islandPanel.setFrame(f, display: true)
     defaults.set(f.midY, forKey: "vahtiIslandMid")
-    island.track()
-    if let p = chatPanel, p.isVisible { beside(p, size: p.frame.size) }
-    if let b = bubble, b.isVisible { beside(b, size: b.frame.size) }
+    movedIsland()
   }
 
   private func menu() -> NSMenu {
