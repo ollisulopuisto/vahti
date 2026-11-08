@@ -59,6 +59,9 @@ jobs:
         run: |
           npm --prefix daemon test
 
+      - name: Native non-Metal orb rendering smoke
+        run: python3 tests/manual/test_orb_fallback.py -v
+
       - name: Credential transport guards
         run: python3 -m unittest discover -s scripts/tests -p test_release_credentials.py -v
 

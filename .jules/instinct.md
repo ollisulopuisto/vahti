@@ -83,3 +83,17 @@ closed on stderr even if the interpreter exits zero, and add a real native
 negative smoke check (unlock nonexistent keychain must raise with output withheld).
 One-command security -i status is retained in Apple's source; native CI verifies
 actual runner behavior. No tag/build/merge; local synthetic tests pass.
+
+## 2026-11-08 - Invisible orb safety net and diagnostics
+
+A shown NSPanel did not mean its Metal layer ever painted. Every renderer init
+failure was silently discarded, leaving IslandHost with only the optional glance
+text. Keep a non-Metal production view until a completed GPU frame, return to it
+on GPU failures or a stalled visible renderer, and show version/build/status in
+the menu. Log the init stage and GPU errors to the Orb category. Retain shader
+source even for compiled-library builds, validate entry points, defer display-link
+start until window attachment, and reposition on Show/display changes. The exact
+failure on the reporting Mac is unconfirmed. No AGENTS/BOARD exists in this public
+checkout. PR only; no merge or release build. Local source/shell guards pass;
+macOS compile/native pixel smoke and actual visual acceptance remain pending.
+Rollback: revert this PR. No data/permissions/secret or daemon behavior changes.
