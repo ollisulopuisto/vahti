@@ -24,3 +24,12 @@ test('native host survives page switches, loading, inspector changes and window 
     execFileSync(binary, [], { timeout: 30000, stdio: 'pipe' })
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
+test('page switches are instant, never animated', () => {
+  const views = readFileSync('../app/Views.swift', 'utf8')
+  // Animated page swaps kept the display-link async renderer busy across AppKit's constraint pass
+  // and crashed the window (0.7.9 Vault, 0.7.11 Timeline).
+  assert.doesNotMatch(views, /\.animation\([^\n]*value: store\.page/)
+  assert.match(views, /private func go\(_ change: \(\) -> Void\) \{ change\(\) \}/)
+  // The page stack itself carries no animation modifier and no blur.
+  assert.doesNotMatch(views, /\.blur\(/)
+})

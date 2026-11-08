@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.12] - 2026-11-08
+
+### Fixed
+- Timeline crash when switching pages: the animated page crossfade/blur and the sidebar selection spring kept SwiftUI's display-link async renderer busy while AppKit ran the window's constraint pass for the toolbar/title swap; cancelling that rendering marked constraints dirty mid-pass and AppKit threw an uncaught NSException (EXC_BREAKPOINT in -[NSWindow _postWindowNeedsUpdateConstraints]). Same crash family as the 0.7.10 Brief/Vault fix; the Timeline's heavier list is why it still crashed. Page switches are now instant. The window-layout regression test now exercises a heavy timeline-like lazy list, and a source check keeps page swaps animation-free.
+
 ## [0.7.11] - 2026-11-07
 
 ### Added
