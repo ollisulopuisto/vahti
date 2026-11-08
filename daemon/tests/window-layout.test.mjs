@@ -18,16 +18,32 @@ test('main window uses explicit AppKit sizing before content is attached', () =>
 })
 test('all floating panels and hosting views disable content-derived sizingOptions', () => {
   const orb = readFileSync('../app/Orb.swift', 'utf8')
-  // Island view host disables sizingOptions
-  assert.match(orb, /let host = NSHostingView\(rootView: IslandView[\s\S]*?host\.sizingOptions = \[\]/)
-  // Find panel host disables sizingOptions
-  assert.match(orb, /let host = NSHostingView\(rootView: view\.environment[\s\S]*?host\.sizingOptions = \[\]/)
-  // Companion chat panel host disables sizingOptions
-  assert.match(orb, /let host = NSHostingView\(rootView: CompanionView[\s\S]*?host\.sizingOptions = \[\]/)
-  // Toast / nudge presenter disables sizingOptions
-  assert.match(orb, /private func present<V: View>\(_ host: NSHostingView<V>[\s\S]*?host\.sizingOptions = \[\]/)
-  // FirstClickHost sets sizingOptions = [] in init
-  assert.match(orb, /final class FirstClickHost: NSHostingView<AnyView>[\s\S]*?self\.sizingOptions = \[\]/)
+
+  // Island view host disables sizingOptions in IslandHost.init:
+  // let host = NSHostingView(...)
+  // ...
+  // host.sizingOptions = []
+  const islandInit = orb.slice(orb.indexOf('final class IslandHost'), orb.indexOf('var shown: NSRect'))
+  assert.match(islandInit, /let host = NSHostingView\(rootView: IslandView/)
+  assert.match(islandInit, /host\.sizingOptions = \[\]/)
+
+  // Find panel host disables sizingOptions immediately in toggleFind
+  const findMethod = orb.slice(orb.indexOf('func toggleFind()'), orb.indexOf('func closeFind()'))
+  assert.match(findMethod, /let host = NSHostingView\(rootView: view\.environment\(\\\.openURL, LinkPolicy\.action\)\)\r?\n\s*host\.sizingOptions = \[\]/)
+
+  // Companion chat panel host disables sizingOptions immediately in toggleChat
+  const chatMethod = orb.slice(orb.indexOf('func toggleChat()'), orb.indexOf('func grow('))
+  assert.match(chatMethod, /let host = NSHostingView\(rootView: CompanionView\(close: [^\r\n]+\r?\n\s*host\.sizingOptions = \[\]/)
+
+  // Toast / nudge presenter reads fittingSize FIRST, then disables sizingOptions before panel display
+  const presentFunc = orb.slice(orb.indexOf('func present<V: View>'), orb.indexOf('func hideToast'))
+  assert.ok(presentFunc.length > 0)
+  assert.match(presentFunc, /let size = NSSize\(width: ceil\(host\.fittingSize\.width\), height: ceil\(host\.fittingSize\.height\)\)\r?\n\s*host\.sizingOptions = \[\]/)
+
+  // FirstClickHost must NOT clear sizingOptions in its initializer, so host.fittingSize can measure content in present
+  const firstClickHostClass = orb.slice(orb.indexOf('final class FirstClickHost'), orb.indexOf('final class ToastModel'))
+  assert.ok(firstClickHostClass.length > 0)
+  assert.doesNotMatch(firstClickHostClass, /sizingOptions/)
 })
 test('native host survives page switches, loading, inspector changes and window resizing', { skip: process.platform !== 'darwin' }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'vahti-window-layout-'))

@@ -1243,7 +1243,6 @@ final class FirstClickHost: NSHostingView<AnyView> {
   convenience init<Content: View>(rootView: Content) { self.init(rootView: AnyView(rootView)) }
   required init(rootView: AnyView) {
     super.init(rootView: AnyView(rootView.environment(\.openURL, LinkPolicy.action)))
-    self.sizingOptions = []
   }
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("Unavailable") }
