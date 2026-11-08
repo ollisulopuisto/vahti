@@ -27,11 +27,21 @@ export function readerToken(path = tokenPath) {
   } finally { closeSync(fd) }
 }
 
-// Connect from the app's Setup with the token the owner pasted there. Validated locally, written
-// owner-only, never echoed back or printed.
-export function connectTodoist({ token }) {
+// Connect from the app's Setup with the token the owner pasted there. The shape is validated locally,
+// then one bounded read proves the token actually works before anything is saved: a token that only
+// looks right must never show as connected. Written owner-only, never echoed back or printed.
+export async function connectTodoist({ token, fetcher = fetch }) {
   token = String(token || '').trim()
   if (!TOKEN.test(token)) throw Error('TODOIST_TOKEN_INVALID')
+  let response
+  try {
+    response = await fetcher('https://api.todoist.com/rest/v2/projects', {
+      method: 'GET', redirect: 'error', signal: AbortSignal.timeout(10000),
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    })
+  } catch { throw Error('TODOIST_VERIFY_FAILED') }
+  if (!response.ok) { await response.body?.cancel(); throw Error(response.status === 401 || response.status === 403 ? 'TODOIST_TOKEN_REFUSED' : 'TODOIST_VERIFY_FAILED') }
+  await response.body?.cancel()
   writeFileSync(tokenPath, `${token}\n`, { mode: 0o600 })
   save({ todoist: { enabled: true } })
 }

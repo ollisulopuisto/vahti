@@ -15,7 +15,8 @@ import { resolveDue } from './dates.mjs'
 import { now } from './db.mjs'
 import { cards, decide } from './second.mjs'
 
-const TAGGED_SOURCES = ['solmu', 'whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'chat', 'social', 'todoist']
+// Todoist is tagged straight from its API in the collector (a real due date, not model-read words), so it is not here.
+const TAGGED_SOURCES = ['solmu', 'whatsapp', 'imessage', 'mail', 'notifications', 'discord', 'chat', 'social']
 const BALANCE = wordRegex('balance')
 const OWED = wordRegex('owed')
 const LATER = wordRegex('later')

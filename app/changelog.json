@@ -5,7 +5,8 @@
     "title": "Todoist tasks",
     "summary": "Vahti can read your active Todoist tasks.",
     "notes": [
-      "Opt-in Todoist source: paste your own API token in Setup and your active tasks join the vault with project, due date, priority and labels, searchable and tagged like everything else.",
+      "Opt-in Todoist source: paste your own API token in Setup and your active tasks join the vault with project, due date, priority and labels, searchable like everything else. The token is checked against Todoist before it is saved.",
+      "Todoist deadlines go straight onto the task cards, so they make the brief. Edits in Todoist sync back, while your renames and tick-offs are kept.",
       "The token is stored only on this Mac and can be disconnected in Setup at any time. Completed tasks stay as history."
     ]
   },

@@ -1250,7 +1250,7 @@ struct SetupView: View {
   @State private var copied = false
   @State private var draft: Profile?
   @State private var todoistToken = ""
-  @State private var todoistError = false
+  @State private var todoistError: String? = nil
 
   @State private var tab = SetupTab.permissions
   @State private var profileBaseline: Profile?
@@ -1339,10 +1339,13 @@ struct SetupView: View {
           }
         }
     }
-    Panel(title: "Todoist", footer: "Your active tasks, read every few minutes with your own Todoist API token (Todoist Settings, Integrations, Developer). The token is stored only on this Mac. Tasks you complete stay in the vault as history.") {
+    Panel(title: "Todoist", footer: "Your active tasks, read every few minutes with your own Todoist API token (Todoist Settings, Integrations, Developer). The token is checked against Todoist, then stored only on this Mac. Tasks you complete stay in the vault as history.") {
       if store.settings?.todoist == true {
         row("Connected", "Active tasks are read with your token.", symbol: "checklist") {
           Button("Disconnect") { Task { await store.disconnectTodoist() } }.buttonStyle(TextButton())
+        }
+        if let error = store.settings?.todoistError {
+          Text("The last read failed: \(error)").font(.vahtiSmall).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true)
         }
       } else {
         HStack(spacing: 10) {
@@ -1350,14 +1353,13 @@ struct SetupView: View {
           SecureField("Todoist API token", text: $todoistToken).textFieldStyle(.plain).font(.vahtiBody)
           Button("Connect") {
             Task {
-              let ok = await store.connectTodoist(todoistToken)
-              todoistError = !ok
-              if ok { todoistToken = "" }
+              if let error = await store.connectTodoist(todoistToken) { todoistError = error }
+              else { todoistError = nil; todoistToken = "" }
             }
           }.buttonStyle(PillButton()).disabled(todoistToken.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(.vertical, 13)
-        if todoistError { Text("That token didn't work. Paste the API token from Todoist Settings, Integrations, Developer.").font(.vahtiSmall).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true) }
+        if let todoistError { Text(todoistError).font(.vahtiSmall).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true) }
       }
     }
     setupSteps("Calendar & Reminders", steps: store.steps.filter { syncIDs.contains($0.id) })

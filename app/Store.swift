@@ -272,6 +272,8 @@ struct Settings: Decodable {
   var online: Bool
   // A Todoist API token is saved on this Mac; the token itself never comes back from the daemon.
   var todoist: Bool? = nil
+  // The daemon's last failed Todoist read, so a token that stopped working shows instead of going silently stale.
+  var todoistError: String? = nil
 }
 
 // Model connections expose only whether a saved key exists; the key never comes back from the daemon.
@@ -679,11 +681,13 @@ final class Store {
 
   // Switched at once here, so the toggle doesn't wait on the daemon.
   // The token goes to the daemon once and is stored owner-only on this Mac; the field clears either way.
-  func connectTodoist(_ token: String) async -> Bool {
-    struct Reply: Decodable { let ok: Bool; let todoist: Bool? }
+  // Returns nil on success, else the daemon's reason so a refused token and a network failure read differently.
+  func connectTodoist(_ token: String) async -> String? {
+    struct Reply: Decodable { let ok: Bool; let todoist: Bool?; let error: String? }
     let reply: Reply? = await post("/api/todoist", ["token": token])
     settings?.todoist = reply?.todoist
-    return reply?.ok == true
+    if reply?.ok == true { return nil }
+    return reply?.error ?? "That token didn't work. Paste the API token from Todoist Settings, Integrations, Developer."
   }
 
   func disconnectTodoist() async {

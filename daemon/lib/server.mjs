@@ -231,6 +231,7 @@ export function serve(db, { install, port = config.port } = {}) {
           sources: SOURCES.map((s) => ({ ...s, on: s.id === 'reminders' ? myReminders() : !isOff(s.id), count: counts[s.id] || 0 })),
           claudeCheck: config.claudeCheck === true, claude: !!CLAUDE, online: config.online === true,
           todoist: todoistConnected(),
+          todoistError: db.prepare("select error from runs where source = 'todoist' and ok = 0").get()?.error ?? null,
         })
       }
       if (url.pathname === '/api/status') {
@@ -278,9 +279,12 @@ export function serve(db, { install, port = config.port } = {}) {
         try {
           const input = JSON.parse(requestBody || '{}')
           if (input.disconnect === true) { disconnectTodoist(); return json(res, { ok: true, todoist: false }) }
-          connectTodoist({ token: input.token })
+          await connectTodoist({ token: input.token })
           return json(res, { ok: true, todoist: true })
-        } catch { return json(res, { ok: false, error: 'Could not use this token. Paste the API token from Todoist Settings, Integrations, Developer.' }, 400) }
+        } catch (error) {
+          const message = error?.message === 'TODOIST_VERIFY_FAILED' ? 'Todoist could not be reached. Check the connection and try again.' : 'Could not use this token. Paste the API token from Todoist Settings, Integrations, Developer.'
+          return json(res, { ok: false, error: message }, 400)
+        }
       }
       if (url.pathname === '/api/settings' && post) {
         const body = requestBody
