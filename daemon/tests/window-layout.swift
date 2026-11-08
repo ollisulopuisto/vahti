@@ -212,7 +212,9 @@ struct FlowFixture: Layout {
       // Exercise page, loading, inspector and resize changes on separate display cycles, so each
       // heavy page is built during the swap that opens it, like ContentView's first visit.
       state.page = pages[n % pages.count]
-      state.loaded = n % 3 != 0
+      // A different period than the page cycle, so over the run every page is exercised both
+      // loaded and still-loading (the ProgressView path), never locked to one of them.
+      state.loaded = n % 2 == 0
       state.inspector = n % 4 == 0
       window.setContentSize(NSSize(width: 980 + (n % 3) * 40, height: 720))
       RunLoop.main.run(until: Date().addingTimeInterval(0.02))
