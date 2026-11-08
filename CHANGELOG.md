@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.15] - 2026-11-08
+
+### Fixed
+- Keep Vault masonry measurement finite during split-view layout probes. Non-finite, non-positive and out-of-range widths use a safe fallback before column calculation, and the measured size reports that same width.
+- Keep the native window-layout fixture aligned with the production width handling.
+
 ## [0.7.14] - 2026-11-08
 
 ### Added

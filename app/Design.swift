@@ -306,7 +306,14 @@ struct Masonry: Layout {
   var minWidth: CGFloat = 270
   var spacing: CGFloat = 16
 
-  private func columns(_ width: CGFloat) -> (count: Int, width: CGFloat) {
+  private func layoutWidth(_ proposed: CGFloat) -> CGFloat {
+    // SwiftUI may ask with infinity/NaN while probing a split view. Reject values
+    // outside a practical window range before Int conversion or column allocation.
+    proposed.isFinite && proposed > 0 && proposed <= 1_000_000 ? proposed : minWidth
+  }
+
+  private func columns(_ proposed: CGFloat) -> (count: Int, width: CGFloat) {
+    let width = layoutWidth(proposed)
     let n = max(1, Int((width + spacing) / (minWidth + spacing)))
     return (n, (width - spacing * CGFloat(n - 1)) / CGFloat(n))
   }
@@ -335,7 +342,7 @@ struct Masonry: Layout {
   }
 
   func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> CGSize {
-    let width = proposal.width ?? minWidth * 3 + spacing * 2
+    let width = layoutWidth(proposal.width ?? minWidth * 3 + spacing * 2)
     return CGSize(width: width, height: arrange(width, subviews, &cache).height)
   }
 

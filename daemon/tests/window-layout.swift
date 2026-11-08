@@ -131,16 +131,20 @@ struct MasonryFixture: Layout {
   var minWidth: CGFloat = 270
   var spacing: CGFloat = 16
 
+  private func layoutWidth(_ proposed: CGFloat) -> CGFloat {
+    // SwiftUI may ask with infinity/NaN while probing a split view. Reject values
+    // outside a practical window range before Int conversion or column allocation.
+    proposed.isFinite && proposed > 0 && proposed <= 1_000_000 ? proposed : minWidth
+  }
+
   private func columns(_ proposed: CGFloat) -> (count: Int, width: CGFloat) {
-    // Split-view/resize passes can propose a non-finite or tiny width; an infinite or NaN Double
-    // traps on conversion to Int, so clamp before dividing.
-    let width = proposed.isFinite && proposed > 0 ? proposed : minWidth
+    let width = layoutWidth(proposed)
     let n = max(1, Int((width + spacing) / (minWidth + spacing)))
     return (n, (width - spacing * CGFloat(n - 1)) / CGFloat(n))
   }
 
   func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-    let width = proposal.width ?? minWidth * 3 + spacing * 2
+    let width = layoutWidth(proposal.width ?? minWidth * 3 + spacing * 2)
     let (n, w) = columns(width)
     var heights = Array(repeating: CGFloat(0), count: n)
     for tile in subviews {
