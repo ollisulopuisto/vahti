@@ -5,6 +5,7 @@ import SwiftUI
   var brief = false
   var loaded = false
   var inspector = false
+  var visited: Set<String> = []
 }
 struct LayoutFixture: View {
   var state: Fixture
@@ -42,21 +43,27 @@ struct LayoutFixture: View {
     NavigationSplitView {
       Text("Sidebar").navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
     } detail: {
-      // Mirrors ContentView's real page lifecycle: visited pages stay built in one stack and
-      // switching only flips opacity and hit-testing, instantly - never an animation or a blur
-      // (the 0.7.9 Vault / 0.7.11 Timeline crashes).
+      // Mirrors ContentView's real page lifecycle: a page is first BUILT during the swap that
+      // opens it (visited gate, like `visited.contains(p) || store.page == p`), then stays built
+      // in the stack; switching only flips opacity and hit-testing, instantly - never an
+      // animation or a blur (the 0.7.9 Vault / 0.7.11 Timeline crashes).
       ZStack {
-        briefPage
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .opacity(state.brief ? 1 : 0)
-          .allowsHitTesting(state.brief)
-          .accessibilityHidden(!state.brief)
-        timelinePage
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .opacity(state.brief ? 0 : 1)
-          .allowsHitTesting(!state.brief)
-          .accessibilityHidden(state.brief)
+        if state.visited.contains("brief") || state.brief {
+          briefPage
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .opacity(state.brief ? 1 : 0)
+            .allowsHitTesting(state.brief)
+            .accessibilityHidden(!state.brief)
+        }
+        if state.visited.contains("timeline") || !state.brief {
+          timelinePage
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .opacity(state.brief ? 0 : 1)
+            .allowsHitTesting(!state.brief)
+            .accessibilityHidden(state.brief)
+        }
       }
+      .onChange(of: state.brief, initial: true) { _, now in state.visited.insert(now ? "brief" : "timeline") }
       .inspector(isPresented: $state.inspector) { Text("Context").inspectorColumnWidth(min: 300, ideal: 360, max: 480) }
     }
     .navigationTitle(state.brief ? "Brief" : "Timeline")
