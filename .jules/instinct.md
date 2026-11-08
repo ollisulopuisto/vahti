@@ -75,3 +75,11 @@ PR only, no merge/tag/build. Native smoke validation awaits macOS CI.
 Only store notary credentials after certificate import created the keychain.
 Without signing secrets, nonrelease test builds can still skip signing/notary
 setup; requested notarized release builds fail at the existing credential gate.
+
+## 2026-11-08 - Keychain search preservation and failure regression
+
+Preserve the original keychain search list when importing a CI identity. Fail
+closed on stderr even if the interpreter exits zero, and add a real native
+negative smoke check (unlock nonexistent keychain must raise with output withheld).
+One-command security -i status is retained in Apple's source; native CI verifies
+actual runner behavior. No tag/build/merge; local synthetic tests pass.

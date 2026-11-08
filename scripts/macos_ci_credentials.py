@@ -6,6 +6,7 @@ import pty
 import re
 import select
 import signal
+import shlex
 import subprocess
 import sys
 import termios
@@ -24,7 +25,8 @@ def child_env():
         "KEYCHAIN_PASSWORD", "P12_PASSWORD", "APPLE_APP_PASSWORD",
         "BUILD_CERTIFICATE_BASE64", "BUILD_CERT_BASE64", "SIGNING_CERTIFICATE_P12",
         "SIGNING_CERTIFICATE_PASSWORD", "P12_PWD", "KEYCHAIN_PWD",
-        "NOTARY_APP_PASSWORD",
+        "NOTARY_APP_PASSWORD", "APP_CERTIFICATE_PASSWORD", "INSTALLER_CERTIFICATE_PASSWORD",
+        "TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
     }}
 
 
@@ -35,7 +37,10 @@ def security(*args):
         ["/usr/bin/security", "-i"], input=line, text=True,
         capture_output=True, env=child_env(), check=False,
     )
-    if result.returncode:
+    # One command per interpreter. Also fail on its explicit status diagnostic,
+    # even on OS versions where the interpreter's exit status may differ.
+    failed = re.search(r"returned\s+(-?\d+)", result.stderr or "")
+    if result.returncode or result.stderr or (failed and int(failed.group(1)) != 0):
         raise RuntimeError("Keychain operation failed (output withheld)")
 
 
@@ -49,7 +54,12 @@ def import_certificate():
              os.environ["P12_PASSWORD"], "-T", "/usr/bin/codesign", "-k", keychain)
     security("set-key-partition-list", "-S", "apple-tool:,apple:,codesign:",
              "-s", "-k", password, keychain)
-    security("list-keychains", "-d", "user", "-s", keychain)
+    current = subprocess.run(["/usr/bin/security", "list-keychains", "-d", "user"],
+                             capture_output=True, text=True, env=child_env(), check=True)
+    search = shlex.split(current.stdout)
+    if keychain not in search:
+        search.append(keychain)
+    security("list-keychains", "-d", "user", "-s", *search)
 
 
 def store_notary_credentials():
