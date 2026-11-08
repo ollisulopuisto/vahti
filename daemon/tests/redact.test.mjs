@@ -53,6 +53,8 @@ test('PEM private key blocks are masked', () => {
 test('line arrays keep their element boundaries', () => {
   const lines = ['first\nsecond', 'sk-' + 'a'.repeat(24)]
   assert.deepEqual(redactLines(lines), ['first\nsecond', '[SECRET]'])
+  const multiInline = ['a -----BEGIN RSA PRIVATE KEY----- key -----END RSA PRIVATE KEY----- b -----BEGIN EC PRIVATE KEY----- key2 -----END EC PRIVATE KEY----- c']
+  assert.deepEqual(redactLines(multiInline), ['a [PRIVATE KEY] b [PRIVATE KEY] c'])
   const pem = ['look at this', '-----BEGIN RSA PRIVATE KEY-----', 'MIIEowIBAAKCAQEA0', '-----END RSA PRIVATE KEY-----', 'keep it safe']
   assert.deepEqual(redactLines(pem), ['look at this', '[PRIVATE KEY]', 'keep it safe'])
   assert.deepEqual(redactLines(['hello', 'world']), ['hello', 'world'])

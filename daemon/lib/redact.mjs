@@ -34,6 +34,8 @@ const RULES = [
 // covers: element boundaries elsewhere, including newlines inside an element, are preserved.
 export function redactLines(lines) {
   const joined = lines.join('\n')
+  if (!PEM.test(joined)) return lines.map((l) => redact(l).text)
+  PEM.lastIndex = 0
   const starts = []
   let off = 0
   for (const l of lines) { starts.push(off); off += l.length + 1 }
@@ -42,11 +44,14 @@ export function redactLines(lines) {
   for (const m of joined.matchAll(PEM)) {
     const a = m.index, b = a + m[0].length
     while (i < lines.length && starts[i] + lines[i].length <= a) { out.push(redact(lines[i]).text); i++ }
-    const pre = i < lines.length && starts[i] < a ? joined.slice(starts[i], a) : ''
-    while (i < lines.length && starts[i] < b) i++
-    const end = starts[i - 1] + lines[i - 1].length
+    if (i >= lines.length) break
+    const pre = starts[i] < a ? joined.slice(starts[i], a) : ''
+    let endIdx = i
+    while (endIdx < lines.length && starts[endIdx] < b) endIdx++
+    const end = starts[endIdx - 1] + lines[endIdx - 1].length
     const post = end > b ? joined.slice(b, end) : ''
     out.push(redact(pre).text + '[PRIVATE KEY]' + redact(post).text)
+    i = endIdx
   }
   while (i < lines.length) { out.push(redact(lines[i]).text); i++ }
   return out
