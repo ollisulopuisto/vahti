@@ -78,8 +78,9 @@ if xcrun -sdk macosx -f "${METAL:-metal}" >/dev/null 2>&1; then
   xcrun -sdk macosx "${METALLIB:-metallib}" "$SHADERS/orb.air" -o "$RES/default.metallib"
 else
   echo "metal compiler utility not found; bundling app/orb.metal for runtime compilation"
-  cp app/orb.metal "$RES/orb.metal"
 fi
+# Source is a recovery route for a missing/incompatible compiled library.
+cp app/orb.metal "$RES/orb.metal"
 # High-resolution orb artwork, loaded once with mipmaps.
 cp app/icon/orb-hd.png "$RES/orb.png"
 # Brand marks for where things came from (Design.swift, Brand).

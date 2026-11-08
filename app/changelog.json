@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.7.16",
+    "date": "2026-11-08",
+    "title": "An orb that stays visible",
+    "summary": "The orb has a non-Metal drawing when GPU rendering is unavailable.",
+    "notes": [
+      "The menu shows the installed version, build and orb renderer status. Metal failures are logged instead of silently removing the orb.",
+      "Showing the orb and changing displays rechecks its position on screen."
+    ]
+  },
+  {
     "version": "0.7.15",
     "date": "2026-11-08",
     "title": "Safer Vault layout",
