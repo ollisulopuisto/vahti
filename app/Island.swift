@@ -1,6 +1,7 @@
 import AppKit
 import Metal
 import QuartzCore
+import OSLog
 
 // MARK: The island on its own thread
 // A dedicated display-link thread draws the island with one Metal layer, keeping animation
@@ -68,6 +69,21 @@ enum IslandHoverVariant: Int {
   case pearlRim = 4
 }
 
+// Shared with the menu and the non-Metal drawing. Never infer readiness from window visibility.
+enum IslandRenderStatus: Equatable, Sendable {
+  case starting
+  case metal
+  case fallback(String)
+
+  var label: String {
+    switch self {
+    case .starting: return "Orb: starting (fallback visible)"
+    case .metal: return "Orb: Metal"
+    case .fallback(let reason): return "Orb: fallback - \(reason)"
+    }
+  }
+}
+
 final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sendable {
   let layer = CAMetalLayer()
   private let queue: MTLCommandQueue
@@ -79,6 +95,30 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
   private var painted = IslandHitGeometry()
   var hitGeometry: IslandHitGeometry { lock.withLock { painted } }
   private var loop: CFRunLoop?
+  private var threadStarted = false
+  private var lastFrame = CACurrentMediaTime()
+  private var expectsFrames = true
+  private var status = IslandRenderStatus.starting
+  private let onStatus: @Sendable (IslandRenderStatus) -> Void
+  private static let log = Logger(subsystem: "to.sulopuis.vahti", category: "Orb")
+
+  private func report(_ next: IslandRenderStatus) {
+    let changed = lock.withLock {
+      guard status != next else { return false }
+      status = next
+      return true
+    }
+    guard changed else { return }
+    Self.log.notice("\(next.label, privacy: .public)")
+    onStatus(next)
+  }
+
+  // Main-thread watchdog: a visible window is not evidence that Metal has painted it.
+  func checkHealth() {
+    let stalled = lock.withLock { goal.visible && expectsFrames && CACurrentMediaTime() - lastFrame > 3 }
+    if stalled { report(.fallback("no Metal frames; using non-Metal drawing")) }
+  }
+
 
   // Only the island's thread touches these.
   private let start = CACurrentMediaTime()
@@ -99,21 +139,41 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
   private var light: SIMD3<Float>?
   private var rate: Float = 0
 
-  init?(size: CGSize) {
-    guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else { return nil }
-    let library: MTLLibrary? = device.makeDefaultLibrary() ?? {
-      guard let url = Bundle.main.url(forResource: "orb", withExtension: "metal"),
-            let src = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-      return try? device.makeLibrary(source: src, options: nil)
-    }()
-    guard let library,
-          let url = Bundle.main.url(forResource: "orb", withExtension: "png"),
-          let artwork = try? IslandArtwork.load(device: device, url: url) else { return nil }
+  init?(size: CGSize, onStatus: @escaping @Sendable (IslandRenderStatus) -> Void) {
+    self.onStatus = onStatus
+    func failed(_ reason: String, _ error: Error? = nil) {
+      Self.log.error("Orb initialization: \(reason, privacy: .public) \(String(describing: error), privacy: .public)")
+      onStatus(.fallback(reason))
+    }
+    if ProcessInfo.processInfo.arguments.contains("--orb-fallback") {
+      failed("non-Metal drawing requested")
+      return nil
+    }
+    guard let device = MTLCreateSystemDefaultDevice() else { failed("Metal device unavailable"); return nil }
+    guard let queue = device.makeCommandQueue() else { failed("Metal command queue unavailable"); return nil }
+    // A default library may exist but not contain our entry points. Try bundled source in that case too.
+    var library = device.makeDefaultLibrary()
+    if library?.makeFunction(name: "vahtiIslandVertex") == nil || library?.makeFunction(name: "vahtiIsland") == nil {
+      guard let url = Bundle.main.url(forResource: "orb", withExtension: "metal") else {
+        failed("orb shader missing"); return nil
+      }
+      do {
+        library = try device.makeLibrary(source: String(contentsOf: url, encoding: .utf8), options: nil)
+      } catch { failed("orb shader compilation failed", error); return nil }
+    }
+    guard let vertex = library?.makeFunction(name: "vahtiIslandVertex"),
+          let fragment = library?.makeFunction(name: "vahtiIsland") else { failed("orb shader functions missing"); return nil }
+    guard let url = Bundle.main.url(forResource: "orb", withExtension: "png") else { failed("orb artwork missing"); return nil }
+    let artwork: MTLTexture
+    do { artwork = try IslandArtwork.load(device: device, url: url) }
+    catch { failed("orb artwork could not load", error); return nil }
     let d = MTLRenderPipelineDescriptor()
-    d.vertexFunction = library.makeFunction(name: "vahtiIslandVertex")
-    d.fragmentFunction = library.makeFunction(name: "vahtiIsland")
+    d.vertexFunction = vertex
+    d.fragmentFunction = fragment
     d.colorAttachments[0].pixelFormat = .bgra8Unorm
-    guard let pipeline = try? device.makeRenderPipelineState(descriptor: d) else { return nil }
+    let pipeline: MTLRenderPipelineState
+    do { pipeline = try device.makeRenderPipelineState(descriptor: d) }
+    catch { failed("orb Metal pipeline failed", error); return nil }
     self.queue = queue
     self.pipeline = pipeline
     self.artwork = artwork
@@ -126,6 +186,13 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
     layer.drawableSize = CGSize(width: size.width * 2, height: size.height * 2)
     link = CAMetalDisplayLink(metalLayer: layer)
     link.delegate = self
+  }
+
+  // Attach the backing layer to a window before asking CAMetalDisplayLink for drawables.
+  func startRendering() {
+    guard !threadStarted else { return }
+    threadStarted = true
+    lock.withLock { lastFrame = CACurrentMediaTime() }
     let thread = Thread { [unowned self] in
       self.lock.withLock { self.loop = CFRunLoopGetCurrent() }
       RunLoop.current.add(NSMachPort(), forMode: .default)
@@ -142,6 +209,7 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
     let changed = lock.withLock {
       let old = goal
       change(&goal)
+      if goal != old && !expectsFrames { lastFrame = CACurrentMediaTime(); expectsFrames = true }
       return goal != old
     }
     guard changed, let loop = lock.withLock({ loop }) else { return }
@@ -236,7 +304,19 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
       encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
       encoder.endEncoding()
       buffer.present(update.drawable)
+      buffer.addCompletedHandler { [weak self] buffer in
+        guard let self else { return }
+        if buffer.status == .completed {
+          self.lock.withLock { self.lastFrame = CACurrentMediaTime() }
+          self.report(.metal)
+        } else {
+          Self.log.error("Orb GPU command failed: \(String(describing: buffer.error), privacy: .public)")
+          self.report(.fallback("Metal frame failed"))
+        }
+      }
       buffer.commit()
+    } else {
+      report(.fallback("Metal frame encoder unavailable"))
     }
 
     // 60 frames a second while you're on it, something just happened or it's moving; 30 for the slow light that orbits
@@ -247,7 +327,9 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
       link.preferredFrameRateRange = CAFrameRateRange(minimum: 8, maximum: want, preferred: want)
     }
     let quiet = g.tucked && !g.hover && !g.nudging && !g.working && g.attention == 0 && fresh == 0 && cheer == 0 && edge == 0
-    if !g.visible || (quiet && !moving && !lighting) { link.isPaused = true }
+    let pause = !g.visible || (quiet && !moving && !lighting)
+    lock.withLock { expectsFrames = !pause }
+    if pause { link.isPaused = true }
   }
 }
 
@@ -278,6 +360,8 @@ final class IslandCanvas: NSView {
     viewDidChangeBackingProperties()
     if let watching { NotificationCenter.default.removeObserver(watching) }
     guard let w = window else { return }
+    renderer.startRendering()
+    renderer.set { $0.visible = w.occlusionState.contains(.visible) }
     watching = NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: w, queue: .main) { [weak self] _ in
       MainActor.assumeIsolated { self?.renderer.set { $0.visible = w.occlusionState.contains(.visible) } }
     }

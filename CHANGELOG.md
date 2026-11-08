@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.16] - 2026-11-08
+
+### Fixed
+- Keep a non-Metal island and orb visible while the GPU starts or if device, shader, artwork, pipeline or frame submission fails. Report renderer status and installed version/build in the menu, and log failures to macOS Console.
+- Start the Metal display link after window attachment; validate shader entry points, retain bundled source for recovery, and reposition the orb on Show and display changes.
+- The specific cause of the reported invisible orb is not yet confirmed on the affected Mac. The menu no longer treats a visible empty window as proof of a working renderer.
+
 ## [0.7.15] - 2026-11-08
 
 ### Fixed

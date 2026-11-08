@@ -474,6 +474,15 @@ final class Bar: NSObject, NSMenuDelegate {
     let header = NSMenuItem(title: tasks.isEmpty ? "Nothing waiting on you" : "\(tasks.count) waiting on you", action: nil, keyEquivalent: "")
     header.isEnabled = false
     menu.addItem(header)
+    let info = Bundle.main.infoDictionary ?? [:]
+    let version = info["CFBundleShortVersionString"] as? String ?? "unknown"
+    let build = info["CFBundleVersion"] as? String ?? "unknown"
+    let versionItem = NSMenuItem(title: "Vahti \(version) (build \(build))", action: nil, keyEquivalent: "")
+    versionItem.isEnabled = false
+    menu.addItem(versionItem)
+    let diagnostic = NSMenuItem(title: MainActor.assumeIsolated { companion?.orbDiagnostic ?? "Orb: not initialized" }, action: nil, keyEquivalent: "")
+    diagnostic.isEnabled = false
+    menu.addItem(diagnostic)
     for e in events.prefix(4) { menu.addItem(entry(e, #selector(openTimeline))) }
     for t in tasks.prefix(10) { menu.addItem(entry(t, #selector(openTimeline))) }
     if maybe > 0 { menu.addItem(entry("Maybe yours: \(maybe)", #selector(openTimeline))) }

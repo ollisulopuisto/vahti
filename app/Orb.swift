@@ -2,6 +2,7 @@ import AppKit
 import Carbon
 import Observation
 import SwiftUI
+import OSLog
 
 // MARK: The companion: Vahti's island at the right edge of the screen, a small sky over a calm sea with the chrome orb
 // floating in it. Click it or press Command-Option-K for the panel: what's waiting, each thing's own page, and a chat.
@@ -14,6 +15,7 @@ final class KeyPanel: NSPanel {
 // What the island shows. Every change is passed on to the island's own layer (Island.swift), which draws and animates it.
 @MainActor
 final class OrbModel: ObservableObject {
+  @Published var renderStatus = IslandRenderStatus.starting
   @Published var attention: Float = 0 { didSet { sync() } }
   @Published var working = false { didSet { sync() } }
   @Published var hover = false { didSet { sync() } }
@@ -242,6 +244,9 @@ struct IslandView: View {
     let shape = model.tucked ? IslandShape(fillet: 6, radius: 4) : IslandShape()
     let size = model.size
     ZStack {
+      if model.renderStatus != .metal {
+        IslandFallback(model: model)
+      }
       if let glance = model.glance {
         Text(glance)
           .font(.system(size: 10, weight: .medium, design: .rounded))
@@ -259,6 +264,35 @@ struct IslandView: View {
   }
 }
 
+// No Metal dependency, including when artwork decoding fails. The same hit outline and controls stay usable.
+struct IslandFallback: View {
+  @ObservedObject var model: OrbModel
+  private static let artwork = Bundle.main.url(forResource: "orb", withExtension: "png").flatMap { NSImage(contentsOf: $0) }
+
+  var body: some View {
+    ZStack {
+      LinearGradient(colors: [Color(red: 0.66, green: 0.73, blue: 0.95),
+                              Color(red: 0.93, green: 0.88, blue: 0.92),
+                              Color(red: 0.50, green: 0.56, blue: 0.80)], startPoint: .top, endPoint: .bottom)
+      if !model.tucked {
+        Group {
+          if let artwork = Self.artwork {
+            Image(nsImage: artwork).resizable().scaledToFit()
+          } else {
+            Circle().fill(LinearGradient(colors: [.white, .gray, .white, .black.opacity(0.7)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+              .overlay(VahtiMark().padding(12))
+          }
+        }
+        .frame(width: 58, height: 58)
+        .scaleEffect(model.pressed ? 0.93 : model.hover ? 1.08 : 1)
+        .offset(x: -2, y: model.glance == nil ? 0 : -8)
+      }
+    }
+    .accessibilityLabel("Vahti orb, non-Metal drawing")
+  }
+}
+
 // The island's window content: the drawing on top, and all the clicking, dragging and hovering handled here.
 final class IslandHost: NSView {
   var onClick: () -> Void = {}
@@ -273,7 +307,12 @@ final class IslandHost: NSView {
 
   override init(frame: NSRect) {
     super.init(frame: frame)
-    if let renderer = IslandRenderer(size: bounds.size) {
+    if let renderer = IslandRenderer(size: bounds.size, onStatus: { [weak self] status in
+      DispatchQueue.main.async { [weak self] in
+        guard let self else { return }
+        self.model.renderStatus = status
+      }
+    }) {
       let canvas = IslandCanvas(renderer, frame: bounds)
       canvas.autoresizingMask = [.width, .height]
       addSubview(canvas)
@@ -281,7 +320,10 @@ final class IslandHost: NSView {
       // The hour's light, looked at every couple of seconds; the island only wakes for it when it has changed.
       canvas.renderer.set { $0.light = Daylight.goal }
       Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak canvas] _ in
-        MainActor.assumeIsolated { canvas?.renderer.set { $0.light = Daylight.goal } }
+        MainActor.assumeIsolated {
+          canvas?.renderer.checkHealth()
+          canvas?.renderer.set { $0.light = Daylight.goal }
+        }
       }
     }
     let host = NSHostingView(rootView: IslandView(model: model).environment(\.openURL, LinkPolicy.action))
@@ -304,7 +346,7 @@ final class IslandHost: NSView {
   // Returning nil from hitTest only skips views in this window; it does not pass a click
   // to another app. Make the window itself transparent outside the painted outline.
   func containsIsland(_ point: NSPoint) -> Bool {
-    let geometry = model.renderer?.hitGeometry ?? IslandHitGeometry(
+    let geometry = (model.renderStatus == .metal ? model.renderer?.hitGeometry : nil) ?? IslandHitGeometry(
       width: model.size.width, height: model.size.height,
       fillet: model.tucked ? 6 : 16, radius: model.tucked ? 4 : 24)
     let local = CGPoint(x: point.x - bounds.maxX + geometry.width,
@@ -582,6 +624,9 @@ final class Companion: NSObject {
         self.apply()
       }
     }
+    NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
+      MainActor.assumeIsolated { self?.place() }
+    }
     shortcuts()
     NotificationCenter.default.addObserver(forName: Shortcut.changed, object: nil, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.shortcuts() } }
     NotificationCenter.default.addObserver(forName: Shortcut.recording, object: nil, queue: .main) { [weak self] note in
@@ -607,6 +652,7 @@ final class Companion: NSObject {
   }
 
   var visible: Bool { islandPanel.isVisible }
+  var orbDiagnostic: String { island.model.renderStatus.label }
 
   // The menu bar's Show/Hide: hidden, or back to how it was shown before.
   func toggleOrb() {
@@ -624,7 +670,9 @@ final class Companion: NSObject {
     case .always: setTucked(false)
     case .hover: setTucked(!island.model.hover && chatPanel?.isVisible != true)
     }
+    place()
     islandPanel.orderFrontRegardless()
+    Logger(subsystem: "to.sulopuis.vahti", category: "Orb").notice("Orb shown on screen; \(self.orbDiagnostic, privacy: .public)")
   }
 
   // In hover mode: out of the notch while the pointer is on it, back in a moment after it leaves.
@@ -700,7 +748,14 @@ final class Companion: NSObject {
     let center = mid > 0 ? mid : old > 0 ? old + 52 : s.minY + s.height * 0.3
     let y = min(max(center - size.height / 2, s.minY + 4), s.maxY - size.height - 4)
     islandPanel.setFrame(NSRect(x: s.maxX - size.width, y: y, width: size.width, height: size.height), display: true)
+    movedIsland()
+  }
+
+  // Every placement route keeps separate chat/nudge windows attached, including display changes and Show.
+  private func movedIsland() {
     island.track()
+    if let p = chatPanel, p.isVisible { beside(p, size: p.frame.size) }
+    if let b = bubble, b.isVisible { beside(b, size: b.frame.size) }
   }
 
   // The island grew or shrank inside its window: hovering and clicking follow its new outline.
@@ -715,9 +770,7 @@ final class Companion: NSObject {
     f.origin.y = min(max(f.origin.y + dy, screen.minY + 4), screen.maxY - size.height - 4)
     islandPanel.setFrame(f, display: true)
     defaults.set(f.midY, forKey: "vahtiIslandMid")
-    island.track()
-    if let p = chatPanel, p.isVisible { beside(p, size: p.frame.size) }
-    if let b = bubble, b.isVisible { beside(b, size: b.frame.size) }
+    movedIsland()
   }
 
   private func menu() -> NSMenu {
