@@ -37,7 +37,10 @@ jobs:
           node-version: 24
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        # npm, not oven-sh/setup-bun: the action downloads Bun from the oven-sh/bun
+        # GitHub release assets, which have been serving 504s; the npm registry is
+        # already needed for daemon dependencies, so this adds no new dependency.
+        run: npm install -g bun
 
       - name: Set up Python
         uses: actions/setup-python@v5
