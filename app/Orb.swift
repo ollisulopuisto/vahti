@@ -382,12 +382,17 @@ final class IslandHost: NSView {
     return NSRect(x: bounds.maxX - s.width, y: bounds.midY - s.height / 2, width: s.width, height: s.height)
   }
 
+  // The shape the island currently paints, from the Metal renderer when it runs, else from the model.
+  private var hitGeometry: IslandHitGeometry {
+    (model.renderStatus == .metal ? model.renderer?.hitGeometry : nil) ?? IslandHitGeometry(
+      width: model.size.width, height: model.size.height,
+      fillet: model.tucked ? 6 : 16, radius: model.tucked ? 4 : 24)
+  }
+
   // Returning nil from hitTest only skips views in this window; it does not pass a click
   // to another app. Make the window itself transparent outside the painted outline.
   func containsIsland(_ point: NSPoint) -> Bool {
-    let geometry = (model.renderStatus == .metal ? model.renderer?.hitGeometry : nil) ?? IslandHitGeometry(
-      width: model.size.width, height: model.size.height,
-      fillet: model.tucked ? 6 : 16, radius: model.tucked ? 4 : 24)
+    let geometry = hitGeometry
     if model.notch {
       // Clicks belong to the painted shapes alone: the pill hanging from the window's top, centred, and the
       // orb below the housing once it is out. The generous top-edge region is hover-only (hoverContains),
@@ -429,6 +434,7 @@ final class IslandHost: NSView {
   // Hover only - it never feeds hitTest or ignoresMouseEvents, so clicks there stay with the menu bar.
   private func hoverContains(_ point: NSPoint) -> Bool {
     if model.notch {
+      let geometry = hitGeometry
       let margin: CGFloat = 48
       let edge = CGRect(x: bounds.midX - geometry.width / 2 - margin, y: bounds.maxY - geometry.height - 8,
                         width: geometry.width + margin * 2, height: geometry.height + 8)
