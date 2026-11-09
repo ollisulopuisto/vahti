@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.21] - 2026-11-09
+
+### Added
+- A new "In the notch" island mode: Vahti lives as a slim pill under the camera notch, as wide as the housing. It pulses and runs its light along the pill's edge while something waits, a short hover (60ms) wakes the orb out of it, and it settles back 400ms after the pointer leaves. The pill steps aside while Vahti's own window is frontmost, and on a Mac without a notch the mode behaves like "Tucked away, shown on hover" at the right edge.
+
 ## [0.7.20] - 2026-11-09
 
 ### Fixed

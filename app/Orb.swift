@@ -24,6 +24,11 @@ final class OrbModel: ObservableObject {
   @Published var glance: String? { didSet { sync() } }
   // Tucked into a thin notch at the edge, until you hover it.
   @Published var tucked = false { didSet { sync() } }
+  // Living in the camera notch instead of at the right edge: a pill under the housing that wakes
+  // on hover. Width and depth come from the screen the pill hangs from, set by the companion.
+  @Published var notch = false { didSet { sync() } }
+  var notchWidth: CGFloat = 200 { didSet { sync() } }
+  var notchInset: CGFloat = 0 { didSet { sync() } }
   // A nudge is waiting behind the tucked notch; the notch widens a little and breathes until you hover it.
   @Published var nudging = false { didSet { sync() } }
   // Vahti's panel is open beside the island; the orb turns toward it.
@@ -40,6 +45,9 @@ final class OrbModel: ObservableObject {
     let top = NSScreen.screens.first?.frame.maxY ?? 0
     renderer?.set { g in
       g.tucked = tucked
+      g.notch = notch
+      g.notchWidth = Float(notchWidth)
+      g.notchInset = Float(notchInset)
       g.hover = hover
       g.pressed = pressed
       g.nudging = nudging
@@ -54,22 +62,34 @@ final class OrbModel: ObservableObject {
   }
 
   // How much of its window the island fills: a notch when tucked, taller with a line under the orb. The window itself
-  // stays at the biggest size, so changes are drawn as one smooth spring and never resize a window.
-  nonisolated static let window = CGSize(width: 78, height: 136)
+  // stays at the biggest size, so changes are drawn as one smooth spring and never resize a window. Wide enough for
+  // the camera-notch pill as well as the right-edge island; what is not painted lets the mouse through.
+  nonisolated static let window = CGSize(width: 224, height: 136)
   nonisolated static func size(tucked: Bool, nudging: Bool, glance: Bool) -> CGSize {
     if tucked { return nudging ? CGSize(width: 18, height: 76) : CGSize(width: 12, height: 64) }
     return CGSize(width: 78, height: glance ? 136 : 104)
   }
-  var size: CGSize { OrbModel.size(tucked: tucked, nudging: nudging, glance: glance != nil) }
+  // In the notch: a pill as wide as the camera housing, hanging just deeper than the notch itself; waking on hover
+  // grows it downward to make room for the orb.
+  nonisolated static func notchSize(tucked: Bool, width: CGFloat, inset: CGFloat) -> CGSize {
+    CGSize(width: width, height: notchOrbDepth(inset: inset) + (tucked ? -39 : 39))
+  }
+  // The orb's depth below the window's top in the notch: just under the housing, centred in the grown pill.
+  nonisolated static func notchOrbDepth(inset: CGFloat) -> CGFloat { inset + 4 + 39 }
+  var size: CGSize {
+    notch ? OrbModel.notchSize(tucked: tucked, width: notchWidth, inset: notchInset)
+          : OrbModel.size(tucked: tucked, nudging: nudging, glance: glance != nil)
+  }
 }
 
 // Every change in the island's shape springs, never snaps.
 let islandSpring = Animation.spring(response: 0.42, dampingFraction: 0.84)
 
-// Where the island lives: always out, tucked into a notch that opens on hover, or hidden (Command-Option-K still works).
+// Where the island lives: always out at the right edge, tucked into a sliver that opens on hover, a pill in the
+// camera notch that wakes on hover, or hidden (the open shortcut still works).
 enum IslandMode: String, CaseIterable {
-  case always, hover, hidden
-  var title: String { ["always": "Always shown", "hover": "Tucked away, shown on hover", "hidden": "Hidden"][rawValue]! }
+  case always, hover, notch, hidden
+  var title: String { ["always": "Always shown", "hover": "Tucked away, shown on hover", "notch": "In the notch", "hidden": "Hidden"][rawValue]! }
 }
 
 // How the orb's world is lit. "Hour" follows the sun where you are, like getkier.com: day, golden hour, then night.
@@ -247,7 +267,8 @@ struct IslandView: View {
       if model.renderStatus != .metal {
         IslandFallback(model: model)
       }
-      if let glance = model.glance {
+      // The glance chip is a right-edge thing; in the notch the nudge toast covers it.
+      if let glance = model.glance, !model.notch {
         Text(glance)
           .font(.system(size: 10, weight: .medium, design: .rounded))
           // The orb has no backdrop, but the glance is never bare text on the desktop: it sits on its own small,
@@ -265,8 +286,19 @@ struct IslandView: View {
       }
     }
     .frame(width: size.width, height: size.height)
-    .clipShape(shape)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+    .modifier(IslandClip(notch: model.notch, tucked: model.tucked, shape: shape))
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: model.notch ? .top : .trailing)
+  }
+}
+
+// The island's clip: the right-edge outline, or the notch's top-flush pill. clipShape takes one concrete type.
+private struct IslandClip: ViewModifier {
+  let notch: Bool
+  let tucked: Bool
+  let shape: IslandShape
+  func body(content: Content) -> some View {
+    if notch { content.clipShape(UnevenRoundedRectangle(bottomLeadingRadius: tucked ? 6 : 14, bottomTrailingRadius: tucked ? 6 : 14)) }
+    else { content.clipShape(shape) }
   }
 }
 
@@ -277,6 +309,8 @@ struct IslandFallback: View {
 
   var body: some View {
     ZStack {
+      // The shader's quiet pill fill, for the non-Metal path: an idle notch still reads.
+      if model.notch { Color(white: 0.02).opacity(0.85) }
       if !model.tucked {
         Group {
           if let artwork = Self.artwork {
@@ -346,6 +380,7 @@ final class IslandHost: NSView {
   // The part of the window the island covers right now; around it the window is see-through and lets the mouse past.
   var shown: NSRect {
     let s = model.size
+    if model.notch { return NSRect(x: bounds.midX - s.width / 2, y: bounds.maxY - s.height, width: s.width, height: s.height) }
     return NSRect(x: bounds.maxX - s.width, y: bounds.midY - s.height / 2, width: s.width, height: s.height)
   }
 
@@ -355,6 +390,15 @@ final class IslandHost: NSView {
     let geometry = (model.renderStatus == .metal ? model.renderer?.hitGeometry : nil) ?? IslandHitGeometry(
       width: model.size.width, height: model.size.height,
       fillet: model.tucked ? 6 : 16, radius: model.tucked ? 4 : 24)
+    if model.notch {
+      // The pill hangs from the window's top, centred. Sleeping, it is the whole target; woken, the orb takes
+      // clicks and the pill's footprint stays a target so the island doesn't close under a stationary pointer.
+      let pill = CGRect(x: bounds.midX - geometry.width / 2, y: bounds.maxY - geometry.height, width: geometry.width, height: geometry.height)
+      if pill.contains(point) { return true }
+      guard !model.tucked else { return false }
+      let orb = CGPoint(x: bounds.midX, y: bounds.maxY - OrbModel.notchOrbDepth(inset: model.notchInset))
+      return hypot(point.x - orb.x, point.y - orb.y) <= 36
+    }
     let local = CGPoint(x: point.x - bounds.maxX + geometry.width,
                         y: point.y - bounds.midY + geometry.height / 2)
     let outline = IslandShape(fillet: geometry.fillet, radius: geometry.radius)
@@ -425,7 +469,15 @@ final class IslandHost: NSView {
     }
   }
 
-  func track() { if let w = window { model.center = NSPoint(x: w.frame.midX - 2, y: w.frame.midY + (model.glance == nil ? 0 : 8)) } }
+  func track() {
+    guard let w = window else { return }
+    // The orb's middle in the window: centred in the notch's pill, or in the island's right-edge footprint.
+    let sh = shown
+    let local = model.notch
+      ? NSPoint(x: sh.midX, y: sh.maxY - OrbModel.notchOrbDepth(inset: model.notchInset))
+      : NSPoint(x: sh.midX - 2, y: sh.midY + (model.glance == nil ? 0 : 8))
+    model.center = w.convertPoint(toScreen: local)
+  }
 
   override func mouseDown(with event: NSEvent) {
     start = NSEvent.mouseLocation
@@ -577,6 +629,7 @@ final class Companion: NSObject {
   private var island: IslandHost!
   private var chatPanel: KeyPanel?
   private var bubble: NSPanel?
+  private var wakeTimer: Timer?
   private var hotKey: HotKey?
   // The search bar (FindBar.swift), on ⌥⌘Space unless changed.
   private var findKey: HotKey?
@@ -586,6 +639,12 @@ final class Companion: NSObject {
   private var monitors: [Any] = []
   private var openedAt = 0.0
   private let defaults = UserDefaults.standard
+  // The camera-notch screen, if one is attached: a housing shows up as a top safe-area inset.
+  private var notchScreen: NSScreen? { NSScreen.screens.first { $0.safeAreaInsets.top > 0 } }
+  // "In the notch" with no notch falls back to the right edge, where it behaves like "Tucked away".
+  private var inNotch: Bool { mode == .notch && notchScreen != nil }
+  // Modes that collapse when idle and open on hover.
+  private var tucks: Bool { mode == .hover || mode == .notch }
   // The island's window: always the island's biggest size; what's drawn inside it changes (see OrbModel.size).
   private let size = NSSize(width: OrbModel.window.width, height: OrbModel.window.height)
   private var tuckTimer: Timer?
@@ -634,7 +693,7 @@ final class Companion: NSObject {
     island.menuFor = { [weak self] in self?.menu() ?? NSMenu() }
     island.onHover = { [weak self] inside in self?.hovered(inside) }
     islandPanel.contentView = island
-    island.model.tucked = mode == .hover
+    island.model.tucked = tucks
     place()
     apply()
     NotificationCenter.default.addObserver(forName: .vahtiWindowShown, object: nil, queue: .main) { [weak self] _ in
@@ -650,7 +709,15 @@ final class Companion: NSObject {
       }
     }
     NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-      MainActor.assumeIsolated { self?.place() }
+      MainActor.assumeIsolated { self?.apply() }
+    }
+    // In the notch the island steps aside while Vahti's own window is frontmost, like spotifast's miniplayer;
+    // the panels never activate Vahti, so this only fires for the window.
+    NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+      MainActor.assumeIsolated { if self?.inNotch == true { self?.islandPanel.orderOut(nil) } }
+    }
+    NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+      MainActor.assumeIsolated { if self?.inNotch == true { self?.islandPanel.orderFrontRegardless() } }
     }
     shortcuts()
     NotificationCenter.default.addObserver(forName: Shortcut.changed, object: nil, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.shortcuts() } }
@@ -677,6 +744,9 @@ final class Companion: NSObject {
   }
 
   var visible: Bool { islandPanel.isVisible }
+  // The menu bar's Show/Hide follows the mode, not the panel: in the notch the panel is
+  // intentionally out while Vahti is frontmost, but the island is not hidden.
+  var orbHidden: Bool { mode == .hidden }
   var orbDiagnostic: String { island.model.renderStatus.label }
 
   // The menu bar's Show/Hide: hidden, or back to how it was shown before.
@@ -688,52 +758,78 @@ final class Companion: NSObject {
 
   private func apply() {
     tuckTimer?.invalidate()
-    island.keepsNotchTarget = mode == .hover
+    wakeTimer?.invalidate()
+    island.model.notch = inNotch
+    island.keepsNotchTarget = tucks
+    // The pill hangs in the menu bar's strip, above the visible frame, so it needs the status window level;
+    // at the right edge the island stays a plain floating panel. Stationary pins it across Spaces.
+    islandPanel.level = inNotch ? .statusBar : .floating
+    islandPanel.collectionBehavior = inNotch ? [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle] : [.canJoinAllSpaces, .fullScreenAuxiliary]
+    if let ns = inNotch ? notchScreen : nil {
+      // As wide as the camera housing, or 200 when the system won't say (spotifast's cap), within the window.
+      let housing = ns.frame.width - (ns.auxiliaryTopLeftArea?.width ?? 0) - (ns.auxiliaryTopRightArea?.width ?? 0)
+      island.model.notchWidth = min(max(housing > 0 ? housing : 200, 120), OrbModel.window.width - 8)
+      island.model.notchInset = ns.safeAreaInsets.top
+    }
     switch mode {
     case .hidden:
       islandPanel.orderOut(nil); closeChat(); bubble?.orderOut(nil)
       return
     case .always: setTucked(false)
-    case .hover: setTucked(!island.model.hover && chatPanel?.isVisible != true)
+    case .hover, .notch: setTucked(!island.model.hover && chatPanel?.isVisible != true)
     }
     place()
+    // Honor the frontmost rule from the start: picking the mode in the open Setup window must not
+    // drop the pill over it (didBecomeActive only fires on a transition into the active state).
+    // An island that was already out in another mode is put away, not just left where it moved.
+    if inNotch && NSApp.isActive {
+      islandPanel.orderOut(nil)
+      return
+    }
     islandPanel.orderFrontRegardless()
     Logger(subsystem: "to.sulopuis.vahti", category: "Orb").notice("Orb shown on screen; \(self.orbDiagnostic, privacy: .public)")
   }
 
-  // In hover mode: out of the notch while the pointer is on it, back in a moment after it leaves.
+  // In the tucking modes: out while the pointer is on it, back in a moment after it leaves. In the notch the
+  // timings are spotifast's: 60ms of hover to wake (a passing pointer does nothing), a 400ms linger before sleep.
   private func hovered(_ inside: Bool) {
     glanceTimer?.invalidate()
     if inside {
-      // A moment on the island, not just passing over it, slides out what the glance is about.
-      glanceTimer = Timer.scheduledTimer(withTimeInterval: mode == .hover ? 0.45 : 0.35, repeats: false) { [weak self] _ in
+      // A moment on the island, not just passing over it, slides out what the glance is about. In the
+      // notch the card comes out beside the pill; only the one-line chip under the orb is skipped.
+      glanceTimer = Timer.scheduledTimer(withTimeInterval: tucks ? 0.45 : 0.35, repeats: false) { [weak self] _ in
         MainActor.assumeIsolated { if self?.island.model.hover == true { self?.showGlance() } }
       }
-    } else if mode != .hover, glanceOut {
+    } else if !inside, !tucks, glanceOut {
       toastTimer?.invalidate()
       toastTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { [weak self] _ in
         MainActor.assumeIsolated { if self?.onToast == false, self?.island.model.hover == false { self?.hideToast() } }
       }
     }
-    guard mode == .hover else { return }
+    guard tucks else { return }
     tuckTimer?.invalidate()
+    wakeTimer?.invalidate()
     if inside {
       if bubble?.isVisible == true { toastSeen = true }
-      setTucked(false)
+      if inNotch {
+        wakeTimer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: false) { [weak self] _ in
+          MainActor.assumeIsolated { if self?.island.model.hover == true { self?.setTucked(false) } }
+        }
+      } else { setTucked(false) }
       // The nudge that was waiting behind the notch slides out once the island is open.
       if let w = waiting {
         Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
           MainActor.assumeIsolated { if self?.island.model.hover == true { self?.showToast(w.card, overdue: w.overdue, linger: nil) } }
         }
       }
-    } else { tuckSoon(after: 1.2) }
+    } else { tuckSoon(after: inNotch ? 0.4 : 1.2) }
   }
 
   private func tuckSoon(after seconds: TimeInterval) {
     tuckTimer?.invalidate()
     tuckTimer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: false) { [weak self] _ in
       MainActor.assumeIsolated {
-        guard let self, self.mode == .hover, !self.island.model.hover, !self.onToast, self.chatPanel?.isVisible != true else { return }
+        guard let self, self.tucks, !self.island.model.hover, !self.onToast, self.chatPanel?.isVisible != true else { return }
         // A toast you didn't answer goes back behind the notch, which breathes until you hover it.
         if let c = self.toastCard, !self.toastSeen, self.bubble?.isVisible == true { self.waiting = c; withAnimation(islandSpring) { self.island.model.nudging = true } }
         self.hideToast()
@@ -758,7 +854,7 @@ final class Companion: NSObject {
     if sound, hour >= 8, hour < 22, let ting = NSSound(named: "Glass") { ting.volume = 0.4; ting.play() }
     guard chatPanel?.isVisible != true else { return }
     remember(card)
-    if mode == .hover { setTucked(false); showToast(card, overdue: false, linger: nil); tuckSoon(after: 5) }
+    if tucks { setTucked(false); showToast(card, overdue: false, linger: nil); tuckSoon(after: 5) }
     else { showToast(card, overdue: false, linger: 25) }
   }
 
@@ -768,6 +864,14 @@ final class Companion: NSObject {
 
   // Its middle is what's remembered, so growing out of the notch and back never moves it.
   private func place() {
+    // In the notch the window hangs from the screen's top, centred under the camera housing; the island
+    // inside it is drawn from the top (IslandView aligns top, the shader turns the outline upright).
+    if inNotch, let ns = notchScreen {
+      let f = ns.frame
+      islandPanel.setFrame(NSRect(x: f.midX - size.width / 2, y: f.maxY - size.height, width: size.width, height: size.height), display: true)
+      movedIsland()
+      return
+    }
     let s = screen
     let mid = defaults.double(forKey: "vahtiIslandMid")
     let old = defaults.double(forKey: "vahtiIslandY")
@@ -790,8 +894,10 @@ final class Companion: NSObject {
     island.track()
   }
 
-  // Up and down the edge; the panel and the nudge go with it.
+  // Up and down the edge; the panel and the nudge go with it. In the notch the pill hangs from the
+  // camera housing; there is nowhere to drag it.
   private func drag(_ dy: CGFloat) {
+    if inNotch { return }
     var f = islandPanel.frame
     f.origin.y = min(max(f.origin.y + dy, screen.minY + 4), screen.maxY - size.height - 4)
     islandPanel.setFrame(f, display: true)
@@ -911,7 +1017,7 @@ final class Companion: NSObject {
     // Crossfade the hover card into the panel, growing from slightly smaller around the card’s centre.
     let card = bubble?.isVisible == true ? bubble?.frame : nil
     hideToast(intoPanel: card != nil)
-    if mode == .hover { setTucked(false) }
+    if tucks { setTucked(false) }
     if chatPanel == nil {
       let host = NSHostingView(rootView: CompanionView(close: { [weak self] in self?.closeChat() }).environment(store).environment(\.openURL, LinkPolicy.action))
       host.sizingOptions = []
@@ -986,7 +1092,7 @@ final class Companion: NSObject {
     monitors = []
     chatPanel?.orderOut(nil)
     island.model.panel = false
-    if mode == .hover { tuckSoon(after: 1.2) }
+    if tucks { tuckSoon(after: 1.2) }
   }
 
   // To the left of the island, centred on it as far as the screen allows.
@@ -1078,7 +1184,7 @@ final class Companion: NSObject {
       .init(symbol: "doc.text", help: "What's new") { [weak self] in self?.hideToast(); self?.openNotes() },
       .init(symbol: "xmark", help: "Later, from the island's menu") { [weak self] in self?.hideToast() },
     ], open: { [weak self] in self?.hideToast(); self?.openNotes() }, hovered: { [weak self] inside in self?.toastHovered(inside) }))
-    if mode == .hover { setTucked(false); tuckSoon(after: 30) }
+    if tucks { setTucked(false); tuckSoon(after: 30) }
     present(host, linger: 30)
   }
 
@@ -1103,7 +1209,7 @@ final class Companion: NSObject {
         .init(symbol: "arrow.down", help: "Download") { [weak self] in self?.store.act(action); self?.hideToast() },
         .init(symbol: "xmark", help: "Later, from Setup") { [weak self] in self?.hideToast() },
       ], open: { [weak self] in self?.hideToast(); viewer.show("/setup") }, hovered: { [weak self] inside in self?.toastHovered(inside) }))
-      if mode == .hover { setTucked(false); tuckSoon(after: 30) }
+      if tucks { setTucked(false); tuckSoon(after: 30) }
       present(host, linger: 30)
     }
   }
@@ -1120,7 +1226,7 @@ final class Companion: NSObject {
   private func nudge(_ card: Card, overdue: Bool) {
     remember(card)
     // Tucked away, it doesn't throw a toast at you: the notch breathes, and the toast comes out when you hover it.
-    if mode == .hover && island.model.tucked {
+    if tucks && island.model.tucked {
       waiting = (card, overdue)
       withAnimation(islandSpring) { island.model.nudging = true }
       reshaped()
@@ -1193,7 +1299,7 @@ final class Companion: NSObject {
     let host = FirstClickHost(rootView: NudgeView(model: model, line: m.line, text: m.text, actions: [
       .init(symbol: "xmark", help: "Dismiss") { [weak self] in self?.hideToast() },
     ], open: { [weak self] in self?.hideToast(); self?.toggleChat() }, hovered: { [weak self] inside in self?.toastHovered(inside) }))
-    if mode == .hover { setTucked(false); tuckSoon(after: 8) }
+    if tucks { setTucked(false); tuckSoon(after: 8) }
     present(host, linger: 25)
   }
 
@@ -1201,7 +1307,7 @@ final class Companion: NSObject {
     defaults.set(Array(((defaults.stringArray(forKey: "vahtiOwedSeen") ?? []) + ["\(o.card.id)@\(o.at)"]).suffix(200)), forKey: "vahtiOwedSeen")
     island.model.burst = Date()
     let line = "\(o.who) just wrote. You still owe this"
-    if mode == .hover { setTucked(false); showToast(o.card, overdue: false, linger: nil, line: line); tuckSoon(after: 8) }
+    if tucks { setTucked(false); showToast(o.card, overdue: false, linger: nil, line: line); tuckSoon(after: 8) }
     else { showToast(o.card, overdue: false, linger: 25, line: line) }
   }
 
@@ -1240,8 +1346,8 @@ final class Companion: NSObject {
     let host = FirstClickHost(rootView: DoneView(model: model, headline: card.headline, how: howDone(card.reason), undo: { [weak self] in
       self?.store.mark(card, "open"); self?.hideToast()
     }, hovered: { [weak self] inside in self?.toastHovered(inside) }))
-    if mode == .hover { setTucked(false); tuckSoon(after: 5) }
-    present(host, linger: mode == .hover ? nil : 5)
+    if tucks { setTucked(false); tuckSoon(after: 5) }
+    present(host, linger: tucks ? nil : 5)
   }
 
   // A newer Vahti (Updater.swift), out beside the island like a nudge. Unanswered, it slides back after half a minute and
@@ -1256,7 +1362,7 @@ final class Companion: NSObject {
     toast = model
     let host = FirstClickHost(rootView: UpdateView(model: model, offer: u.offer, install: { u.install() }, later: { u.later() },
       hovered: { [weak self] inside in self?.toastHovered(inside) }))
-    if mode == .hover { setTucked(false); tuckSoon(after: 30) }
+    if tucks { setTucked(false); tuckSoon(after: 30) }
     present(host, linger: u.offer.phase == .available ? 30 : u.offer.phase.working ? nil : 6)
   }
 
@@ -1311,7 +1417,7 @@ final class Companion: NSObject {
     toastTimer?.invalidate()
     tuckTimer?.invalidate()
     guard !inside else { return }
-    if mode == .hover { tuckSoon(after: 1.2) }
+    if tucks { tuckSoon(after: 1.2) }
     else { toastTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.hideToast() } } }
   }
 }

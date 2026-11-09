@@ -552,7 +552,7 @@ final class Bar: NSObject, NSMenuDelegate {
     if maybe > 0 { menu.addItem(entry("Maybe yours: \(maybe)", #selector(openTimeline))) }
     menu.addItem(.separator())
     // Reading the brief aloud is switched off for now ; speak() and stopTalking() stay for when it's back.
-    menu.addItem(entry(MainActor.assumeIsolated { companion?.visible ?? false } ? "Hide the orb" : "Show the orb", #selector(toggleOrb)))
+    menu.addItem(entry(MainActor.assumeIsolated { companion?.orbHidden ?? false } ? "Show the orb" : "Hide the orb", #selector(toggleOrb)))
     menu.addItem(entry("Open Vahti", #selector(openTimeline)))
     menu.addItem(entry("Vault", #selector(openVault)))
     menu.addItem(entry("Setup", #selector(openSetup)))

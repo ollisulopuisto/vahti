@@ -32,8 +32,10 @@ test('display link starts only on attachment and Show/display changes recheck po
   const init = island.slice(island.indexOf('init?(size:'), island.indexOf('func startRendering()'))
   assert.doesNotMatch(init, /thread\.start\(\)/)
   assert.match(island, /guard let w = window else \{ return \}\s*renderer\.startRendering\(\)/)
-  assert.match(orb, /didChangeScreenParametersNotification[\s\S]*?self\?\.place\(\)/)
-  assert.match(orb, /place\(\)\s*islandPanel\.orderFrontRegardless\(\)/)
+  // Display changes re-apply the mode (which places again): a notch screen can come or go.
+  assert.match(orb, /didChangeScreenParametersNotification[\s\S]*?self\?\.apply\(\)/)
+  // place() then show, allowing the notch's frontmost guard in between.
+  assert.match(orb, /place\(\)(\s*\n\s*(\/\/[^\n]*)?)*[\s\S]{0,300}?islandPanel\.orderFrontRegardless\(\)/)
 })
 
 test('both packaging routes always retain shader source', () => {

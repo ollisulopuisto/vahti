@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.7.21",
+    "date": "2026-11-09",
+    "title": "Vahti in the notch",
+    "summary": "The island can live in the camera notch: a slim pill that pulses when something waits and wakes on hover.",
+    "notes": [
+      "Setup > Appearance > The island > In the notch hangs Vahti under the camera notch as a slim pill.",
+      "The pill breathes and runs a soft light along its edge while something waits; a short hover wakes the orb, and it settles back when the pointer leaves.",
+      "The pill steps aside while Vahti's own window is open, and on a Mac without a notch the mode behaves like Tucked away, shown on hover."
+    ]
+  },
+  {
     "version": "0.7.20",
     "date": "2026-11-09",
     "title": "Hidden menu bar item, spotted every time",
