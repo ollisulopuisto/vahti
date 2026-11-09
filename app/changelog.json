@@ -6,7 +6,8 @@
     "summary": "The orb no longer sits on a sky-and-sea background.",
     "notes": [
       "Only the orb is drawn now, with no island background or outline behind it.",
-      "Its glow, ripple and tuck-away motion are unchanged."
+      "Its glow, ripple and tuck-away motion are unchanged.",
+      "At rest the orb is 18% smaller and a little translucent (75%); it grows to full size and opacity when you hover it, when something needs you, and while Vahti works."
     ]
   },
   {

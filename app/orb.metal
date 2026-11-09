@@ -360,6 +360,9 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
       float4 o = orb_pixel((p - float2(u.orbX, u.orbY)) / u.orbScale + 35.0, float2(70.0), u.time, float2(u.mouseX, u.mouseY),
                            u.attention, u.dusk, u.twilight, u.night, u.working, u.scale * u.orbScale,
                            float4(u.hoverVariant, u.hoverAmount, u.hoverAge, u.press), artwork) * u.orbAlpha;
+      // Subtle at rest: the orb sits at 75% and comes to full on hover or press, and when something needs you or Vahti works.
+      float awake = max(max(u.hoverAmount, u.press), max(clamp(u.attention, 0.0, 1.0), u.working));
+      o *= mix(0.75, 1.0, awake);
       c = o + c * (1.0 - o.a);
     }
     c *= inside;

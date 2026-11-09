@@ -8,7 +8,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/).
 ## [0.7.17] - 2026-11-09
 
 ### Changed
-- Make the orb more subtle: the sky-and-sea island behind it and the hairline round it are gone, so only the orb itself is drawn. The completion ripple, attention light and non-Metal fallback keep working over the transparent background, and the glance line under the orb sits on its own small translucent dark chip, so it never floats over the bare desktop.
+- Make the orb more subtle: the sky-and-sea island behind it and the hairline round it are gone, so only the orb itself is drawn. The completion ripple, attention light and non-Metal fallback keep working over the transparent background, and the glance line under the orb sits on its own small translucent dark chip, so it never floats over the bare desktop. At rest the orb is 18% smaller and sits at 75% opacity (the chip too); both come to full size and opacity with a short ease on hover or press, with the panel open, when something needs you, and while Vahti works. The motion itself is unchanged.
 
 ## [0.7.16] - 2026-11-08
 

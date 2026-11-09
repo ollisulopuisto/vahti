@@ -259,7 +259,8 @@ struct IslandView: View {
           .lineLimit(1)
           .offset(x: -2, y: 38)
           .transition(.opacity)
-          .opacity(model.tucked ? 0 : 1)
+          .opacity(model.tucked ? 0 : (model.hover || model.pressed || model.working || model.attention > 0 ? 1 : 0.75))
+          .animation(.easeOut(duration: 0.2), value: model.hover || model.pressed || model.working || model.attention > 0)
           .scaleEffect(model.tucked ? 0.35 : 1)
       }
     }
