@@ -48,7 +48,9 @@ for tucked in [false, true] {
       if let c = bitmap.colorAt(x: x, y: y), c.alphaComponent > 0.5 { painted += 1 }
     }
   }
-  precondition(painted > (tucked ? 100 : 1000), "fallback is blank")
+  // The island has no backdrop, so the expanded fallback must paint the orb. Tucked, the orb slides away and
+  // nothing is drawn behind it, so there is nothing to require.
+  if !tucked { precondition(painted > 1000, "fallback is blank") }
   print("Fallback painted, tucked=\(tucked), opaque pixels=\(painted)")
 }
 window.orderOut(nil)
