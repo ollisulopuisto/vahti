@@ -302,6 +302,9 @@ final class IslandHost: NSView {
   var onDrag: (CGFloat) -> Void = { _ in }
   var menuFor: () -> NSMenu = { NSMenu() }
   var onHover: (Bool) -> Void = { _ in }
+  // Only in "tucked away, shown on hover": the notch's footprint stays a target while the orb is open. In always-shown
+  // mode there is no visible notch, so that strip is empty desktop and lets clicks through.
+  var keepsNotchTarget = false
   let model = OrbModel()
   private var start: NSPoint?
   private var moved = false
@@ -367,7 +370,8 @@ final class IslandHost: NSView {
     // The notch's own footprint at the screen edge stays a target while expanded, so a stationary pointer that just
     // opened the notch is still inside it and the island doesn't tuck and reopen under it.
     let notch = OrbModel.size(tucked: true, nudging: true, glance: false)
-    if CGRect(x: bounds.maxX - notch.width, y: midY - notch.height / 2, width: notch.width, height: notch.height)
+    if keepsNotchTarget,
+       CGRect(x: bounds.maxX - notch.width, y: midY - notch.height / 2, width: notch.width, height: notch.height)
       .contains(point) { return true }
     if glance {
       let chip = CGRect(x: midX - 2 - 38, y: midY - 38 - 11, width: 76, height: 22)
@@ -684,6 +688,7 @@ final class Companion: NSObject {
 
   private func apply() {
     tuckTimer?.invalidate()
+    island.keepsNotchTarget = mode == .hover
     switch mode {
     case .hidden:
       islandPanel.orderOut(nil); closeChat(); bubble?.orderOut(nil)
