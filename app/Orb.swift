@@ -250,7 +250,9 @@ struct IslandView: View {
       if let glance = model.glance {
         Text(glance)
           .font(.system(size: 10, weight: .medium, design: .rounded))
-          .foregroundStyle(Color(white: Daylight.now.night + Daylight.now.twilight > 0.5 ? 0.9 : 0.18).opacity(0.75))
+          // No backdrop now, so the glance is light with a soft shadow to read on any desktop.
+          .foregroundStyle(Color(white: 0.95).opacity(0.8))
+          .shadow(color: .black.opacity(0.55), radius: 2, x: 0, y: 0.5)
           .lineLimit(1)
           .offset(x: -2, y: 38)
           .transition(.opacity)

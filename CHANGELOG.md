@@ -8,7 +8,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/).
 ## [0.7.17] - 2026-11-09
 
 ### Changed
-- Make the orb more subtle: the sky-and-sea island behind it and the hairline round it are gone, so only the orb itself is drawn. The completion ripple, attention light and non-Metal fallback keep working over the transparent background.
+- Make the orb more subtle: the sky-and-sea island behind it and the hairline round it are gone, so only the orb itself is drawn. The completion ripple, attention light and non-Metal fallback keep working over the transparent background, and the glance line under the orb is now light with a soft shadow so it reads on any desktop.
 
 ## [0.7.16] - 2026-11-08
 
