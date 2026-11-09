@@ -250,9 +250,12 @@ struct IslandView: View {
       if let glance = model.glance {
         Text(glance)
           .font(.system(size: 10, weight: .medium, design: .rounded))
-          // No backdrop now, so the glance is light with a soft shadow to read on any desktop.
-          .foregroundStyle(Color(white: 0.95).opacity(0.8))
-          .shadow(color: .black.opacity(0.55), radius: 2, x: 0, y: 0.5)
+          // The orb has no backdrop, but the glance is never bare text on the desktop: it sits on its own small,
+          // translucent dark chip.
+          .foregroundStyle(Color(white: 0.95).opacity(0.9))
+          .padding(.horizontal, 7)
+          .padding(.vertical, 2)
+          .background(Capsule().fill(Color.black.opacity(0.5)))
           .lineLimit(1)
           .offset(x: -2, y: 38)
           .transition(.opacity)
