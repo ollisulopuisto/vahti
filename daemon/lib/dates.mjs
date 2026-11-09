@@ -7,12 +7,22 @@ const plain = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').re
 
 // Weekdays, relative words and months for the owner's languages (lang.mjs).
 // Calendar date of a unix timestamp in the owner's timezone, as [year, month, day].
+// Cache recent localDate results to avoid repetitive Intl formatting and string parsing.
 const formats = new Map()
+const dateCache = new Map()
+const DATE_CACHE_MAX = 10000
+
 export function localDate(ts, timeZone = config.timezone) {
+  const key = `${ts}@${timeZone}`
+  let hit = dateCache.get(key)
+  if (hit) return hit
   let format = formats.get(timeZone)
   if (!format) { format = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }); formats.set(timeZone, format) }
   const parts = format.format(new Date(ts * 1000))
-  return parts.split('-').map(Number)
+  hit = parts.split('-').map(Number)
+  if (dateCache.size >= DATE_CACHE_MAX) dateCache.clear()
+  dateCache.set(key, hit)
+  return hit
 }
 
 const iso = (y, m, d) => {
