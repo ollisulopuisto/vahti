@@ -437,6 +437,9 @@ final class Bar: NSObject, NSMenuDelegate {
   // that happens the whole menu is unreachable, so the state is reported here instead of silently
   // dropping the app's main entry point; the orb and Command-Option-K keep working either way.
   private var obscured = false
+  // Set once the item has been seen on screen, so a detached button (no window) after that
+  // means macOS dropped it, while the same absence at launch is just layout still warming up.
+  private var laidOut = false
 
   override init() {
     super.init()
@@ -471,18 +474,25 @@ final class Bar: NSObject, NSMenuDelegate {
   // check instead: a live item's button window intersects an unobscured part of some screen's menu
   // bar (the region beside the notch, or the plain top strip).
   private func checkObscured() {
-    guard let window = item.button?.window, window.frame.width > 1 else { return }
-    var fits = false
-    for screen in NSScreen.screens {
-      if let besideNotch = screen.auxiliaryTopRightArea {
-        if window.frame.intersects(besideNotch) { fits = true; break }
-      } else {
-        let bar = max(24, screen.safeAreaInsets.top)
-        let strip = CGRect(x: screen.visibleFrame.minX, y: screen.frame.maxY - bar, width: screen.visibleFrame.width, height: bar)
-        if window.frame.intersects(strip) { fits = true; break }
+    let hidden: Bool
+    if let window = item.button?.window, window.frame.width > 1 {
+      laidOut = true
+      var fits = false
+      for screen in NSScreen.screens {
+        if let besideNotch = screen.auxiliaryTopRightArea {
+          if window.frame.intersects(besideNotch) { fits = true; break }
+        } else {
+          let bar = max(24, screen.safeAreaInsets.top)
+          let strip = CGRect(x: screen.visibleFrame.minX, y: screen.frame.maxY - bar, width: screen.visibleFrame.width, height: bar)
+          if window.frame.intersects(strip) { fits = true; break }
+        }
       }
+      hidden = !fits
+    } else {
+      // A detached button has no window at all: once laid out, that means macOS dropped it.
+      if !laidOut { return }
+      hidden = true
     }
-    let hidden = !fits
     if hidden != obscured {
       obscured = hidden
       if hidden { NSLog("Vahti: menu bar item hidden by macOS (crowded bar or notch); icon-only setting, orb and open shortcut remain") }

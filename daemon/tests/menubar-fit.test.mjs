@@ -26,6 +26,12 @@ test('a hidden item is detected by geometry on every system, never isVisible', (
   assert.match(bar, /screen\.auxiliaryTopRightArea/)
   assert.match(bar, /screen\.safeAreaInsets\.top/)
   assert.match(bar, /screen\.visibleFrame/)
+  // A detached button (no window) counts as hidden once the item has been laid out, but the
+  // same absence during startup must not raise a false alarm.
+  assert.match(bar, /private var laidOut = false/)
+  assert.match(bar, /laidOut = true/)
+  assert.match(bar, /if !laidOut \{ return \}/)
+  assert.match(bar, /else \{\s*\/\/[^\n]*\n\s*if !laidOut \{ return \}\s*\n\s*hidden = true/)
 })
 
 test('a hidden item is reported, never silent, and the fallbacks are named', () => {

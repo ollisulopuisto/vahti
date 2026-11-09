@@ -5,10 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.20] - 2026-11-09
+
+### Fixed
+- A hidden menu bar item whose button has detached from its window is now reported too: once the item has been seen on screen, a missing button window counts as hidden instead of skipping the check, while the same absence at launch still waits for layout to finish.
+
 ## [0.7.19] - 2026-11-09
 
 ### Added
-- Menu bar overflow and notch handling: macOS hides status items that do not fit (a crowded menu bar or the laptop notch), which used to make Vahti's whole menu silently unreachable. The item now has a stable autosave identity so macOS remembers where you drag it, a new "Menu bar: icon only" switch drops the waiting count to keep the item narrow enough to fit, and a periodic check (NSStatusItem.isVisible on macOS 15.4+, a geometry check against each screen's unobscured menu bar region on earlier systems) reports the hidden state in the menu and Console instead of saying nothing. The orb and Command-Option-K keep opening Vahti either way.
+- Menu bar overflow and notch handling: macOS hides status items that do not fit (a crowded menu bar or the laptop notch), which used to make Vahti's whole menu silently unreachable. The item now has a stable autosave identity so macOS remembers where you drag it, a new "Menu bar: icon only" switch drops the waiting count to keep the item narrow enough to fit, and a periodic geometry check against each screen's unobscured menu bar region reports the hidden state in the menu and Console instead of saying nothing. The orb and Command-Option-K keep opening Vahti either way.
 
 ## [0.7.18] - 2026-11-09
 
