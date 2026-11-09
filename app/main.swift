@@ -432,15 +432,61 @@ final class Bar: NSObject, NSMenuDelegate {
   private var tasks: [String] = []
   private var maybe = 0
   private let base = "http://127.0.0.1:4777"
+  private let defaults = UserDefaults.standard
+  // macOS hides status items that do not fit (a crowded menu bar, or the notch on a laptop). When
+  // that happens the whole menu is unreachable, so the state is reported here instead of silently
+  // dropping the app's main entry point; the orb and Command-Option-K keep working either way.
+  private var obscured = false
 
   override init() {
     super.init()
+    // A stable identity so macOS remembers where the owner dragged the item; it never forces a spot.
+    item.autosaveName = "VahtiStatusItem"
     item.button?.image = VahtiMark.barImage()
     item.button?.imagePosition = .imageLeading
     menu.delegate = self
     item.menu = menu
+    applyIconOnly()
     refresh()
     Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.refresh() }
+    checkObscured()
+    Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in self?.checkObscured() }
+  }
+
+  // Icon only keeps the item narrow, so it survives a crowded menu bar or the notch.
+  private var iconOnly: Bool { defaults.bool(forKey: "vahtiBarIconOnly") }
+
+  // Restoring the count uses the last list the daemon gave, so toggling while offline is not blank
+  // until the next successful read.
+  private func applyIconOnly() { item.button?.title = iconOnly || tasks.isEmpty ? "" : " \(tasks.count)" }
+
+  @objc private func toggleIconOnly() {
+    defaults.set(!iconOnly, forKey: "vahtiBarIconOnly")
+    applyIconOnly()
+    refresh()
+  }
+
+  // Apple's NSStatusItem.isVisible (macOS 15.4+) stays true when macOS hides the item for lack of
+  // menu bar space, so it cannot detect overflow hiding on any system. Every system gets a geometry
+  // check instead: a live item's button window intersects an unobscured part of some screen's menu
+  // bar (the region beside the notch, or the plain top strip).
+  private func checkObscured() {
+    guard let window = item.button?.window, window.frame.width > 1 else { return }
+    var fits = false
+    for screen in NSScreen.screens {
+      if let besideNotch = screen.auxiliaryTopRightArea {
+        if window.frame.intersects(besideNotch) { fits = true; break }
+      } else {
+        let bar = max(24, screen.safeAreaInsets.top)
+        let strip = CGRect(x: screen.visibleFrame.minX, y: screen.frame.maxY - bar, width: screen.visibleFrame.width, height: bar)
+        if window.frame.intersects(strip) { fits = true; break }
+      }
+    }
+    let hidden = !fits
+    if hidden != obscured {
+      obscured = hidden
+      if hidden { NSLog("Vahti: menu bar item hidden by macOS (crowded bar or notch); icon-only setting, orb and open shortcut remain") }
+    }
   }
 
   private func refresh() {
@@ -464,7 +510,7 @@ final class Bar: NSObject, NSMenuDelegate {
         self?.events = ev
         self?.tasks = list
         self?.maybe = maybeCount
-        self?.item.button?.title = list.isEmpty ? "" : " \(list.count)"
+        self?.applyIconOnly()
       }
     }
   }
@@ -483,6 +529,14 @@ final class Bar: NSObject, NSMenuDelegate {
     let diagnostic = NSMenuItem(title: MainActor.assumeIsolated { companion?.orbDiagnostic ?? "Orb: not initialized" }, action: nil, keyEquivalent: "")
     diagnostic.isEnabled = false
     menu.addItem(diagnostic)
+    if obscured {
+      // The open shortcut is rebindable in Settings, so name the one that works now.
+      let open = Shortcut.saved("open", or: .open).symbols
+      let warning = NSMenuItem(title: "Menu bar item hidden by macOS: try icon only below, or press \(open)", action: nil, keyEquivalent: "")
+      warning.isEnabled = false
+      menu.addItem(warning)
+    }
+    menu.addItem(entry(iconOnly ? "Menu bar: icon and count" : "Menu bar: icon only", #selector(toggleIconOnly)))
     for e in events.prefix(4) { menu.addItem(entry(e, #selector(openTimeline))) }
     for t in tasks.prefix(10) { menu.addItem(entry(t, #selector(openTimeline))) }
     if maybe > 0 { menu.addItem(entry("Maybe yours: \(maybe)", #selector(openTimeline))) }
