@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.18] - 2026-11-09
+
+### Added
+- Calendars to read: Setup's Sources tab lists every calendar the Mac syncs, each with its own switch, so shared or subscribed calendars (a partner's, the kids', a team calendar) can be kept out without turning the Calendar source off. Switching a calendar off stops new reads and removes what Vahti kept from it; switching it back on restores its recent and upcoming events on the next read. The switch is keyed on the calendar's name, the same key the Vault's forget chip uses, so calendars sharing a name switch together. A renamed calendar is seen as a new, switched-on calendar.
+
 ## [0.7.17] - 2026-11-09
 
 ### Changed

@@ -263,6 +263,15 @@ struct Privacy: Decodable {
 }
 
 // What Vahti may read, and whether your Claude may double-check stuck cards.
+// One calendar the Mac syncs, with its switch in Setup's "Calendars to read".
+struct CalendarChoice: Decodable, Identifiable {
+  var id: String { title }
+  let title: String
+  var on: Bool
+}
+
+struct CalendarsReply: Decodable { let calendars: [CalendarChoice]; let error: String? }
+
 struct Settings: Decodable {
   struct Source: Decodable, Identifiable { let id: String; let label: String; let detail: String?; var on: Bool; let count: Int }
   var sources: [Source]
@@ -421,6 +430,9 @@ final class Store {
   var steps: [Step] = []
   var privacy: Privacy?
   var settings: Settings?
+  // Setup's "Calendars to read"; nil until the first load, with the daemon's reason when the list can't be read.
+  var calendars: [CalendarChoice]?
+  var calendarsError: String?
   var modelSettings: ModelSettings?
   var offline = false
   var selected: Card?
@@ -678,6 +690,21 @@ final class Store {
 
   func loadPrivacy() async { privacy = await get("/api/privacy") ?? privacy }
   func loadSettings() async { settings = await get("/api/settings") ?? settings }
+
+  func loadCalendars() async {
+    if let reply: CalendarsReply = await get("/api/calendars") { calendars = reply.calendars; calendarsError = reply.error }
+  }
+
+  // Switched at once here, so the toggle doesn't wait on the daemon; a failed save reloads the list.
+  func setCalendar(_ title: String, on: Bool) {
+    if let i = calendars?.firstIndex(where: { $0.title == title }) { calendars?[i].on = on }
+    Task {
+      struct Reply: Decodable { let ok: Bool }
+      let reply: Reply? = await post("/api/calendars", ["title": title, "on": on])
+      if reply?.ok != true { await loadCalendars() }
+      if !on { await loadBrief() }
+    }
+  }
 
   // Switched at once here, so the toggle doesn't wait on the daemon.
   // The token goes to the daemon once and is stored owner-only on this Mac; the field clears either way.

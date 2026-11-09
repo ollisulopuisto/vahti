@@ -1344,6 +1344,9 @@ struct SetupView: View {
             }
           }
         }
+        if settings.sources.first(where: { $0.id == "calendar" })?.on == true {
+          calendarsPanel
+        }
     }
     Panel(title: "Todoist", footer: "Your active tasks, read every few minutes with your own Todoist API token (Todoist Settings, Integrations, Developer). The token is checked against Todoist, then stored only on this Mac. Tasks you complete stay in the vault as history.") {
       if store.settings?.todoist == true {
@@ -1371,6 +1374,27 @@ struct SetupView: View {
     setupSteps("Calendar & Reminders", steps: store.steps.filter { syncIDs.contains($0.id) })
     setupSteps("Connected apps", steps: store.steps.filter { connectionIDs.contains($0.id) })
     MCPSourcesView()
+  }
+
+  @ViewBuilder private var calendarsPanel: some View {
+    Panel(title: "Calendars to read",
+          footer: "Switched off, a calendar isn't read from then on and what Vahti kept from it leaves the vault. Switch it back on and its recent and upcoming events return on the next read. Calendars with the same name switch together.") {
+      if let calendars = store.calendars {
+        if calendars.isEmpty, store.calendarsError == nil {
+          Text("No calendars found on this Mac.").font(.vahtiBody).foregroundStyle(Vahti.dim).padding(.vertical, 13)
+        }
+        ForEach(calendars) { c in
+          row(c.title, nil, symbol: "calendar") {
+            Toggle("", isOn: Binding(get: { c.on }, set: { store.setCalendar(c.title, on: $0) })).toggleStyle(.switch).labelsHidden().controlSize(.small)
+          }
+        }
+        if let error = store.calendarsError {
+          Text(error).font(.vahtiSmall).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true)
+        }
+      } else {
+        Text("Reading the list of calendars…").font(.vahtiBody).foregroundStyle(Vahti.dim).padding(.vertical, 13)
+      }
+    }.task { await store.loadCalendars() }
   }
 
   private var aboutYou: some View {

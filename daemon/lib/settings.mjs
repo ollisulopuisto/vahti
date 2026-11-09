@@ -62,6 +62,21 @@ export const acceptTerms = () => save({ terms: { version: TERMS_VERSION, at: now
 
 export const setClaudeCheck = (on) => save({ claudeCheck: on === true })
 export const setOnline = (on) => save({ online: on === true })
+// Setup's "Calendars to read": the calendars Vahti skips, by their title in the Mac's Calendar
+// database. Empty means every calendar is read. Titles can repeat across accounts, so a switch
+// covers every calendar with that name, the same key the Vault's forget chip uses.
+export const excludedCalendars = () => (Array.isArray(config.calendars?.exclude) ? config.calendars.exclude : [])
+export function setCalendarIncluded(title, on) {
+  if (typeof title !== 'string') return false
+  const t = title.trim().slice(0, 200)
+  if (!t) return false
+  const excluded = new Set(excludedCalendars())
+  if (on) excluded.delete(t)
+  else { excluded.add(t); invalidateProfile() }
+  save({ calendars: { ...(config.calendars || {}), exclude: [...excluded] } })
+  return true
+}
+
 // Three opt-in controls govern Calendar and Reminders: plans, dated tasks and reading existing
 // reminders. The legacy phone switch remains a fallback for the first two.
 export const phoneCalendar = () => config.phoneCalendar ?? config.phone === true
