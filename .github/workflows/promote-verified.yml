@@ -1,6 +1,12 @@
 name: Promote verified Vahti 0.7.16
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/promote-verified.yml'
+      - 'scripts/promote_verified_release.py'
+      - 'scripts/tests/test_release_promotion.py'
+      - 'docs/releases/**'
   workflow_dispatch:
     inputs:
       publish:
@@ -18,8 +24,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 -m unittest discover -s scripts/tests -p test_release_promotion.py -v
+
   promote:
+    needs: test
     if: >-
+      github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/main' &&
       github.actor == 'ollisulopuisto' &&
       github.triggering_actor == 'ollisulopuisto'
