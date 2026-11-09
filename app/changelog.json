@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.7.22",
+    "date": "2026-11-10",
+    "title": "A faster, backdrop-free notch",
+    "summary": "The notch island wakes the instant you throw the pointer at the screen's top edge, opens quicker, and shows only the orb - no pill background.",
+    "notes": [
+      "Throw the cursor at the screen's top edge anywhere near the notch - no aiming at the sliver - and the island wakes instantly; the old 60ms dwell is gone.",
+      "The open spring and the waiting pulse run faster in the notch.",
+      "The pill's dark background is gone again, as it has been on the right-edge island since 0.7.17: only the orb and its light show."
+    ]
+  },
+  {
     "version": "0.7.21",
     "date": "2026-11-09",
     "title": "Vahti in the notch",

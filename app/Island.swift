@@ -232,6 +232,12 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
     last = now
     let t = now - start
 
+    // In the notch it answers faster: the same springs with a shorter response, so a thrown
+    // cursor meets an island already opening.
+    let springResponse = g.notch ? 0.26 : 0.42
+    width.response = springResponse; height.response = springResponse
+    fillet.response = springResponse; radius.response = springResponse
+    open.response = springResponse; lift.response = springResponse
     // Every change of shape springs as SwiftUI's islandSpring did; the first frame starts where the island already is.
     let size = g.notch
       ? OrbModel.notchSize(tucked: g.tucked, width: CGFloat(g.notchWidth), inset: CGFloat(g.notchInset))
@@ -291,7 +297,7 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
       hoverMouse = smoothed
       mouse = (CGFloat(smoothed.x), CGFloat(smoothed.y))
     }
-    let glow = g.tucked && g.nudging ? 0.07 + 0.07 * sin(t * 2.4) : 0
+    let glow = g.tucked && g.nudging ? 0.07 + 0.07 * sin(t * (g.notch ? 3.6 : 2.4)) : 0
     let selectedHover = hoverVariant != .none && !g.tucked
     var u: [Float] = [
       Float(window.width), Float(window.height), g.scale, Float(t),

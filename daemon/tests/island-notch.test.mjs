@@ -38,8 +38,9 @@ test('without a notch screen the mode falls back to the right edge, behaving lik
   assert.match(orb, /if inNotch, let ns = notchScreen \{/)
 })
 
-test('hover wakes the pill on spotifast timings: 60ms in, 400ms linger out', () => {
-  assert.match(orb, /wakeTimer = Timer\.scheduledTimer\(withTimeInterval: 0\.06/)
+test('hover wakes the pill instantly and lingers 400ms on the way out', () => {
+  // No dwell: Fitts's law says the throw is the aiming, so the wake timer is gone entirely.
+  assert.doesNotMatch(orb, /wakeTimer/)
   assert.match(orb, /tuckSoon\(after: inNotch \? 0\.4 : 1\.2\)/)
 })
 
@@ -58,10 +59,44 @@ test('the pill steps aside while Vahti is frontmost', () => {
   assert.match(menu, /companion\?\.orbHidden \?\? false \} \? "Show the orb" : "Hide the orb"/)
 })
 
-test('an idle pill is still visible: a quiet dark fill in the shader and in the fallback', () => {
-  // Without it the tucked pill paints nothing when nothing waits - an invisible hover target.
-  assert.match(metal, /c = float4\(float3\(0\.02, 0\.02, 0\.03\) \* 0\.85, 0\.85\) \* inside/)
-  assert.match(orb, /if model\.notch \{ Color\(white: 0\.02\)\.opacity\(0\.85\) \}/)
+test('no pill backdrop: only the orb and its effects show, in the shader and the fallback', () => {
+  // The 0.7.17 removal applied to the notch too: the island is transparent and only the orb is drawn.
+  assert.doesNotMatch(metal, /c = float4\(float3\(0\.02, 0\.02, 0\.03\) \* 0\.85, 0\.85\) \* inside/)
+  assert.doesNotMatch(orb, /if model\.notch \{ Color\(white: 0\.02\)\.opacity\(0\.85\) \}/)
+})
+
+test('the top edge is the target: a thrown cursor wakes the island (Fitts)', () => {
+  // The hover region reaches past the window's painted sliver - the pointer is read globally,
+  // so a cursor slammed to the screen's top edge within the housing's span plus margin lands here.
+  assert.match(orb, /let margin: CGFloat = 48/)
+  assert.match(orb, /let edge = CGRect\(x: bounds\.midX - geometry\.width \/ 2 - margin, y: bounds\.maxY - geometry\.height - 8,/)
+  assert.match(orb, /if edge\.contains\(point\) \{ return true \}/)
+})
+
+test('the top-edge margin is hover-only: clicks beside the housing stay with the menu bar', () => {
+  // The generous region lives in hoverContains; hitTest and ignoresMouseEvents use containsIsland,
+  // whose notch branch is the painted pill and orb alone. A menu extra in the margin keeps its clicks.
+  assert.match(orb, /private func hoverContains\(_ point: NSPoint\) -> Bool \{\s*if model\.notch \{\s*let geometry = hitGeometry\s*let margin: CGFloat = 48/)
+  assert.match(orb, /override func hitTest\(_ point: NSPoint\) -> NSView\? \{\s*containsIsland\(convert\(point, from: superview\)\) \? self : nil/)
+  assert.match(orb, /let click = window\.isVisible && containsIsland\(point\)/)
+  assert.match(orb, /let hover = window\.isVisible && hoverContains\(point\)/)
+  assert.match(orb, /let ignore = !click && start == nil/)
+  const contains = orb.slice(orb.indexOf('func containsIsland'), orb.indexOf('private func hoverContains'))
+  assert.match(contains, /let pill = CGRect\(x: bounds\.midX - geometry\.width \/ 2, y: bounds\.maxY - geometry\.height/)
+  assert.doesNotMatch(contains, /let margin/)
+})
+
+test('the waiting pulse reaches the shader: u.glow breathes a halo round the outline', () => {
+  // The renderer has always fed the glow slot; the shader now reads it, so the notch (and the
+  // right-edge island) visibly breathe while a nudge waits - an effect, not a backdrop.
+  assert.match(metal, /if \(u\.glow > 0\.0\) \{\s*float halo = exp\(-sq\(d \/ 4\.0\)\) \* u\.glow;/)
+  assert.match(island, /let glow = g\.tucked && g\.nudging \? 0\.07 \+ 0\.07 \* sin\(t \* \(g\.notch \? 3\.6 : 2\.4\)\) : 0/)
+})
+
+test('the notch answers faster: shorter spring response, quicker pulse', () => {
+  assert.match(island, /let springResponse = g\.notch \? 0\.26 : 0\.42/)
+  assert.match(island, /sin\(t \* \(g\.notch \? 3\.6 : 2\.4\)\)/)
+  assert.match(metal, /fmod\(u\.time \* \(u\.notch > 0\.5 \? 0\.5 : 0\.35\), 2\.2\)/)
 })
 
 test('hover in the notch still opens the glance card beside the pill', () => {
@@ -93,7 +128,8 @@ test('the shader turns the outline upright in the notch, flare off the top edge'
 
 test('input follows the pill: top-centred footprint, orb below the housing, and the pulse reuses tucked state', () => {
   assert.match(orb, /if model\.notch \{ return NSRect\(x: bounds\.midX - s\.width \/ 2, y: bounds\.maxY - s\.height/)
-  assert.match(orb, /let pill = CGRect\(x: bounds\.midX - geometry\.width \/ 2, y: bounds\.maxY - geometry\.height/)
+  // The painted footprint is the top-edge region (housing span plus margin, to the screen's top).
+  assert.match(orb, /let edge = CGRect\(x: bounds\.midX - geometry\.width \/ 2 - margin, y: bounds\.maxY - geometry\.height - 8/)
   assert.match(orb, /let orb = CGPoint\(x: bounds\.midX, y: bounds\.maxY - OrbModel\.notchOrbDepth\(inset: model\.notchInset\)\)/)
   // Nudging and the edge light key off tucked, which the notch's sleeping pill is.
   assert.match(island, /g\.tucked && g\.nudging/)
