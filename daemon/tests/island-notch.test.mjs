@@ -51,6 +51,11 @@ test('the pill steps aside while Vahti is frontmost', () => {
   // Picking the mode in the already-open Setup window must not drop the pill over it: an island
   // already out in another mode is put away, not just left where place() moved it.
   assert.match(orb, /if inNotch && NSApp\.isActive \{\s*islandPanel\.orderOut\(nil\)\s*return\s*\}/)
+  // With the panel out while Vahti is frontmost, the menu bar's Show/Hide must follow the mode:
+  // offering "Show the orb" for a hidden panel would hide the notch mode for good when clicked.
+  assert.match(orb, /var orbHidden: Bool \{ mode == \.hidden \}/)
+  const menu = readFileSync('../app/main.swift', 'utf8')
+  assert.match(menu, /companion\?\.orbHidden \?\? false \} \? "Show the orb" : "Hide the orb"/)
 })
 
 test('an idle pill is still visible: a quiet dark fill in the shader and in the fallback', () => {

@@ -744,6 +744,9 @@ final class Companion: NSObject {
   }
 
   var visible: Bool { islandPanel.isVisible }
+  // The menu bar's Show/Hide follows the mode, not the panel: in the notch the panel is
+  // intentionally out while Vahti is frontmost, but the island is not hidden.
+  var orbHidden: Bool { mode == .hidden }
   var orbDiagnostic: String { island.model.renderStatus.label }
 
   // The menu bar's Show/Hide: hidden, or back to how it was shown before.
