@@ -76,7 +76,7 @@ test('the top edge is the target: a thrown cursor wakes the island (Fitts)', () 
 test('the top-edge margin is hover-only: clicks beside the housing stay with the menu bar', () => {
   // The generous region lives in hoverContains; hitTest and ignoresMouseEvents use containsIsland,
   // whose notch branch is the painted pill and orb alone. A menu extra in the margin keeps its clicks.
-  assert.match(orb, /private func hoverContains\(_ point: NSPoint\) -> Bool \{\s*if model\.notch \{\s*let margin: CGFloat = 48/)
+  assert.match(orb, /private func hoverContains\(_ point: NSPoint\) -> Bool \{\s*if model\.notch \{\s*let geometry = hitGeometry\s*let margin: CGFloat = 48/)
   assert.match(orb, /override func hitTest\(_ point: NSPoint\) -> NSView\? \{\s*containsIsland\(convert\(point, from: superview\)\) \? self : nil/)
   assert.match(orb, /let click = window\.isVisible && containsIsland\(point\)/)
   assert.match(orb, /let hover = window\.isVisible && hoverContains\(point\)/)
