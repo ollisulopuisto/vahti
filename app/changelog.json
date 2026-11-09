@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.7.19",
+    "date": "2026-11-09",
+    "title": "A menu bar item that survives the notch",
+    "summary": "Vahti notices when macOS hides its menu bar item, and an icon-only option keeps it narrow.",
+    "notes": [
+      "When macOS hides Vahti's menu bar item (crowded bar or the laptop notch), the menu says so instead of going silent, and the orb and Command-Option-K keep opening Vahti.",
+      "A new Menu bar: icon only switch drops the waiting count so the item stays narrow enough to fit.",
+      "The item keeps the spot you drag it to across restarts."
+    ]
+  },
+  {
     "version": "0.7.18",
     "date": "2026-11-09",
     "title": "Calendars to read",
