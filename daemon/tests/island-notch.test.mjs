@@ -48,6 +48,20 @@ test('the pill steps aside while Vahti is frontmost', () => {
   assert.match(orb, /NSApplication\.didResignActiveNotification/)
   assert.match(orb, /if self\?\.inNotch == true \{ self\?\.islandPanel\.orderOut\(nil\) \}/)
   assert.match(orb, /if self\?\.inNotch == true \{ self\?\.islandPanel\.orderFrontRegardless\(\) \}/)
+  // Picking the mode in the already-open Setup window must not drop the pill over it.
+  assert.match(orb, /if inNotch && NSApp\.isActive \{ return \}/)
+})
+
+test('an idle pill is still visible: a quiet dark fill in the shader and in the fallback', () => {
+  // Without it the tucked pill paints nothing when nothing waits - an invisible hover target.
+  assert.match(metal, /c = float4\(float3\(0\.02, 0\.02, 0\.03\) \* 0\.85, 0\.85\) \* inside/)
+  assert.match(orb, /if model\.notch \{ Color\(white: 0\.02\)\.opacity\(0\.85\) \}/)
+})
+
+test('hover in the notch still opens the glance card beside the pill', () => {
+  const hovered = orb.slice(orb.indexOf('private func hovered'), orb.indexOf('private func tuckSoon'))
+  assert.match(hovered, /if inside \{(\s*\n\s*\/\/[^\n]*)+\s*\n\s*glanceTimer = Timer\.scheduledTimer/)
+  assert.doesNotMatch(hovered, /if inside, !inNotch/)
 })
 
 test('the pill cannot be dragged off the notch', () => {

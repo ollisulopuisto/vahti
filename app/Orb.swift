@@ -309,6 +309,8 @@ struct IslandFallback: View {
 
   var body: some View {
     ZStack {
+      // The shader's quiet pill fill, for the non-Metal path: an idle notch still reads.
+      if model.notch { Color(white: 0.02).opacity(0.85) }
       if !model.tucked {
         Group {
           if let artwork = Self.artwork {
@@ -774,6 +776,9 @@ final class Companion: NSObject {
     case .hover, .notch: setTucked(!island.model.hover && chatPanel?.isVisible != true)
     }
     place()
+    // Honor the frontmost rule from the start: picking the mode in the open Setup window must not
+    // drop the pill over it (didBecomeActive only fires on a transition into the active state).
+    if inNotch && NSApp.isActive { return }
     islandPanel.orderFrontRegardless()
     Logger(subsystem: "to.sulopuis.vahti", category: "Orb").notice("Orb shown on screen; \(self.orbDiagnostic, privacy: .public)")
   }
@@ -782,8 +787,9 @@ final class Companion: NSObject {
   // timings are spotifast's: 60ms of hover to wake (a passing pointer does nothing), a 400ms linger before sleep.
   private func hovered(_ inside: Bool) {
     glanceTimer?.invalidate()
-    if inside, !inNotch {
-      // A moment on the island, not just passing over it, slides out what the glance is about.
+    if inside {
+      // A moment on the island, not just passing over it, slides out what the glance is about. In the
+      // notch the card comes out beside the pill; only the one-line chip under the orb is skipped.
       glanceTimer = Timer.scheduledTimer(withTimeInterval: tucks ? 0.45 : 0.35, repeats: false) { [weak self] _ in
         MainActor.assumeIsolated { if self?.island.model.hover == true { self?.showGlance() } }
       }

@@ -356,6 +356,11 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
   }
   float inside = clamp(0.5 - d * u.scale, 0.0, 1.0);
   float4 c = float4(0.0);
+  if (u.notch > 0.5) {
+    // The pill is part of the screen, like the housing it hangs from: a quiet dark fill, always
+    // painted, so an idle notch still reads. The right-edge island keeps its no-backdrop rule.
+    c = float4(float3(0.02, 0.02, 0.03) * 0.85, 0.85) * inside;
+  }
   if (inside > 0.0) {
     // No backdrop: the island is transparent and only the orb (and its effects) is drawn, premultiplied.
     // Done: two soft green rings ripple out from the orb, one just after the other.
