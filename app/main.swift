@@ -456,7 +456,9 @@ final class Bar: NSObject, NSMenuDelegate {
   // Icon only keeps the item narrow, so it survives a crowded menu bar or the notch.
   private var iconOnly: Bool { defaults.bool(forKey: "vahtiBarIconOnly") }
 
-  private func applyIconOnly() { if iconOnly { item.button?.title = "" } }
+  // Restoring the count uses the last list the daemon gave, so toggling while offline is not blank
+  // until the next successful read.
+  private func applyIconOnly() { item.button?.title = iconOnly || tasks.isEmpty ? "" : " \(tasks.count)" }
 
   @objc private func toggleIconOnly() {
     defaults.set(!iconOnly, forKey: "vahtiBarIconOnly")
@@ -487,7 +489,7 @@ final class Bar: NSObject, NSMenuDelegate {
     }
     if hidden != obscured {
       obscured = hidden
-      if hidden { NSLog("Vahti: menu bar item hidden by macOS (crowded bar or notch); icon-only setting and Command-Option-K remain") }
+      if hidden { NSLog("Vahti: menu bar item hidden by macOS (crowded bar or notch); icon-only setting, orb and open shortcut remain") }
     }
   }
 
@@ -512,7 +514,7 @@ final class Bar: NSObject, NSMenuDelegate {
         self?.events = ev
         self?.tasks = list
         self?.maybe = maybeCount
-        self?.item.button?.title = list.isEmpty || self?.iconOnly == true ? "" : " \(list.count)"
+        self?.applyIconOnly()
       }
     }
   }
@@ -532,7 +534,9 @@ final class Bar: NSObject, NSMenuDelegate {
     diagnostic.isEnabled = false
     menu.addItem(diagnostic)
     if obscured {
-      let warning = NSMenuItem(title: "Menu bar item hidden by macOS: try icon only below, or press ⌘⌥K", action: nil, keyEquivalent: "")
+      // The open shortcut is rebindable in Settings, so name the one that works now.
+      let open = Shortcut.saved("open", or: .open).symbols
+      let warning = NSMenuItem(title: "Menu bar item hidden by macOS: try icon only below, or press \(open)", action: nil, keyEquivalent: "")
       warning.isEnabled = false
       menu.addItem(warning)
     }

@@ -13,8 +13,7 @@ test('the status item has a stable identity without forcing a position', () => {
 test('icon only is an opt-in that suppresses the count text', () => {
   assert.match(bar, /defaults\.bool\(forKey: "vahtiBarIconOnly"\)/)
   assert.match(bar, /toggleIconOnly/)
-  assert.match(bar, /item\.button\?\.title = "" /)
-  assert.ok(bar.includes('list.isEmpty || self?.iconOnly == true ? "" : " \\(list.count)"'), 'count title suppressed in icon-only mode')
+  assert.ok(bar.includes('item.button?.title = iconOnly || tasks.isEmpty ? "" : " \\(tasks.count)"'), 'count comes from the cached list, so offline toggles are not blank')
   // The menu offers switching both ways.
   assert.match(bar, /iconOnly \? "Menu bar: icon and count" : "Menu bar: icon only"/)
 })
@@ -30,5 +29,7 @@ test('a hidden item is detected with isVisible where available, geometry elsewhe
 
 test('a hidden item is reported, never silent, and the fallbacks are named', () => {
   assert.match(bar, /NSLog\("Vahti: menu bar item hidden by macOS/)
-  assert.match(bar, /Menu bar item hidden by macOS: try icon only below, or press ⌘⌥K/)
+  // The warning names the currently bound open shortcut, never a hardcoded one.
+  assert.ok(bar.includes('let open = Shortcut.saved("open", or: .open).symbols'))
+  assert.ok(bar.includes('try icon only below, or press \\(open)'))
 })
