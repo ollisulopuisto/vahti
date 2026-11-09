@@ -1,145 +1,157 @@
-<p align="center">
-  <img src="docs/orb.png" width="168" alt="Vahti">
-</p>
+# Vahti
 
-<h1 align="center">Vahti</h1>
+Vahti is a macOS app that reads sources you enable, finds promises and requests,
+and keeps a list of what you owe people. It links each card to its evidence and
+tries to notice when the work is done. You can search the local vault and ask
+questions about what it has collected.
 
-<p align="center">
-  <b>Remember every promise.</b><br>
-  Vahti keeps track of what you owe people, and notices when it's done.
-</p>
+This is a fork of [Kier](https://getkier.com), with a native SwiftUI window, a
+Node.js daemon and local model support. It is source-available under
+[FSL-1.1-ALv2](LICENSE), not MIT or Apache today. The licence names the upstream
+copyright holder and its future Apache 2.0 conversion terms.
 
-<p align="center"><sub>Free · macOS 14 or later · Apple Silicon</sub></p>
+Vahti's suggestions are not a complete or authoritative record of your
+commitments. Check the source before relying on a card or automatic completion.
 
-<p align="center"><sub>Vahti is a fork of <a href="https://getkier.com">Kier</a>; see <a href="LICENSE">LICENSE</a> for the upstream copyright.</sub></p>
+## Install
+
+Packaged builds require **Apple Silicon and macOS 14 or later**. The app bundles
+its Node runtime and daemon; you do not need Homebrew Node just to run it.
+
+1. Open this repository's [Releases](../../releases). Manual builds are uploaded
+   to the **Vahti manual builds** draft, which needs repository write access to
+   view. Draft links are not public downloads.
+2. Download the numbered arm64 DMG and its matching SHA256 file. In the download
+   folder, replace the example filename and run `shasum -a 256 -c 'Vahti-actual-build-name.dmg.sha256'`.
+3. Open the DMG, copy Vahti to Applications and launch it.
+4. Follow Setup to choose sources, grant the required macOS permissions and
+   install the managed local model or choose a model endpoint.
+
+Depending on the sources, Vahti needs Full Disk Access, Accessibility, Calendar
+or Reminders permission. Only grant access you intend to use. Automatic Sparkle
+checks are disabled in this fork until its own update-signing setup is ready;
+install a newer build deliberately rather than relying on an update prompt.
 
 ## What it does
 
-You tell someone "I'll send it tomorrow" and then life happens. Vahti reads the conversations you already have and keeps a short list of what you owe, to whom and by when. When you actually do the thing, it sees that too and ticks it off.
+- **Commitment cards:** promises, requests, callbacks, people and dates, with
+  the source messages behind them. Completion detection tries to close the loop.
+- **Vault and search:** keep collected context, search by meaning, inspect cards
+  and use Forget to remove material you do not want retained.
+- **Ask:** questions about stored context, using the chosen model. Claude handoffs
+  and other optional external helpers have separate controls.
+- **Orb and menu:** open the companion panel from the screen-edge orb or shortcut.
+  Setup can keep it always shown, tucked on hover or hidden. The menu shows the
+  installed version/build and renderer status; a non-Metal drawing is available
+  when GPU rendering cannot start.
+- **Sources:** Messages/iMessage/SMS, supported WhatsApp data, mail, calls,
+  Calendar, notifications, browser history, downloads, Git work, local AI sessions,
+  clipboard/app activity and chat text available through Accessibility. What can
+  actually be collected depends on installed apps, their data and permissions.
+- **Optional integrations:** Gmail, Todoist, local Postilaatikko mail cache,
+  Solmu's local reader and explicitly configured MCP read tools.
+- **Calendar/Reminders:** opt-in sync can write plans or dated tasks. Reading your
+  existing reminders can also let Vahti mark one complete when it sees evidence.
+  These are account changes, not read-only collection.
 
-- **Reads where you talk.** WhatsApp, iMessage and SMS, calls, calendar, notifications, and the chat apps on your screen.
-- **Finds what you owe.** Promises, requests and callbacks become cards with a person, a date and the message behind it.
-- **Notices when it's done.** A sent file, a call back, a reply: Vahti closes the card on its own.
-- **Ask it anything.** "What did I tell Nika about the puzzle club?" It searches by meaning, in any language.
+Use **Setup → What Vahti reads** to switch sources off. Disabled sources stop
+collection and are excluded from reader results; turning a source off is not a
+claim that all stored data has been deleted. Use Forget for removal.
 
-## Everything stays on your Mac
+## Privacy and external services
 
-There is no Vahti account and no Vahti server. The app, your vault and the models that read it all run on your Mac. Nothing leaves it unless you hand something to Claude or ChatGPT yourself, or switch on an optional helper.
+The vault, configuration and local runtime data live under:
 
-## Why the code is public
+```text
+~/Library/Application Support/Vahti/
+```
 
-Vahti reads your messages, so you should be able to read Vahti. Every line that touches your data is here:
+The managed model runs locally. Vahti does not require a Vahti account or hosted
+vault service. That is not a promise of no network traffic:
 
-- [collectors](daemon/collectors/) read chats, calls, contacts, calendar, browser history, downloads, Git work and AI sessions
-- [the app](app/main.swift) reads clipboard changes, app activity and visible chat messages through Accessibility
-- [setup settings](daemon/lib/settings.mjs) switch any source off, everywhere
-- [redaction](daemon/lib/redact.mjs) masks credentials and financial identifiers before anything is stored
-- [privacy filters](daemon/lib/privacy.mjs) keep out adult content and let you forget anything
-- [MCP](daemon/bin/mcp.mjs) lets local AI clients query the vault, read only by default, with every read logged
+- Model/runtime downloads need the network. A custom model endpoint receives
+  content sent to it; use a local endpoint if that is your intended boundary.
+- Gmail and Todoist connect to their providers. Calendar/Reminders changes may
+  sync through the account configured on the Mac.
+- Online helpers, cloud review and Claude handoffs are optional. A handoff shows
+  its brief before sending. Ask with Codex is currently unavailable because the
+  required tools-only boundary is not verified.
+- Configured MCP sources run the tools and arguments you choose. A local command
+  may contact other services; this is not a sandbox. Only enable tools you trust.
+- MCP clients querying Vahti can receive private vault content. Read access is
+  logged; the default role is read-only. A client explicitly configured with
+  `VAHTI_MCP_ROLE=read-write` has broader tools. Review source scopes as well as roles.
 
-Vahti never sends a chat reply or makes a payment. External model servers are optional and only see what Vahti sends them when you pick one in [model settings](daemon/lib/model-settings.mjs). [Online helpers](daemon/lib/config.mjs), [cloud reviews](daemon/lib/doublecheck.mjs) and [Claude or Codex handoffs](daemon/lib/handoff.mjs) are opt-in, and a handoff shows you the exact brief before anything is sent. [Phone sync](app/PhoneSync.swift) is off by default; turned on, it writes to Calendar and Reminders, which your account provider may sync to your other devices.
+Vahti includes credential redaction and privacy filters, but no filter guarantees
+that arbitrary private content is safe. Protect the Mac, its FileVault/login and
+backups. Do not share vault files, provider tokens or personal messages in issues.
+Report vulnerabilities privately through [SECURITY.md](SECURITY.md).
 
-## Build it yourself
+## Optional local mail and chat readers
 
-You need an Apple Silicon Mac with macOS 14 or later, Xcode command line tools with the Metal compiler, Node 23 or later, and Python 3.
+**Postilaatikko** reads already-cached personal mail from the existing local
+compatibility database, read-only. It does not fetch missing provider bodies,
+attachments, or change read markers. Incomplete previews are not treated as full
+authored completion evidence. Mail and Postilaatikko must both be enabled.
+
+**Solmu** requires its separate experimental `solmu-reader` on the same Mac and a
+dedicated restricted token file. Vahti does not bundle or start it. The current
+collector supports one Beeper origin, not native WhatsApp or a full history sync.
+It polls bounded recent chats/messages, so busy histories can have gaps.
+
+[Local integration setup and limits](docs/local-integrations.md) preserves the
+exact connection commands, token-file rules and current live-verification caveats.
+Do not substitute a Beeper access token or put credentials in command arguments.
+
+## Build from source
+
+Use an Apple Silicon Mac, Xcode command-line tools, Node.js **23+** and Python 3.
+Node 24 is used for packaged builds. The build can compile bundled Metal source
+at runtime when the command-line Metal compiler is unavailable.
 
 ```sh
+git clone https://github.com/ollisulopuisto/vahti.git
 cd vahti
 npm --prefix daemon ci
 npm --prefix daemon test
 scripts/build-app.sh
 ```
 
-The development app goes to `~/Applications/Vahti.app` and runs the daemon from this checkout; set `VAHTI_APP` to build somewhere else. The build fetches and verifies Sparkle, and signs with your development certificate or an ad hoc signature. Grant the macOS permissions and install the local model from Setup.
+The development app is written to `~/Applications/Vahti.app` and runs the daemon
+from this checkout. Set `VAHTI_APP` to choose another output path. The script
+fetches/verifies Sparkle and signs with an available development certificate or
+ad hoc identity. Keep a stable identity when testing permissions.
 
-`scripts/package-app.sh` makes a self-contained download; it also needs Bun and a Developer ID certificate. Release signing, notary profiles, the update feed and repository settings come from environment variables or a private `scripts/local.env`. Never commit that file.
-
-Ask with Codex is switched off for now, because its CLI can't yet be limited to Vahti's own tools; Ask with Claude works. MCP is read only unless a client you set up explicitly asks for `VAHTI_MCP_ROLE=read-write`, and switched off sources stay off for every query.
-
-Found a security problem? Report it privately, as described in [SECURITY.md](SECURITY.md).
-
-## License
-
-Vahti is a fork of Kier; the upstream copyright holder is named in [LICENSE](LICENSE). The code is available under [FSL-1.1-ALv2](LICENSE), which turns into Apache 2.0 after two years.
-
-## No warranty
-
-Vahti is free and provided as is, without warranty of any kind. Keeping your Mac secure (login, FileVault, updates, backups) is up to you. See [LICENSE](LICENSE) for the license terms.
-
-### Notarized GitHub downloads
-
-Run **Build & Package Vahti** manually with **notarize** enabled (the default).
-It requires both the Developer ID certificate and Apple notary credentials;
-missing credentials fail rather than produce an ad-hoc download. After signing,
-Apple acceptance, stapling and Gatekeeper checks on the mounted app and DMG,
-it uploads a numbered Apple Silicon DMG and SHA256 file directly to the
-**Vahti manual builds** draft release. The repository owner can download it
-there. Tag builds publish through the tag's release. Builds do not retain
-workflow artifacts. The app still needs native permission/setup acceptance;
-notarization is not a claim that every workflow has been tested.
-
-## Solmu and Postilaatikko (opt-in)
-
-These integrations read existing local data, not send messages. Results stay in
-Vahti's vault under the same redaction, Forget and source-access rules as other
-messages. No external AI scope is added automatically.
-
-### Postilaatikko
-
-In Setup, choose **Postilaatikko cached mail > Enable cached mail**. Both Mail
-and Postilaatikko must be on in **What Vahti reads**. Disconnect in Setup or turn
-either source off to stop collection and hide existing mail from readers.
-
-Vahti opens the existing compatibility-path database
-`~/Library/Application Support/Aerion/aerion.db` read-only. It reads bounded pages
-of enabled accounts' recent personal mail, excluding drafts, deleted mail,
-trash/spam, attachments and credential tables. Only already-cached plain bodies
-are used as authored completion evidence. Previews/headers remain incomplete;
-Vahti never fetches a provider body, runs migrations or marks messages read.
-An unfamiliar schema fails closed. A large cache is scanned in pages of at most
-200 messages. Newly downloaded bodies are picked up on a later sweep. HTML-only
-or unfetched bodies are not treated as complete authored text.
-
-The current Postilaatikko helper does not mount its mail API listener, so this
-integration deliberately uses the cache instead of claiming an unavailable API.
-
-### Solmu
-
-Requires the experimental `solmu-reader` binary from Solmu, running on the same
-Mac and configured by its owner. It is not bundled, installed or started by
-Vahti. This first version serves one Beeper origin only: native WhatsApp mode,
-multiple origins, linked-person merging, attachments, edits and deletions are
-not imported. At most the newest 100 chats and 100 messages in each are polled
-every five minutes; this is not a complete history sync and busy chats can have
-gaps. Restricted reader credentials may expose fewer chats with no paging.
-
-Use the Solmu reader's own setup instructions to provision a dedicated credential
-with only `chats:read,messages:read`, optionally restricted to chosen accounts.
-Save that credential in an absolute-path regular file owned by you, mode 0600.
-Never use the Beeper access token, put credentials in command arguments, or
-paste them into a conversation. With the reader running on 127.0.0.1:23377, run:
+A self-contained package also needs Bun:
 
 ```sh
-/Applications/Vahti.app/Contents/Resources/runtime/node /Applications/Vahti.app/Contents/Resources/daemon/bin/connect-solmu.mjs --token-file /absolute/path/to/private/reader-token
+scripts/package-app.sh
 ```
 
-For a source checkout:
+This is not necessarily a notarized distribution build. For a release, use
+`scripts/package-app.sh --release` with a Developer ID identity and configured
+notary profile, or dispatch **Build & Package Vahti** with **notarize** enabled.
+That workflow fails if signing/notary credentials are missing and verifies the
+mounted final app/DMG before uploading the DMG and checksum directly to a draft.
+No Actions build artifacts are retained. Never commit `scripts/local.env`.
+
+## Test and contribute
 
 ```sh
-node daemon/bin/connect-solmu.mjs --token-file /absolute/path/to/private/reader-token
+npm --prefix daemon test
+python3 -m unittest discover -s scripts/tests -v
 ```
 
-`--url http://127.0.0.1:PORT` selects a different loopback port. Remote URLs,
-redirects, credential URLs and symlink/world-readable token files are refused.
-Only GET chat-list and message-list routes are allowed. No send/edit/read-marker
-endpoint is called. Turn Solmu off in **What Vahti reads** to stop collection and
-hide stored Solmu evidence; revoke its named token with `solmu-reader token
-revoke NAME` for server-side revocation. Reconnect with the helper if you replace
-the credential file. Existing external-AI source scopes must explicitly include
-`solmu` before those clients can read it.
+Native tests in `tests/manual/` need macOS: they exercise disposable keychains and
+the non-Metal orb drawing. Linux/synthetic checks do not establish macOS UI,
+permission or live-account acceptance. Use invented data in tests and bug reports.
 
-The reader's real Beeper GET/read-status side effects and real account response
-shapes have not been verified. Synthetic end-to-end tests cover the collector,
-authorship, scoped reads, source revocation, Forget, transport limits and
-Postilaatikko cached body provenance. A real-Mac check is still required before
-claiming complete live integration coverage.
+- [Changelog](CHANGELOG.md)
+- [Security notes](SECURITY.md)
+- [Local integration setup](docs/local-integrations.md)
+- [Release workflow](.github/workflows/build.yml)
+
+## Licence and warranty
+
+See [LICENSE](LICENSE) for FSL-1.1-ALv2 permitted uses, restrictions, future licence
+and warranty disclaimer. Public source access does not remove those terms.
