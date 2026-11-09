@@ -66,11 +66,31 @@ test('no pill backdrop: only the orb and its effects show, in the shader and the
 })
 
 test('the top edge is the target: a thrown cursor wakes the island (Fitts)', () => {
-  // The hit region reaches past the window's painted sliver - the pointer is read globally,
+  // The hover region reaches past the window's painted sliver - the pointer is read globally,
   // so a cursor slammed to the screen's top edge within the housing's span plus margin lands here.
   assert.match(orb, /let margin: CGFloat = 48/)
   assert.match(orb, /let edge = CGRect\(x: bounds\.midX - geometry\.width \/ 2 - margin, y: bounds\.maxY - geometry\.height - 8,/)
   assert.match(orb, /if edge\.contains\(point\) \{ return true \}/)
+})
+
+test('the top-edge margin is hover-only: clicks beside the housing stay with the menu bar', () => {
+  // The generous region lives in hoverContains; hitTest and ignoresMouseEvents use containsIsland,
+  // whose notch branch is the painted pill and orb alone. A menu extra in the margin keeps its clicks.
+  assert.match(orb, /private func hoverContains\(_ point: NSPoint\) -> Bool \{\s*if model\.notch \{\s*let margin: CGFloat = 48/)
+  assert.match(orb, /override func hitTest\(_ point: NSPoint\) -> NSView\? \{\s*containsIsland\(convert\(point, from: superview\)\) \? self : nil/)
+  assert.match(orb, /let click = window\.isVisible && containsIsland\(point\)/)
+  assert.match(orb, /let hover = window\.isVisible && hoverContains\(point\)/)
+  assert.match(orb, /let ignore = !click && start == nil/)
+  const contains = orb.slice(orb.indexOf('func containsIsland'), orb.indexOf('private func hoverContains'))
+  assert.match(contains, /let pill = CGRect\(x: bounds\.midX - geometry\.width \/ 2, y: bounds\.maxY - geometry\.height/)
+  assert.doesNotMatch(contains, /let margin/)
+})
+
+test('the waiting pulse reaches the shader: u.glow breathes a halo round the outline', () => {
+  // The renderer has always fed the glow slot; the shader now reads it, so the notch (and the
+  // right-edge island) visibly breathe while a nudge waits - an effect, not a backdrop.
+  assert.match(metal, /if \(u\.glow > 0\.0\) \{\s*float halo = exp\(-sq\(d \/ 4\.0\)\) \* u\.glow;/)
+  assert.match(island, /let glow = g\.tucked && g\.nudging \? 0\.07 \+ 0\.07 \* sin\(t \* \(g\.notch \? 3\.6 : 2\.4\)\) : 0/)
 })
 
 test('the notch answers faster: shorter spring response, quicker pulse', () => {

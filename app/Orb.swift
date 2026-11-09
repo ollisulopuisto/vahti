@@ -389,13 +389,11 @@ final class IslandHost: NSView {
       width: model.size.width, height: model.size.height,
       fillet: model.tucked ? 6 : 16, radius: model.tucked ? 4 : 24)
     if model.notch {
-      // Fitts's law: the screen's top edge is the target, not the painted sliver. Anywhere within the
-      // housing's span, plus a margin, from the top edge down to the pill wakes it. The region can reach
-      // past the window: the pointer is read globally, so a cursor slammed to the edge still lands here.
-      let margin: CGFloat = 48
-      let edge = CGRect(x: bounds.midX - geometry.width / 2 - margin, y: bounds.maxY - geometry.height - 8,
-                        width: geometry.width + margin * 2, height: geometry.height + 8)
-      if edge.contains(point) { return true }
+      // Clicks belong to the painted shapes alone: the pill hanging from the window's top, centred, and the
+      // orb below the housing once it is out. The generous top-edge region is hover-only (hoverContains),
+      // so a menu extra beside the notch keeps its clicks.
+      let pill = CGRect(x: bounds.midX - geometry.width / 2, y: bounds.maxY - geometry.height, width: geometry.width, height: geometry.height)
+      if pill.contains(point) { return true }
       guard !model.tucked else { return false }
       let orb = CGPoint(x: bounds.midX, y: bounds.maxY - OrbModel.notchOrbDepth(inset: model.notchInset))
       return hypot(point.x - orb.x, point.y - orb.y) <= 36
@@ -423,6 +421,20 @@ final class IslandHost: NSView {
       return chip.contains(point) && outline.contains(local)
     }
     return false
+  }
+
+  // Fitts's law: the screen's top edge is the target, not the painted sliver. Anywhere within the
+  // housing's span, plus a margin, from the top edge down to the pill wakes it. The region can reach
+  // past the window: the pointer is read globally, so a cursor slammed to the edge still lands here.
+  // Hover only - it never feeds hitTest or ignoresMouseEvents, so clicks there stay with the menu bar.
+  private func hoverContains(_ point: NSPoint) -> Bool {
+    if model.notch {
+      let margin: CGFloat = 48
+      let edge = CGRect(x: bounds.midX - geometry.width / 2 - margin, y: bounds.maxY - geometry.height - 8,
+                        width: geometry.width + margin * 2, height: geometry.height + 8)
+      if edge.contains(point) { return true }
+    }
+    return containsIsland(point)
   }
 
   override func hitTest(_ point: NSPoint) -> NSView? {
@@ -460,13 +472,14 @@ final class IslandHost: NSView {
   func syncPointer() {
     guard let window else { return }
     let point = convert(window.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
-    let inside = window.isVisible && containsIsland(point)
+    let click = window.isVisible && containsIsland(point)
+    let hover = window.isVisible && hoverContains(point)
     // Keep a drag that began on Vahti until mouseUp, even outside its outline.
-    let ignore = !inside && start == nil
+    let ignore = !click && start == nil
     if window.ignoresMouseEvents != ignore { window.ignoresMouseEvents = ignore }
-    if model.hover != inside {
-      model.hover = inside
-      onHover(inside)
+    if model.hover != hover {
+      model.hover = hover
+      onHover(hover)
     }
   }
 

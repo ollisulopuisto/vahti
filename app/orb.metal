@@ -380,6 +380,12 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
     c *= inside;
   }
   // The hairline round the island is gone with its background.
+  // While something waits the island breathes: a soft warm halo hugging the outline, slow and faint. It is an
+  // effect round the shape, not a backdrop, so the no-fill rule holds.
+  if (u.glow > 0.0) {
+    float halo = exp(-sq(d / 4.0)) * u.glow;
+    c = float4(float3(1.0, 0.92, 0.82), 1.0) * halo + c * (1.0 - halo);
+  }
   // Tucked away, the light that orbits the orb's rim while something waits runs down the notch's edge instead: a long
   // stretch of soft light, barely tinted, shifting as it goes, with a soft glow round it.
   if (u.edge > 0.0) {
