@@ -356,11 +356,6 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
   }
   float inside = clamp(0.5 - d * u.scale, 0.0, 1.0);
   float4 c = float4(0.0);
-  if (u.notch > 0.5) {
-    // The pill is part of the screen, like the housing it hangs from: a quiet dark fill, always
-    // painted, so an idle notch still reads. The right-edge island keeps its no-backdrop rule.
-    c = float4(float3(0.02, 0.02, 0.03) * 0.85, 0.85) * inside;
-  }
   if (inside > 0.0) {
     // No backdrop: the island is transparent and only the orb (and its effects) is drawn, premultiplied.
     // Done: two soft green rings ripple out from the orb, one just after the other.
@@ -388,7 +383,7 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
   // Tucked away, the light that orbits the orb's rim while something waits runs down the notch's edge instead: a long
   // stretch of soft light, barely tinted, shifting as it goes, with a soft glow round it.
   if (u.edge > 0.0) {
-    float at = fmod(u.time * 0.35, 2.2) - 0.6;
+    float at = fmod(u.time * (u.notch > 0.5 ? 0.5 : 0.35), 2.2) - 0.6;
     float run = clamp(1.0 - abs(along - at) / 0.55, 0.0, 1.0) * 0.9 * u.edge;
     float3 tint = hsv(fract(u.time * 0.06), 0.16, 1.0);
     float glow = exp(-sq(max(abs(d) - 1.0, 0.0) / 2.0)) * 0.7 * run;

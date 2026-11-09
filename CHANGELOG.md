@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.22] - 2026-11-10
+
+### Changed
+- The notch island is faster and backdrop-free. Hover wakes it the instant the pointer arrives - the 60ms dwell is gone - and the top edge is the target: the hit region spans the housing's width plus a margin and reaches the screen's top edge, so a cursor thrown at the notch wakes Vahti without aiming at the painted sliver. The open spring and the waiting pulse run quicker, and the pill's dark fill is gone again, matching the backdrop-free orb the right-edge island has had since 0.7.17.
+
 ## [0.7.21] - 2026-11-09
 
 ### Added

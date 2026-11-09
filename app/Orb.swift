@@ -309,8 +309,6 @@ struct IslandFallback: View {
 
   var body: some View {
     ZStack {
-      // The shader's quiet pill fill, for the non-Metal path: an idle notch still reads.
-      if model.notch { Color(white: 0.02).opacity(0.85) }
       if !model.tucked {
         Group {
           if let artwork = Self.artwork {
@@ -391,10 +389,13 @@ final class IslandHost: NSView {
       width: model.size.width, height: model.size.height,
       fillet: model.tucked ? 6 : 16, radius: model.tucked ? 4 : 24)
     if model.notch {
-      // The pill hangs from the window's top, centred. Sleeping, it is the whole target; woken, the orb takes
-      // clicks and the pill's footprint stays a target so the island doesn't close under a stationary pointer.
-      let pill = CGRect(x: bounds.midX - geometry.width / 2, y: bounds.maxY - geometry.height, width: geometry.width, height: geometry.height)
-      if pill.contains(point) { return true }
+      // Fitts's law: the screen's top edge is the target, not the painted sliver. Anywhere within the
+      // housing's span, plus a margin, from the top edge down to the pill wakes it. The region can reach
+      // past the window: the pointer is read globally, so a cursor slammed to the edge still lands here.
+      let margin: CGFloat = 48
+      let edge = CGRect(x: bounds.midX - geometry.width / 2 - margin, y: bounds.maxY - geometry.height - 8,
+                        width: geometry.width + margin * 2, height: geometry.height + 8)
+      if edge.contains(point) { return true }
       guard !model.tucked else { return false }
       let orb = CGPoint(x: bounds.midX, y: bounds.maxY - OrbModel.notchOrbDepth(inset: model.notchInset))
       return hypot(point.x - orb.x, point.y - orb.y) <= 36
@@ -629,7 +630,6 @@ final class Companion: NSObject {
   private var island: IslandHost!
   private var chatPanel: KeyPanel?
   private var bubble: NSPanel?
-  private var wakeTimer: Timer?
   private var hotKey: HotKey?
   // The search bar (FindBar.swift), on ⌥⌘Space unless changed.
   private var findKey: HotKey?
@@ -758,7 +758,6 @@ final class Companion: NSObject {
 
   private func apply() {
     tuckTimer?.invalidate()
-    wakeTimer?.invalidate()
     island.model.notch = inNotch
     island.keepsNotchTarget = tucks
     // The pill hangs in the menu bar's strip, above the visible frame, so it needs the status window level;
@@ -790,8 +789,8 @@ final class Companion: NSObject {
     Logger(subsystem: "to.sulopuis.vahti", category: "Orb").notice("Orb shown on screen; \(self.orbDiagnostic, privacy: .public)")
   }
 
-  // In the tucking modes: out while the pointer is on it, back in a moment after it leaves. In the notch the
-  // timings are spotifast's: 60ms of hover to wake (a passing pointer does nothing), a 400ms linger before sleep.
+  // In the tucking modes: out the moment the pointer is on it, back in a moment after it leaves. The notch
+  // wakes instantly - Fitts's law: the throw is the aiming - and lingers 400ms before sleeping again.
   private func hovered(_ inside: Bool) {
     glanceTimer?.invalidate()
     if inside {
@@ -808,14 +807,9 @@ final class Companion: NSObject {
     }
     guard tucks else { return }
     tuckTimer?.invalidate()
-    wakeTimer?.invalidate()
     if inside {
       if bubble?.isVisible == true { toastSeen = true }
-      if inNotch {
-        wakeTimer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: false) { [weak self] _ in
-          MainActor.assumeIsolated { if self?.island.model.hover == true { self?.setTucked(false) } }
-        }
-      } else { setTucked(false) }
+      setTucked(false)
       // The nudge that was waiting behind the notch slides out once the island is open.
       if let w = waiting {
         Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
