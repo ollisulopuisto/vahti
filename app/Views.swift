@@ -1392,6 +1392,8 @@ struct SetupView: View {
         if let error = store.calendarsError {
           Text(error).font(.vahtiSmall).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true)
         }
+      } else if let error = store.calendarsError {
+        Text(error).font(.vahtiBody).foregroundStyle(Vahti.dim).padding(.vertical, 13).fixedSize(horizontal: false, vertical: true)
       } else {
         Text("Reading the list of calendars…").font(.vahtiBody).foregroundStyle(Vahti.dim).padding(.vertical, 13)
       }
