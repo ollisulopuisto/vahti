@@ -67,12 +67,13 @@ export const setOnline = (on) => save({ online: on === true })
 // covers every calendar with that name, the same key the Vault's forget chip uses.
 export const excludedCalendars = () => (Array.isArray(config.calendars?.exclude) ? config.calendars.exclude : [])
 export function setCalendarIncluded(title, on) {
-  if (typeof title !== 'string') return false
-  const t = title.trim().slice(0, 200)
-  if (!t) return false
+  // The exact title, as the Calendar database stores it: never trimmed or shortened, or the
+  // switch would miss the very calendar it names (collector rows and stored threads keep the
+  // original spelling, whitespace included).
+  if (typeof title !== 'string' || title === '') return false
   const excluded = new Set(excludedCalendars())
-  if (on) excluded.delete(t)
-  else { excluded.add(t); invalidateProfile() }
+  if (on) excluded.delete(title)
+  else { excluded.add(title); invalidateProfile() }
   save({ calendars: { ...(config.calendars || {}), exclude: [...excluded] } })
   return true
 }

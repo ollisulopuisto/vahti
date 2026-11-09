@@ -311,7 +311,7 @@ export function serve(db, { install, port = config.port } = {}) {
         const included = on !== false
         if (!setCalendarIncluded(title, included)) return json(res, { error: 'no calendar' }, 400)
         let removed = 0
-        if (!included) removed = removeItems(db, "source = 'calendar' and coalesce(thread, '') = ?", [String(title).trim().slice(0, 200)])
+        if (!included) removed = removeItems(db, "source = 'calendar' and coalesce(thread, '') = ?", [title])
         return json(res, { ok: true, on: included, removed })
       }
       if (url.pathname === '/api/settings' && post) {
