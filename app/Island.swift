@@ -127,6 +127,8 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
   private var width = Spring(value: 78), height = Spring(value: 104), fillet = Spring(value: 16), radius = Spring(value: 24)
   private var open = Spring(value: 1), lift = Spring(value: 0)
   private var grow = Spring(value: 1, response: 0.32, damping: 0.55)
+  // Resting size: the orb sits 18% smaller until you hover it, press it, open the panel, or it needs you or works.
+  private var rest = Spring(value: 0.82, response: 0.22, damping: 0.9)
   // Pearl rim: a thin pearl edge follows the pointer, and a click tightens and brightens it.
   private let hoverVariant: IslandHoverVariant = .pearlRim
   private var pressAmount = Spring(value: 0, response: 0.14, damping: 0.85)
@@ -231,6 +233,7 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
     let targets: [(ReferenceWritableKeyPath<IslandRenderer, Spring>, Double)] = [
       (\.width, size.width), (\.height, size.height), (\.fillet, g.tucked ? 6 : 16), (\.radius, g.tucked ? 4 : 24),
       (\.open, g.tucked ? 0 : 1), (\.lift, g.glance ? -8 : 0), (\.grow, g.pressed ? 0.93 : g.hover ? 1.08 : 1),
+      (\.rest, g.hover || g.pressed || g.panel || g.attention > 0 || g.working ? 1 : 0.82),
     ]
     var moving = false
     for (path, to) in targets {
@@ -266,7 +269,7 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
     let midX = window.width - width.value / 2, midY = window.height / 2
     let orbX = midX - 2 * reveal
     let orbY = midY + reveal * (lift.value + sin(t * 1.1) * 1.2)
-    let orbScale = reveal * grow.value * (1 + Double(fresh * fresh) * 0.08)
+    let orbScale = reveal * grow.value * rest.value * (1 + Double(fresh * fresh) * 0.08)
     let cursor = CGEvent(source: nil)?.location ?? .zero
     var mouse = (x: (cursor.x - g.center.x) / 260, y: (g.center.y - cursor.y) / 260)
     if hoverVariant != .none {

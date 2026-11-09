@@ -250,11 +250,17 @@ struct IslandView: View {
       if let glance = model.glance {
         Text(glance)
           .font(.system(size: 10, weight: .medium, design: .rounded))
-          .foregroundStyle(Color(white: Daylight.now.night + Daylight.now.twilight > 0.5 ? 0.9 : 0.18).opacity(0.75))
+          // The orb has no backdrop, but the glance is never bare text on the desktop: it sits on its own small,
+          // translucent dark chip.
+          .foregroundStyle(Color(white: 0.95).opacity(0.9))
+          .padding(.horizontal, 7)
+          .padding(.vertical, 2)
+          .background(Capsule().fill(Color.black.opacity(0.5)))
           .lineLimit(1)
           .offset(x: -2, y: 38)
           .transition(.opacity)
-          .opacity(model.tucked ? 0 : 1)
+          .opacity(model.tucked ? 0 : (model.hover || model.pressed || model.working || model.attention > 0 ? 1 : 0.75))
+          .animation(.easeOut(duration: 0.2), value: model.hover || model.pressed || model.working || model.attention > 0)
           .scaleEffect(model.tucked ? 0.35 : 1)
       }
     }
@@ -271,9 +277,6 @@ struct IslandFallback: View {
 
   var body: some View {
     ZStack {
-      LinearGradient(colors: [Color(red: 0.66, green: 0.73, blue: 0.95),
-                              Color(red: 0.93, green: 0.88, blue: 0.92),
-                              Color(red: 0.50, green: 0.56, blue: 0.80)], startPoint: .top, endPoint: .bottom)
       if !model.tucked {
         Group {
           if let artwork = Self.artwork {
@@ -299,6 +302,9 @@ final class IslandHost: NSView {
   var onDrag: (CGFloat) -> Void = { _ in }
   var menuFor: () -> NSMenu = { NSMenu() }
   var onHover: (Bool) -> Void = { _ in }
+  // Only in "tucked away, shown on hover": the notch's footprint stays a target while the orb is open. In always-shown
+  // mode there is no visible notch, so that strip is empty desktop and lets clicks through.
+  var keepsNotchTarget = false
   let model = OrbModel()
   private var start: NSPoint?
   private var moved = false
@@ -351,8 +357,27 @@ final class IslandHost: NSView {
       fillet: model.tucked ? 6 : 16, radius: model.tucked ? 4 : 24)
     let local = CGPoint(x: point.x - bounds.maxX + geometry.width,
                         y: point.y - bounds.midY + geometry.height / 2)
-    return IslandShape(fillet: geometry.fillet, radius: geometry.radius)
-      .path(in: CGRect(x: 0, y: 0, width: geometry.width, height: geometry.height)).contains(local)
+    let outline = IslandShape(fillet: geometry.fillet, radius: geometry.radius)
+      .path(in: CGRect(x: 0, y: 0, width: geometry.width, height: geometry.height))
+    // Tucked, the thin notch at the edge is what you hover to bring the orb back, so it keeps its whole outline.
+    if model.tucked { return outline.contains(local) }
+    // Expanded, nothing is painted behind the orb, so only what is visible takes the mouse: the orb itself and,
+    // when there is one, the glance chip under it. The rest of the old island lets clicks through to the desktop.
+    let midX = bounds.maxX - geometry.width / 2, midY = bounds.midY
+    let glance = model.glance != nil
+    let orb = CGPoint(x: midX - 2, y: midY + (glance ? 8 : 0))
+    if hypot(point.x - orb.x, point.y - orb.y) <= 36 { return true }
+    // The notch's own footprint at the screen edge stays a target while expanded, so a stationary pointer that just
+    // opened the notch is still inside it and the island doesn't tuck and reopen under it.
+    let notch = OrbModel.size(tucked: true, nudging: true, glance: false)
+    if keepsNotchTarget,
+       CGRect(x: bounds.maxX - notch.width, y: midY - notch.height / 2, width: notch.width, height: notch.height)
+      .contains(point) { return true }
+    if glance {
+      let chip = CGRect(x: midX - 2 - 38, y: midY - 38 - 11, width: 76, height: 22)
+      return chip.contains(point) && outline.contains(local)
+    }
+    return false
   }
 
   override func hitTest(_ point: NSPoint) -> NSView? {
@@ -663,6 +688,7 @@ final class Companion: NSObject {
 
   private func apply() {
     tuckTimer?.invalidate()
+    island.keepsNotchTarget = mode == .hover
     switch mode {
     case .hidden:
       islandPanel.orderOut(nil); closeChat(); bubble?.orderOut(nil)

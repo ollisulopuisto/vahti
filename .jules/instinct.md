@@ -108,3 +108,7 @@ clean-draft upload/download comparison and no packaging or artifact retention.
 PR only pending approval; no merge/tag/publication. See docs/releases for notes,
 workflow recursion source, validation and recovery limits. Four synthetic tests
 and the live read-only verifier pass. Existing manual draft is untouched.
+
+## 2026-11-09 - Subtler orb: drop the island background
+
+Olli: "make the Vahti orb more subtle. get rid of the background, for starters." The Metal island shader no longer fills the sky/sea or draws the hairline outline; the orb, cheer ripple and tucked-edge light are premultiplied over transparent. The non-Metal fallback drops its gradient. Hit geometry and clip are unchanged. Version 0.7.17/build 109 with What's New. Not compiled on Linux; macOS CI must validate. No merge, no build.
