@@ -364,6 +364,11 @@ final class IslandHost: NSView {
     let glance = model.glance != nil
     let orb = CGPoint(x: midX - 2, y: midY + (glance ? 8 : 0))
     if hypot(point.x - orb.x, point.y - orb.y) <= 36 { return true }
+    // The notch's own footprint at the screen edge stays a target while expanded, so a stationary pointer that just
+    // opened the notch is still inside it and the island doesn't tuck and reopen under it.
+    let notch = OrbModel.size(tucked: true, nudging: true, glance: false)
+    if CGRect(x: bounds.maxX - notch.width, y: midY - notch.height / 2, width: notch.width, height: notch.height)
+      .contains(point) { return true }
     if glance {
       let chip = CGRect(x: midX - 2 - 38, y: midY - 38 - 11, width: 76, height: 22)
       return chip.contains(point) && outline.contains(local)
