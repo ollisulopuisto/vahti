@@ -778,7 +778,11 @@ final class Companion: NSObject {
     place()
     // Honor the frontmost rule from the start: picking the mode in the open Setup window must not
     // drop the pill over it (didBecomeActive only fires on a transition into the active state).
-    if inNotch && NSApp.isActive { return }
+    // An island that was already out in another mode is put away, not just left where it moved.
+    if inNotch && NSApp.isActive {
+      islandPanel.orderOut(nil)
+      return
+    }
     islandPanel.orderFrontRegardless()
     Logger(subsystem: "to.sulopuis.vahti", category: "Orb").notice("Orb shown on screen; \(self.orbDiagnostic, privacy: .public)")
   }

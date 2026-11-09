@@ -48,8 +48,9 @@ test('the pill steps aside while Vahti is frontmost', () => {
   assert.match(orb, /NSApplication\.didResignActiveNotification/)
   assert.match(orb, /if self\?\.inNotch == true \{ self\?\.islandPanel\.orderOut\(nil\) \}/)
   assert.match(orb, /if self\?\.inNotch == true \{ self\?\.islandPanel\.orderFrontRegardless\(\) \}/)
-  // Picking the mode in the already-open Setup window must not drop the pill over it.
-  assert.match(orb, /if inNotch && NSApp\.isActive \{ return \}/)
+  // Picking the mode in the already-open Setup window must not drop the pill over it: an island
+  // already out in another mode is put away, not just left where place() moved it.
+  assert.match(orb, /if inNotch && NSApp\.isActive \{\s*islandPanel\.orderOut\(nil\)\s*return\s*\}/)
 })
 
 test('an idle pill is still visible: a quiet dark fill in the shader and in the fallback', () => {
