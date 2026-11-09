@@ -97,3 +97,14 @@ failure on the reporting Mac is unconfirmed. No AGENTS/BOARD exists in this publ
 checkout. PR only; no merge or release build. Local source/shell guards pass;
 macOS compile/native pixel smoke and actual visual acceptance remain pending.
 Rollback: revert this PR. No data/permissions/secret or daemon behavior changes.
+
+## 2026-11-09 - Prepare verified manual.96 promotion
+
+Owner requested a release after confirming the orb and Settings on their Mac.
+The v* tag workflow would rebuild, and a new guard cannot affect an old source
+commit's workflow. Prepare a manual GITHUB_TOKEN-only promotion route instead,
+with original source and asset IDs pinned, actual-byte checksum validation,
+clean-draft upload/download comparison and no packaging or artifact retention.
+PR only pending approval; no merge/tag/publication. See docs/releases for notes,
+workflow recursion source, validation and recovery limits. Four synthetic tests
+and the live read-only verifier pass. Existing manual draft is untouched.
