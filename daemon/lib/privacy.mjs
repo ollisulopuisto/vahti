@@ -101,7 +101,9 @@ export function keep(item, gone) {
   return !gone.has(forgetKey('item', item.id)) && !gone.has(forgetKey('thread', item.source, item.thread ?? ''))
 }
 
-function remove(db, where, params) {
+// Exported for deletes that are not forgets (a calendar switched off in Setup): the rows go, but
+// nothing is added to the forgotten list, so switching back on brings the next read's items back.
+export function remove(db, where, params) {
   const ids = `select id from items where ${where}`
   db.prepare(`delete from tags where item_id in (${ids})`).run(...params)
   db.prepare(`delete from vectors where item_id in (${ids})`).run(...params)

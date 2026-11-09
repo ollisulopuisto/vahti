@@ -1,13 +1,28 @@
 import { resolve } from 'node:path'
 import { config, home } from '../lib/config.mjs'
-import { myReminders } from '../lib/settings.mjs'
+import { excludedCalendars, myReminders } from '../lib/settings.mjs'
 import { addItems, now } from '../lib/db.mjs'
+import { remove } from '../lib/privacy.mjs'
 import { APPLE_EPOCH, snapshot } from './util.mjs'
 
 // Every calendar the Mac syncs (iCloud, Google, Exchange). Events are appointments already, so they skip the tagger.
 export const source = 'calendar'
 const PATH = resolve(home, 'Library/Group Containers/group.com.apple.calendar/Calendar.sqlitedb')
 const AHEAD_DAYS = 60
+
+// The calendars the Mac syncs, for Setup's "Calendars to read" list. Vahti's own calendar is
+// never read back, so it is not offered either.
+export function listCalendars() {
+  const cal = snapshot(PATH, source)
+  try {
+    return cal.db.prepare("select c.title from Calendar c where c.title is not null and c.title != '' and c.title != 'Vahti' group by c.title order by c.title collate nocase").all().map((r) => r.title)
+  } finally {
+    cal.close()
+  }
+}
+
+// Rows from calendars the owner switched off in Setup are dropped before anything is stored.
+export const readable = (rows, excluded) => (excluded.size ? rows.filter((r) => !excluded.has(r.cal)) : rows)
 
 export function collect(db) {
   const cal = snapshot(PATH, source)
@@ -30,11 +45,15 @@ export function collect(db) {
     }
     // Future events can still move or be cancelled, so they are replaced on every run; past ones stay.
     db.prepare('delete from items where source = ? and ts > ?').run(source, now() - 3600)
+    // Anything already kept from a switched-off calendar goes too, on every run: a collect that
+    // started before the switch can otherwise reinsert its events after the switch's own delete.
+    const excluded = new Set(excludedCalendars())
+    for (const title of excluded) remove(db, "source = 'calendar' and coalesce(thread, '') = ?", [title])
     // Skip cancelled events and internal bookkeeping. Do not read Vahti’s calendar back into
     // itself. Timed reminders can also appear here; when reminder collection is enabled, avoid
     // duplicating those cards or feeding Vahti’s own reminders back into the system.
     const cards = new Set(db.prepare('select summary from tags where is_task = 1 and summary is not null').all().map((t) => t.summary))
-    const items = rows.filter((r) => r.summary && !r.hidden && r.status !== 3 && r.cal !== 'Vahti' && !r.completed
+    const items = readable(rows, excluded).filter((r) => r.summary && !r.hidden && r.status !== 3 && r.cal !== 'Vahti' && !r.completed
       && !(r.cal === 'Scheduled Reminders' && (myReminders() || cards.has(r.summary)))).map((r) => {
       const ts = Math.floor(r.start + APPLE_EPOCH)
       return {

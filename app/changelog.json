@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.7.18",
+    "date": "2026-11-09",
+    "title": "Calendars to read",
+    "summary": "Choose which calendars Vahti reads in Setup.",
+    "notes": [
+      "Setup's Sources tab now lists every calendar your Mac syncs, each with its own switch.",
+      "Switch a calendar off and Vahti stops reading it and removes what it kept from it; switch it back on and its recent and upcoming events return on the next read."
+    ]
+  },
+  {
     "version": "0.7.17",
     "date": "2026-11-09",
     "title": "A quieter orb",

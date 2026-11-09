@@ -28,7 +28,10 @@ import { say, speak, speaking, stop } from './speak.mjs'
 import { handoff, reopen, start as startSession, warm as warmHandoffs } from './handoff.mjs'
 import { build as buildProfile, edit as editProfile, isBuilding as profileBuilding, learn as learnFromChat, profile } from './profile.mjs'
 import { burstOf, ollamaUp, sameConversation } from './tagger.mjs'
-import { isOff, myReminders, off, SOURCES, setClaudeCheck, setOnline, setSource } from './settings.mjs'
+import { excludedCalendars, isOff, myReminders, off, SOURCES, setCalendarIncluded, setClaudeCheck, setOnline, setSource } from './settings.mjs'
+import { listCalendars } from '../collectors/calendar.mjs'
+import { NeedsAccess } from '../collectors/util.mjs'
+import { remove as removeItems } from './privacy.mjs'
 import { connectTodoist, disconnectTodoist, todoistConnected } from './todoist.mjs'
 import { markTask, donePage, brief, briefText, dayRange, icsFor, isoDay, plusDays, tasks, today } from './tasks.mjs'
 import { phoneItems } from './phone.mjs'
@@ -231,6 +234,15 @@ export function serve(db, { install, port = config.port } = {}) {
       }
       // What Vahti may read, and whether the owner's Claude may double-check stuck cards.
       if (url.pathname === '/api/capture-policy' && req.method === 'GET') return json(res, capturePolicy())
+      // Setup's "Calendars to read": every calendar the Mac syncs, with its switch.
+      if (url.pathname === '/api/calendars' && req.method === 'GET') {
+        try {
+          const excluded = new Set(excludedCalendars())
+          return json(res, { calendars: listCalendars().map((title) => ({ title, on: !excluded.has(title) })) })
+        } catch (error) {
+          return json(res, { calendars: [], error: error instanceof NeedsAccess ? 'Vahti needs Full Disk Access to list your calendars.' : 'Calendars could not be read.' })
+        }
+      }
       if (url.pathname === '/api/settings' && req.method === 'GET') {
         const counts = Object.fromEntries(db.prepare('select source, count(*) n from items where ts > ? group by source').all(now() - 30 * 86400).map((r) => [r.source, r.n]))
         return json(res, {
@@ -291,6 +303,16 @@ export function serve(db, { install, port = config.port } = {}) {
           const message = error?.message === 'TODOIST_VERIFY_FAILED' ? 'Todoist could not be reached. Check the connection and try again.' : 'Could not use this token. Paste the API token from Todoist Settings, Integrations, Developer.'
           return json(res, { ok: false, error: message }, 400)
         }
+      }
+      // One calendar switched on or off. Off: nothing more is read from it and what Vahti kept
+      // from it leaves the vault. On again: the next read brings its recent and upcoming events back.
+      if (url.pathname === '/api/calendars' && post) {
+        const { title, on } = JSON.parse(requestBody || '{}')
+        const included = on !== false
+        if (!setCalendarIncluded(title, included)) return json(res, { error: 'no calendar' }, 400)
+        let removed = 0
+        if (!included) removed = removeItems(db, "source = 'calendar' and coalesce(thread, '') = ?", [title])
+        return json(res, { ok: true, on: included, removed })
       }
       if (url.pathname === '/api/settings' && post) {
         const body = requestBody
