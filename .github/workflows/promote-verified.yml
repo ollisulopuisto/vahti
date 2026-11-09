@@ -1,0 +1,49 @@
+name: Promote verified Vahti 0.7.16
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish verified manual.96 as v0.7.16 (false verifies only)'
+        type: boolean
+        default: false
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: vahti-promote-v0.7.16
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.actor == 'ollisulopuisto' &&
+      github.triggering_actor == 'ollisulopuisto'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Synthetic promotion guards
+        run: python3 -m unittest discover -s scripts/tests -p test_release_promotion.py -v
+      - name: Verify or publish the existing signed bytes
+        env:
+          # Never use a PAT here: its tag events would trigger the macOS builder.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VAHTI_PROMOTION_TOKEN: workflow-github-token
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          if [ "$PUBLISH" = true ]; then
+            python3 scripts/promote_verified_release.py --publish
+          else
+            python3 scripts/promote_verified_release.py
+          fi
+      # No build, notarization, cache, Actions artifact, or external service.
