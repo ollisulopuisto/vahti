@@ -105,12 +105,14 @@ export function serve(db, { install, port = config.port } = {}) {
   const rateLimited = (ip) => {
     const now = Date.now()
     let entry = rateLimit.get(ip)
-    if (!entry || now > entry.reset) {
+    if (!entry || now > entry.reset || now < entry.reset - RATE_WINDOW_MS) {
+      for (const [k, v] of rateLimit) if (now > v.reset || now < v.reset - RATE_WINDOW_MS) rateLimit.delete(k)
+      if (rateLimit.size >= 1024) rateLimit.delete(rateLimit.keys().next().value)
       entry = { count: 0, reset: now + RATE_WINDOW_MS }
       rateLimit.set(ip, entry)
     }
     entry.count++
-    return entry.count > RATE_MAX
+    return entry.count > RATE_MAX ? Math.max(1, Math.min(Math.ceil(RATE_WINDOW_MS / 1000), Math.ceil((entry.reset - now) / 1000))) : 0
   }
   const authedBrowser = req => {
     const session = browserTokens.get(req.headers['x-vahti-token'])
@@ -158,7 +160,11 @@ export function serve(db, { install, port = config.port } = {}) {
       if (!hosts.has(req.headers.host)) return json(res, { error: 'forbidden' }, 403)
       if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return json(res, { error: 'forbidden origin' }, 403)
       const ip = req.socket.remoteAddress || '127.0.0.1'
-      if (rateLimited(ip)) return json(res, { error: 'too many requests' }, 429)
+      const retryAfter = rateLimited(ip)
+      if (retryAfter) {
+        res.setHeader('retry-after', String(retryAfter))
+        return json(res, { error: 'too many requests' }, 429)
+      }
       // Native bodies are encrypted too: a port squatter must not receive captured text.
       const requestBody = nonce && wire.length ? openBody(secret, wire).toString('utf8') : wire.toString('utf8')
       const url = new URL(req.url, `http://${req.headers.host}`)

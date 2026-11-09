@@ -137,3 +137,12 @@ test('browser credentials expire and cannot mint fresh launch credentials', asyn
     assert.equal((await get('/api/status', { 'x-vahti-token': token })).status, 401)
   } finally { Date.now = clock }
 })
+
+test('requests exceeding rate limit receive 429 with retry-after header', async () => {
+  let res
+  for (let i = 0; i < 125; i++) res = await get('/api/status', auth)
+  assert.equal(res.status, 429)
+  assert.equal(JSON.parse(res.body).error, 'too many requests')
+  const retryAfter = Number(res.headers['retry-after'])
+  assert.ok(Number.isInteger(retryAfter) && retryAfter >= 1 && retryAfter <= 60)
+})
