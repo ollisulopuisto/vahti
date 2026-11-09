@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.7.20",
+    "date": "2026-11-09",
+    "title": "Hidden menu bar item, spotted every time",
+    "summary": "Vahti now also notices when macOS hides its menu bar item by detaching the button.",
+    "notes": [
+      "If a crowded menu bar or the notch makes macOS drop Vahti's menu bar item outright, the warning still appears - the check no longer skips an item whose button has lost its window."
+    ]
+  },
+  {
     "version": "0.7.19",
     "date": "2026-11-09",
     "title": "A menu bar item that survives the notch",
