@@ -354,8 +354,21 @@ final class IslandHost: NSView {
       fillet: model.tucked ? 6 : 16, radius: model.tucked ? 4 : 24)
     let local = CGPoint(x: point.x - bounds.maxX + geometry.width,
                         y: point.y - bounds.midY + geometry.height / 2)
-    return IslandShape(fillet: geometry.fillet, radius: geometry.radius)
-      .path(in: CGRect(x: 0, y: 0, width: geometry.width, height: geometry.height)).contains(local)
+    let outline = IslandShape(fillet: geometry.fillet, radius: geometry.radius)
+      .path(in: CGRect(x: 0, y: 0, width: geometry.width, height: geometry.height))
+    // Tucked, the thin notch at the edge is what you hover to bring the orb back, so it keeps its whole outline.
+    if model.tucked { return outline.contains(local) }
+    // Expanded, nothing is painted behind the orb, so only what is visible takes the mouse: the orb itself and,
+    // when there is one, the glance chip under it. The rest of the old island lets clicks through to the desktop.
+    let midX = bounds.maxX - geometry.width / 2, midY = bounds.midY
+    let glance = model.glance != nil
+    let orb = CGPoint(x: midX - 2, y: midY + (glance ? 8 : 0))
+    if hypot(point.x - orb.x, point.y - orb.y) <= 36 { return true }
+    if glance {
+      let chip = CGRect(x: midX - 2 - 38, y: midY - 38 - 11, width: 76, height: 22)
+      return chip.contains(point) && outline.contains(local)
+    }
+    return false
   }
 
   override func hitTest(_ point: NSPoint) -> NSView? {
