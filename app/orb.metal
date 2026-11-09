@@ -293,7 +293,7 @@ struct IslandUniforms {
   float mouseX, mouseY, attention, glow;           // the highlight's lean, the rim light, a breathing notch
   float dusk, twilight, night, edge;               // the hour's light; the light down a tucked notch's edge
   float working, hoverVariant, hoverAmount, hoverAge; // 0 none, 1 shimmer, 2 tilt, 3 star wakes, 4 pearl rim (shipped)
-  float press, unused0, unused1, unused2;            // a click on the orb, 0 to 1
+  float press, notch, unused1, unused2;              // a click on the orb, 0 to 1; 1 hangs the outline from the top
 };
 
 struct IslandVertex { float4 position [[position]]; };
@@ -340,8 +340,20 @@ static float3 hsv(float h, float s, float v) {
 fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniforms &u [[buffer(0)]],
                            texture2d<float> artwork [[texture(0)]]) {
   float2 p = in.position.xy / u.scale;
-  float2 q = p - float2(u.width - u.islandWidth, (u.height - u.islandHeight) * 0.5);
-  float d = island_sdf(q, u.islandWidth, u.islandHeight, u.fillet, u.radius);
+  float2 q;
+  float d;
+  float along;
+  if (u.notch > 0.5) {
+    // The pill hangs from the top edge of the window (which sits at the screen's top), centred: the right-edge
+    // outline turned upright, so its flare runs off the top of the screen and the rounded side is the bottom.
+    q = float2(u.islandHeight - p.y, p.x - (u.width - u.islandWidth) * 0.5);
+    d = island_sdf(q, u.islandHeight, u.islandWidth, u.fillet, u.radius);
+    along = q.y / u.islandWidth;
+  } else {
+    q = p - float2(u.width - u.islandWidth, (u.height - u.islandHeight) * 0.5);
+    d = island_sdf(q, u.islandWidth, u.islandHeight, u.fillet, u.radius);
+    along = q.y / u.islandHeight;
+  }
   float inside = clamp(0.5 - d * u.scale, 0.0, 1.0);
   float4 c = float4(0.0);
   if (inside > 0.0) {
@@ -372,11 +384,11 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
   // stretch of soft light, barely tinted, shifting as it goes, with a soft glow round it.
   if (u.edge > 0.0) {
     float at = fmod(u.time * 0.35, 2.2) - 0.6;
-    float along = clamp(1.0 - abs(q.y / u.islandHeight - at) / 0.55, 0.0, 1.0) * 0.9 * u.edge;
+    float run = clamp(1.0 - abs(along - at) / 0.55, 0.0, 1.0) * 0.9 * u.edge;
     float3 tint = hsv(fract(u.time * 0.06), 0.16, 1.0);
-    float glow = exp(-sq(max(abs(d) - 1.0, 0.0) / 2.0)) * 0.7 * along;
+    float glow = exp(-sq(max(abs(d) - 1.0, 0.0) / 2.0)) * 0.7 * run;
     c = float4(tint, 1.0) * glow + c * (1.0 - glow);
-    float stroke = clamp((1.0 - abs(d)) * u.scale + 0.5, 0.0, 1.0) * along;
+    float stroke = clamp((1.0 - abs(d)) * u.scale + 0.5, 0.0, 1.0) * run;
     c = float4(tint, 1.0) * stroke + c * (1.0 - stroke);
   }
   return c;

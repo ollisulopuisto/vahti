@@ -32,7 +32,8 @@ test('display link starts only on attachment and Show/display changes recheck po
   const init = island.slice(island.indexOf('init?(size:'), island.indexOf('func startRendering()'))
   assert.doesNotMatch(init, /thread\.start\(\)/)
   assert.match(island, /guard let w = window else \{ return \}\s*renderer\.startRendering\(\)/)
-  assert.match(orb, /didChangeScreenParametersNotification[\s\S]*?self\?\.place\(\)/)
+  // Display changes re-apply the mode (which places again): a notch screen can come or go.
+  assert.match(orb, /didChangeScreenParametersNotification[\s\S]*?self\?\.apply\(\)/)
   assert.match(orb, /place\(\)\s*islandPanel\.orderFrontRegardless\(\)/)
 })
 

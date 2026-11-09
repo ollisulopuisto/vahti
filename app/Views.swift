@@ -1435,7 +1435,7 @@ struct SetupView: View {
 
   @ViewBuilder private var appearanceSettings: some View {
       Panel(title: "The island", footer: "The ting stays quiet from 22:00 to 08:00.") {
-        row("At the screen edge", "Always there, tucked into the notch until you hover, or hidden.", symbol: "capsule") {
+        row("At the screen edge", "Always there, tucked away until you hover, a pill in the camera notch that wakes on hover, or hidden.", symbol: "capsule") {
           Picker("", selection: $islandMode) {
             ForEach(IslandMode.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
           }
