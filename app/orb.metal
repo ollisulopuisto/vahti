@@ -345,7 +345,7 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
   float inside = clamp(0.5 - d * u.scale, 0.0, 1.0);
   float4 c = float4(0.0);
   if (inside > 0.0) {
-    c = float4(sky_pixel(q, float2(u.islandWidth, u.islandHeight), u.time, u.dusk, u.twilight, u.night) + u.glow, 1.0);
+    // No backdrop: the island is transparent and only the orb (and its effects) is drawn, premultiplied.
     // Done: two soft green rings ripple out from the orb, one just after the other.
     if (u.cheer > 0.0) {
       float r = length(p - float2(u.ringX, u.ringY));
@@ -353,7 +353,7 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
         float k = clamp(u.cheer * 1.5 - float(i) * 0.25, 0.0, 1.0);
         float grow = (1.0 + (1.0 - k) * 0.55) * u.ringScale;
         float a = clamp((grow - abs(r - 31.0 * grow)) * u.scale + 0.5, 0.0, 1.0) * k * 0.85 * u.orbAlpha;
-        c = mix(c, float4(0.45, 0.95, 0.62, 1.0), a);
+        c = float4(0.45, 0.95, 0.62, 1.0) * a + c * (1.0 - a);
       }
     }
     if (u.orbAlpha > 0.0) {
@@ -364,8 +364,7 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
     }
     c *= inside;
   }
-  float line = clamp((0.25 - abs(d)) * u.scale + 0.5, 0.0, 1.0) * 0.22;
-  c = float4(line) + c * (1.0 - line);
+  // The hairline round the island is gone with its background.
   // Tucked away, the light that orbits the orb's rim while something waits runs down the notch's edge instead: a long
   // stretch of soft light, barely tinted, shifting as it goes, with a soft glow round it.
   if (u.edge > 0.0) {

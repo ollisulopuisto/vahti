@@ -271,9 +271,6 @@ struct IslandFallback: View {
 
   var body: some View {
     ZStack {
-      LinearGradient(colors: [Color(red: 0.66, green: 0.73, blue: 0.95),
-                              Color(red: 0.93, green: 0.88, blue: 0.92),
-                              Color(red: 0.50, green: 0.56, blue: 0.80)], startPoint: .top, endPoint: .bottom)
       if !model.tucked {
         Group {
           if let artwork = Self.artwork {

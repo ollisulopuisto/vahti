@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.7.17",
+    "date": "2026-11-09",
+    "title": "A quieter orb",
+    "summary": "The orb no longer sits on a sky-and-sea background.",
+    "notes": [
+      "Only the orb is drawn now, with no island background or outline behind it.",
+      "Its glow, ripple and tuck-away motion are unchanged."
+    ]
+  },
+  {
     "version": "0.7.16",
     "date": "2026-11-08",
     "title": "An orb that stays visible",

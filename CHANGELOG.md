@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.17] - 2026-11-09
+
+### Changed
+- Make the orb more subtle: the sky-and-sea island behind it and the hairline round it are gone, so only the orb itself is drawn. The completion ripple, attention light and non-Metal fallback keep working over the transparent background.
+
 ## [0.7.16] - 2026-11-08
 
 ### Fixed
