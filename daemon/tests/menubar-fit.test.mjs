@@ -18,10 +18,11 @@ test('icon only is an opt-in that suppresses the count text', () => {
   assert.match(bar, /iconOnly \? "Menu bar: icon and count" : "Menu bar: icon only"/)
 })
 
-test('a hidden item is detected with isVisible where available, geometry elsewhere', () => {
-  // Apple's isVisible exists only on macOS 15.4+ and can lag transitions, so it must be guarded
-  // and older systems need the geometry fallback against unobscured menu bar regions.
-  assert.match(bar, /#available\(macOS 15\.4, \*\)\s*\{\s*hidden = !item\.isVisible/)
+test('a hidden item is detected by geometry on every system, never isVisible', () => {
+  // Apple's isVisible (15.4+) stays true when macOS hides the item for lack of menu bar space,
+  // so the check must be geometric everywhere: the button window against unobscured menu bar
+  // regions (beside the notch, or the plain top strip).
+  assert.doesNotMatch(bar, /item\.isVisible/)
   assert.match(bar, /screen\.auxiliaryTopRightArea/)
   assert.match(bar, /screen\.safeAreaInsets\.top/)
   assert.match(bar, /screen\.visibleFrame/)

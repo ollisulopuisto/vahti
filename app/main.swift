@@ -466,27 +466,23 @@ final class Bar: NSObject, NSMenuDelegate {
     refresh()
   }
 
-  // NSStatusItem.isVisible reports a hidden item on macOS 15.4+; Apple notes it can lag menu bar
-  // transitions, so earlier systems get a geometry check: a live item's button window intersects an
-  // unobscured part of some screen's menu bar (the region beside the notch, or the plain top strip).
+  // Apple's NSStatusItem.isVisible (macOS 15.4+) stays true when macOS hides the item for lack of
+  // menu bar space, so it cannot detect overflow hiding on any system. Every system gets a geometry
+  // check instead: a live item's button window intersects an unobscured part of some screen's menu
+  // bar (the region beside the notch, or the plain top strip).
   private func checkObscured() {
-    let hidden: Bool
-    if #available(macOS 15.4, *) {
-      hidden = !item.isVisible
-    } else {
-      guard let window = item.button?.window, window.frame.width > 1 else { return }
-      var fits = false
-      for screen in NSScreen.screens {
-        if let besideNotch = screen.auxiliaryTopRightArea {
-          if window.frame.intersects(besideNotch) { fits = true; break }
-        } else {
-          let bar = max(24, screen.safeAreaInsets.top)
-          let strip = CGRect(x: screen.visibleFrame.minX, y: screen.frame.maxY - bar, width: screen.visibleFrame.width, height: bar)
-          if window.frame.intersects(strip) { fits = true; break }
-        }
+    guard let window = item.button?.window, window.frame.width > 1 else { return }
+    var fits = false
+    for screen in NSScreen.screens {
+      if let besideNotch = screen.auxiliaryTopRightArea {
+        if window.frame.intersects(besideNotch) { fits = true; break }
+      } else {
+        let bar = max(24, screen.safeAreaInsets.top)
+        let strip = CGRect(x: screen.visibleFrame.minX, y: screen.frame.maxY - bar, width: screen.visibleFrame.width, height: bar)
+        if window.frame.intersects(strip) { fits = true; break }
       }
-      hidden = !fits
     }
+    let hidden = !fits
     if hidden != obscured {
       obscured = hidden
       if hidden { NSLog("Vahti: menu bar item hidden by macOS (crowded bar or notch); icon-only setting, orb and open shortcut remain") }
