@@ -17,7 +17,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>0.7.18</string>
 	<key>CFBundleVersion</key>
-	<string>109</string>
+	<string>110</string>
 	<key>VahtiNode</key>
 	<string>__NODE__</string>
 	<key>VahtiRoot</key>

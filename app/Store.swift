@@ -693,6 +693,8 @@ final class Store {
 
   func loadCalendars() async {
     if let reply: CalendarsReply = await get("/api/calendars") { calendars = reply.calendars; calendarsError = reply.error }
+    // A failed read keeps a list it already had; without one, say why instead of loading forever.
+    else if calendars == nil { calendarsError = "The daemon isn't answering. The list appears when it's back." }
   }
 
   // Switched at once here, so the toggle doesn't wait on the daemon; a failed save reloads the list.

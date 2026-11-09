@@ -1,8 +1,10 @@
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { homedir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 
 const root = mkdtempSync(join(tmpdir(), 'vahti-calfilter-'))
 process.env.VAHTI_DATA_DIR = join(root, 'vault')
@@ -14,6 +16,41 @@ const { readable } = await import('../collectors/calendar.mjs')
 const { configPath } = await import('../lib/config.mjs')
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { remove: removeItems } = await import('../lib/privacy.mjs')
+const { collect } = await import('../collectors/calendar.mjs')
+
+// A minimal stand-in for the Mac's Calendar database, at the path the collector reads.
+const calendarDir = resolve(homedir(), 'Library/Group Containers/group.com.apple.calendar')
+const calendarPath = resolve(calendarDir, 'Calendar.sqlitedb')
+const fixturePreexisted = existsSync(calendarPath)
+if (!fixturePreexisted) {
+  mkdirSync(calendarDir, { recursive: true })
+  const cal = new DatabaseSync(calendarPath)
+  cal.exec(`create table Calendar (ROWID integer primary key, title text);
+    create table Location (ROWID integer primary key, title text);
+    create table CalendarItem (ROWID integer primary key, summary text, all_day integer, hidden integer, status integer, completion_date real, start_date real, calendar_id integer, location_id integer);
+    create table OccurrenceCache (event_id integer, occurrence_start_date real, occurrence_date real);
+    insert into Calendar values (1, 'Work'), (2, 'Kids');
+    insert into CalendarItem values (10, 'Standup', 0, 0, 0, null, 0, 1, null), (11, 'School play', 0, 0, 0, null, 0, 2, null);
+    insert into OccurrenceCache values (10, null, ${now() - 978_307_200 + 3600}), (11, null, ${now() - 978_307_200 + 3600});`)
+  cal.close()
+  after(() => rmSync(calendarPath, { force: true }))
+}
+
+// A collect started before a switch-off can reinsert the calendar's events after the switch's own
+// delete, and events kept before the feature existed survive the per-run future delete. Every run
+// must remove what a switched-off calendar left behind.
+test('collect drops a switched-off calendar and removes what it kept', () => {
+  if (fixturePreexisted) return // never touch a real Calendar database
+  assert.equal(setCalendarIncluded('Kids', false), true)
+  const db = open()
+  addItems(db, [{ id: `calendar:seed:${now()}`, source: 'calendar', thread: 'Kids', sender: 'Kids', fromMe: true, ts: now() - 86400, text: 'School play', meta: {} }])
+  collect(db)
+  const threads = db.prepare("select thread from items where source = 'calendar'").all().map((r) => r.thread)
+  assert(!threads.includes('Kids'), `Kids events should be gone, kept: ${threads}`)
+  assert(threads.includes('Work'), `Work events should be read, kept: ${threads}`)
+  db.close()
+  assert.equal(setCalendarIncluded('Kids', true), true)
+})
 
 test('every calendar is read until one is switched off', () => {
   assert.deepEqual(excludedCalendars(), [])

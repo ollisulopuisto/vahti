@@ -1322,6 +1322,7 @@ struct SetupView: View {
       while !Task.isCancelled {
         await store.loadSetup()
         await store.loadPrivacy()
+        await store.loadCalendars()
         try? await Task.sleep(for: .seconds(3))
       }
     }
