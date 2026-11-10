@@ -79,9 +79,21 @@ test('hover covers the revealed orb too: a static zone, so the wake path has no 
   assert.match(orb, /let depth = OrbModel\.notchOrbDepth\(inset: model\.notchInset\)/)
   assert.match(orb, /let zone = CGRect\(x: bounds\.midX - 36 - margin, y: bounds\.maxY - depth - 36 - 24,/)
   assert.match(orb, /width: \(36 \+ margin\) \* 2, height: depth \+ 36 \+ 24\)/)
-  // And a short hysteresis bridges the hand-off and ignores grazing corners.
+  // And a short hysteresis bridges the hand-off and ignores grazing corners. It is gated to the
+  // notch: the right-edge island's hover and exit timers keep their own timing.
   assert.match(orb, /private var hoverLeftAt: CFTimeInterval\?/)
   assert.match(orb, /if now - hoverLeftAt! < 0\.15 \{ hover = true \} else \{ hoverLeftAt = nil \}/)
+  assert.match(orb, /\} else if model\.hover \{\s*\/\/ The hysteresis is a notch affair[^\n]*\n\s*if model\.notch \{/)
+})
+
+test('the non-Metal fallback slides too: a masked canvas, the orb always drawn, gliding on tucked', () => {
+  // Devin: the fallback used to draw only when untucked - instant appear/disappear, no slide.
+  const fallback = orb.slice(orb.indexOf('struct IslandFallback'), orb.indexOf('struct IslandFallback') + 2600)
+  assert.match(fallback, /let canvas = depth \+ 40/)
+  assert.match(fallback, /\.offset\(x: -2, y: \(model\.tucked \? model\.notchInset - 40 : depth\) - canvas \/ 2\)/)
+  assert.match(fallback, /\.mask\(VStack\(spacing: 0\) \{ Color\.clear\.frame\(height: model\.notchInset\); Color\.black \}\)/)
+  const notchBranch = fallback.slice(fallback.indexOf('if model.notch {'), fallback.indexOf('} else {'))
+  assert.doesNotMatch(notchBranch, /if !model\.tucked/)
 })
 
 test('the wake path from the notch strip onto the orb is gapless (geometry simulation)', () => {

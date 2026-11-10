@@ -263,7 +263,7 @@ struct IslandView: View {
   var body: some View {
     let shape = model.tucked ? IslandShape(fillet: 6, radius: 4) : IslandShape()
     let size = model.size
-    ZStack {
+    ZStack(alignment: model.notch ? .top : .center) {
       if model.renderStatus != .metal {
         IslandFallback(model: model)
       }
@@ -308,24 +308,43 @@ struct IslandFallback: View {
   @ObservedObject var model: OrbModel
   private static let artwork = Bundle.main.url(forResource: "orb", withExtension: "png").flatMap { NSImage(contentsOf: $0) }
 
-  var body: some View {
-    ZStack {
-      if !model.tucked {
-        Group {
-          if let artwork = Self.artwork {
-            Image(nsImage: artwork).resizable().scaledToFit()
-          } else {
-            Circle().fill(LinearGradient(colors: [.white, .gray, .white, .black.opacity(0.7)],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-              .overlay(VahtiMark().padding(12))
-          }
-        }
-        .frame(width: 58, height: 58)
-        .scaleEffect(model.pressed ? 0.93 : model.hover ? 1.08 : 1)
-        .offset(x: -2, y: model.notch ? OrbModel.notchOrbDepth(inset: model.notchInset) - model.size.height / 2 : (model.glance == nil ? 0 : -8))
+  private var orb: some View {
+    Group {
+      if let artwork = Self.artwork {
+        Image(nsImage: artwork).resizable().scaledToFit()
+      } else {
+        Circle().fill(LinearGradient(colors: [.white, .gray, .white, .black.opacity(0.7)],
+                                     startPoint: .topLeading, endPoint: .bottomTrailing))
+          .overlay(VahtiMark().padding(12))
       }
     }
-    .accessibilityLabel("Vahti orb, non-Metal drawing")
+    .frame(width: 58, height: 58)
+    .scaleEffect(model.pressed ? 0.93 : model.hover ? 1.08 : 1)
+  }
+
+  var body: some View {
+    if model.notch {
+      // The non-Metal notch gets the same slide, drawn by SwiftUI: a tall transparent canvas, the
+      // orb gliding between behind the housing and its spot below it, the housing zone masked out.
+      // model.tucked changes arrive wrapped in islandSpring, so the glide animates like Metal's.
+      let depth = OrbModel.notchOrbDepth(inset: model.notchInset)
+      let canvas = depth + 40
+      ZStack(alignment: .top) {
+        orb
+          .offset(x: -2, y: (model.tucked ? model.notchInset - 40 : depth) - canvas / 2)
+      }
+      .frame(width: model.size.width, height: canvas, alignment: .top)
+      .fixedSize()
+      .mask(VStack(spacing: 0) { Color.clear.frame(height: model.notchInset); Color.black })
+      .accessibilityLabel("Vahti orb, non-Metal drawing")
+    } else {
+      ZStack {
+        if !model.tucked {
+          orb.offset(x: -2, y: model.glance == nil ? 0 : -8)
+        }
+      }
+      .accessibilityLabel("Vahti orb, non-Metal drawing")
+    }
   }
 }
 
@@ -495,9 +514,12 @@ final class IslandHost: NSView {
     if hover {
       hoverLeftAt = nil
     } else if model.hover {
-      let now = CACurrentMediaTime()
-      if hoverLeftAt == nil { hoverLeftAt = now }
-      if now - hoverLeftAt! < 0.15 { hover = true } else { hoverLeftAt = nil }
+      // The hysteresis is a notch affair: the right-edge island's hover and exit timers keep their own timing.
+      if model.notch {
+        let now = CACurrentMediaTime()
+        if hoverLeftAt == nil { hoverLeftAt = now }
+        if now - hoverLeftAt! < 0.15 { hover = true } else { hoverLeftAt = nil }
+      }
     } else {
       hoverLeftAt = nil
     }
