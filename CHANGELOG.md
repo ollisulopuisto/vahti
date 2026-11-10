@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.24] - 2026-11-10
+
+### Fixed
+- The non-Metal fallback performs the notch wake as the same slide: the orb is always drawn on a tall transparent canvas, glides between behind the housing and its spot below it on the island spring, and the housing zone is masked out, instead of appearing and vanishing in a blink.
+- The 150ms hover hysteresis introduced for the notch's strip-to-orb hand-off no longer delays the right-edge island's hover and exit timers; it applies in the notch mode only.
+
 ## [0.7.23] - 2026-11-10
 
 ### Fixed
