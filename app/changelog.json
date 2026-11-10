@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.7.23",
+    "date": "2026-11-10",
+    "title": "A gapless notch wake",
+    "summary": "Throwing the pointer at the notch and then moving onto the orb keeps the island open, and the orb now slides out from behind the notch instead of the pill resizing.",
+    "notes": [
+      "The hover area is a fixed union of the top-edge strip and the orb's own zone, with a short hysteresis - no more gap that closed the island while you moved onto the orb.",
+      "The orb slides down from behind the camera housing when it wakes and climbs back when it sleeps; the pill keeps one slim size and the orb keeps its scale."
+    ]
+  },
+  {
     "version": "0.7.22",
     "date": "2026-11-10",
     "title": "A faster, backdrop-free notch",

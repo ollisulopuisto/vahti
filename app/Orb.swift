@@ -69,15 +69,15 @@ final class OrbModel: ObservableObject {
     if tucked { return nudging ? CGSize(width: 18, height: 76) : CGSize(width: 12, height: 64) }
     return CGSize(width: 78, height: glance ? 136 : 104)
   }
-  // In the notch: a pill as wide as the camera housing, hanging just deeper than the notch itself; waking on hover
-  // grows it downward to make room for the orb.
+  // In the notch: a pill as wide as the camera housing, hanging just deeper than the notch itself. Its size never
+  // changes: the orb slides down from behind the housing and climbs back, rather than the pill growing.
   nonisolated static func notchSize(tucked: Bool, width: CGFloat, inset: CGFloat) -> CGSize {
     CGSize(width: width, height: notchOrbDepth(inset: inset) + (tucked ? -39 : 39))
   }
   // The orb's depth below the window's top in the notch: just under the housing, centred in the grown pill.
   nonisolated static func notchOrbDepth(inset: CGFloat) -> CGFloat { inset + 4 + 39 }
   var size: CGSize {
-    notch ? OrbModel.notchSize(tucked: tucked, width: notchWidth, inset: notchInset)
+    notch ? OrbModel.notchSize(tucked: true, width: notchWidth, inset: notchInset)
           : OrbModel.size(tucked: tucked, nudging: nudging, glance: glance != nil)
   }
 }
@@ -297,7 +297,8 @@ private struct IslandClip: ViewModifier {
   let tucked: Bool
   let shape: IslandShape
   func body(content: Content) -> some View {
-    if notch { content.clipShape(UnevenRoundedRectangle(bottomLeadingRadius: tucked ? 6 : 14, bottomTrailingRadius: tucked ? 6 : 14)) }
+    // The notch pill has no backdrop and never resizes, so there is nothing left to clip: the orb hangs free.
+    if notch { content }
     else { content.clipShape(shape) }
   }
 }
@@ -321,7 +322,7 @@ struct IslandFallback: View {
         }
         .frame(width: 58, height: 58)
         .scaleEffect(model.pressed ? 0.93 : model.hover ? 1.08 : 1)
-        .offset(x: -2, y: model.glance == nil ? 0 : -8)
+        .offset(x: -2, y: model.notch ? OrbModel.notchOrbDepth(inset: model.notchInset) - model.size.height / 2 : (model.glance == nil ? 0 : -8))
       }
     }
     .accessibilityLabel("Vahti orb, non-Metal drawing")
@@ -436,9 +437,16 @@ final class IslandHost: NSView {
     if model.notch {
       let geometry = hitGeometry
       let margin: CGFloat = 48
-      let edge = CGRect(x: bounds.midX - geometry.width / 2 - margin, y: bounds.maxY - geometry.height - 8,
-                        width: geometry.width + margin * 2, height: geometry.height + 8)
-      if edge.contains(point) { return true }
+      // The strip: the housing's span plus a margin, from the screen's top edge to just past the pill.
+      let strip = CGRect(x: bounds.midX - geometry.width / 2 - margin, y: bounds.maxY - geometry.height - 8,
+                         width: geometry.width + margin * 2, height: geometry.height + 8)
+      // The orb's zone: its revealed spot plus a margin. Static, so moving straight from behind the notch
+      // onto the orb never crosses a gap while the island answers. Both rects are hover-only: clicks stay
+      // with what is painted.
+      let depth = OrbModel.notchOrbDepth(inset: model.notchInset)
+      let zone = CGRect(x: bounds.midX - 36 - margin, y: bounds.maxY - depth - 36 - 24,
+                        width: (36 + margin) * 2, height: depth + 36 + 24)
+      if strip.contains(point) || zone.contains(point) { return true }
     }
     return containsIsland(point)
   }
@@ -475,11 +483,24 @@ final class IslandHost: NSView {
     pointerMonitors.forEach(NSEvent.removeMonitor)
   }
 
+  // When hover last held: a short hysteresis bridges the hand-off between the strip and the orb's
+  // zone and ignores the pointer grazing a corner on its way elsewhere.
+  private var hoverLeftAt: CFTimeInterval?
+
   func syncPointer() {
     guard let window else { return }
     let point = convert(window.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
     let click = window.isVisible && containsIsland(point)
-    let hover = window.isVisible && hoverContains(point)
+    var hover = window.isVisible && hoverContains(point)
+    if hover {
+      hoverLeftAt = nil
+    } else if model.hover {
+      let now = CACurrentMediaTime()
+      if hoverLeftAt == nil { hoverLeftAt = now }
+      if now - hoverLeftAt! < 0.15 { hover = true } else { hoverLeftAt = nil }
+    } else {
+      hoverLeftAt = nil
+    }
     // Keep a drag that began on Vahti until mouseUp, even outside its outline.
     let ignore = !click && start == nil
     if window.ignoresMouseEvents != ignore { window.ignoresMouseEvents = ignore }

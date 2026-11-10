@@ -239,12 +239,13 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
     fillet.response = springResponse; radius.response = springResponse
     open.response = springResponse; lift.response = springResponse
     // Every change of shape springs as SwiftUI's islandSpring did; the first frame starts where the island already is.
+    // The notch's pill never changes size: the orb slides down from behind the housing instead.
     let size = g.notch
-      ? OrbModel.notchSize(tucked: g.tucked, width: CGFloat(g.notchWidth), inset: CGFloat(g.notchInset))
+      ? OrbModel.notchSize(tucked: true, width: CGFloat(g.notchWidth), inset: CGFloat(g.notchInset))
       : OrbModel.size(tucked: g.tucked, nudging: g.nudging, glance: g.glance)
     let targets: [(ReferenceWritableKeyPath<IslandRenderer, Spring>, Double)] = [
-      (\.width, size.width), (\.height, size.height), (\.fillet, g.tucked ? 6 : 16),
-      (\.radius, g.tucked ? (g.notch ? 6 : 4) : (g.notch ? 14 : 24)),
+      (\.width, size.width), (\.height, size.height), (\.fillet, g.notch ? 6 : (g.tucked ? 6 : 16)),
+      (\.radius, g.notch ? 6 : (g.tucked ? 4 : 24)),
       (\.open, g.tucked ? 0 : 1), (\.lift, g.glance && !g.notch ? -8 : 0), (\.grow, g.pressed ? 0.93 : g.hover ? 1.08 : 1),
       (\.rest, g.hover || g.pressed || g.panel || g.attention > 0 || g.working ? 1 : 0.82),
     ]
@@ -278,14 +279,20 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
     // The orb sits in the island's middle and slides into the notch, smaller and fading, as it tucks away; it bobs a
     // little, grows when you're on it and for a moment when something new comes in.
     let window = OrbModel.window
-    let reveal = 0.35 + 0.65 * open.value
+    let reveal = g.notch ? 1 : 0.35 + 0.65 * open.value
     // The right-edge island centres in its footprint; the notch's pill centres under the camera housing,
     // its orb hanging just below the notch itself.
     let midX = g.notch ? window.width / 2 : window.width - width.value / 2
     let midY = g.notch ? OrbModel.notchOrbDepth(inset: CGFloat(g.notchInset)) : window.height / 2
     let orbX = midX - 2 * reveal
-    let orbY = midY + reveal * (lift.value + sin(t * 1.1) * 1.2)
-    let orbScale = reveal * grow.value * rest.value * (1 + Double(fresh * fresh) * 0.08)
+    let bob = sin(t * 1.1) * 1.2
+    // In the notch the orb slides down from behind the housing when it wakes and climbs back when it
+    // sleeps - movement, not size: the shader paints only what hangs below the notch, so the climb
+    // reads as disappearing behind it. Its scale never changes along the way.
+    let orbY = g.notch
+      ? midY - (1 - open.value) * (midY - CGFloat(g.notchInset) + 40) + open.value * bob
+      : midY + reveal * (lift.value + bob)
+    let orbScale = (g.notch ? 1 : reveal) * grow.value * rest.value * (1 + Double(fresh * fresh) * 0.08)
     let cursor = CGEvent(source: nil)?.location ?? .zero
     var mouse = (x: (cursor.x - g.center.x) / 260, y: (g.center.y - cursor.y) / 260)
     if hoverVariant != .none {
@@ -302,13 +309,13 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
     var u: [Float] = [
       Float(window.width), Float(window.height), g.scale, Float(t),
       Float(width.value), Float(height.value), Float(fillet.value), Float(radius.value),
-      Float(orbX), Float(orbY), Float(orbScale), Float(min(1, max(0, open.value))),
+      Float(orbX), Float(orbY), Float(orbScale), Float(g.notch ? 1 : min(1, max(0, open.value))),
       Float(orbX), Float(midY + reveal * lift.value), Float(reveal), cheer,
       Float(mouse.x), Float(mouse.y), g.attention + fresh * 1.5, Float(glow),
       l.x, l.y, l.z, Float(edge),
       working, selectedHover ? Float(hoverVariant.rawValue) : 0,
       selectedHover ? Float(min(1, max(0, hoverAmount.value))) : 0, selectedHover ? Float(hoverAge) : 0,
-      selectedHover ? Float(min(1, max(0, pressAmount.value))) : 0, g.notch ? 1 : 0, 0, 0,
+      selectedHover ? Float(min(1, max(0, pressAmount.value))) : 0, g.notch ? 1 : 0, g.notchInset, 0,
     ]
     lock.withLock { painted = IslandHitGeometry(width: width.value, height: height.value, fillet: fillet.value, radius: radius.value) }
     let pass = MTLRenderPassDescriptor()

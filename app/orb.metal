@@ -293,7 +293,7 @@ struct IslandUniforms {
   float mouseX, mouseY, attention, glow;           // the highlight's lean, the rim light, a breathing notch
   float dusk, twilight, night, edge;               // the hour's light; the light down a tucked notch's edge
   float working, hoverVariant, hoverAmount, hoverAge; // 0 none, 1 shimmer, 2 tilt, 3 star wakes, 4 pearl rim (shipped)
-  float press, notch, unused1, unused2;              // a click on the orb, 0 to 1; 1 hangs the outline from the top
+  float press, notch, inset, unused2;                // a click on the orb, 0 to 1; 1 hangs the outline from the top; the housing's depth
 };
 
 struct IslandVertex { float4 position [[position]]; };
@@ -359,7 +359,7 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
   if (inside > 0.0) {
     // No backdrop: the island is transparent and only the orb (and its effects) is drawn, premultiplied.
     // Done: two soft green rings ripple out from the orb, one just after the other.
-    if (u.cheer > 0.0) {
+    if (u.notch <= 0.5 && u.cheer > 0.0) {
       float r = length(p - float2(u.ringX, u.ringY));
       for (int i = 0; i < 2; i++) {
         float k = clamp(u.cheer * 1.5 - float(i) * 0.25, 0.0, 1.0);
@@ -368,7 +368,7 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
         c = float4(0.45, 0.95, 0.62, 1.0) * a + c * (1.0 - a);
       }
     }
-    if (u.orbAlpha > 0.0) {
+    if (u.notch <= 0.5 && u.orbAlpha > 0.0) {
       float4 o = orb_pixel((p - float2(u.orbX, u.orbY)) / u.orbScale + 35.0, float2(70.0), u.time, float2(u.mouseX, u.mouseY),
                            u.attention, u.dusk, u.twilight, u.night, u.working, u.scale * u.orbScale,
                            float4(u.hoverVariant, u.hoverAmount, u.hoverAge, u.press), artwork) * u.orbAlpha;
@@ -378,6 +378,29 @@ fragment float4 vahtiIsland(IslandVertex in [[stage_in]], constant IslandUniform
       c = o + c * (1.0 - o.a);
     }
     c *= inside;
+  }
+  if (u.notch > 0.5) {
+    // The pill is slim and the orb hangs free below it, waking and sleeping by sliding from and back behind
+    // the housing: only what hangs below the notch is painted, so the climb reads as passing behind it.
+    float hide = clamp((p.y - u.inset) * u.scale, 0.0, 1.0);
+    if (u.cheer > 0.0) {
+      float r = length(p - float2(u.ringX, u.ringY));
+      for (int i = 0; i < 2; i++) {
+        float k = clamp(u.cheer * 1.5 - float(i) * 0.25, 0.0, 1.0);
+        float grow = (1.0 + (1.0 - k) * 0.55) * u.ringScale;
+        float a = clamp((grow - abs(r - 31.0 * grow)) * u.scale + 0.5, 0.0, 1.0) * k * 0.85 * u.orbAlpha * hide;
+        c = float4(0.45, 0.95, 0.62, 1.0) * a + c * (1.0 - a);
+      }
+    }
+    if (u.orbAlpha > 0.0) {
+      float4 o = orb_pixel((p - float2(u.orbX, u.orbY)) / u.orbScale + 35.0, float2(70.0), u.time, float2(u.mouseX, u.mouseY),
+                           u.attention, u.dusk, u.twilight, u.night, u.working, u.scale * u.orbScale,
+                           float4(u.hoverVariant, u.hoverAmount, u.hoverAge, u.press), artwork) * u.orbAlpha;
+      float awake = max(max(u.hoverAmount, u.press), max(clamp(u.attention, 0.0, 1.0), u.working));
+      o *= mix(0.75, 1.0, awake);
+      o *= hide;
+      c = o + c * (1.0 - o.a);
+    }
   }
   // The hairline round the island is gone with its background.
   // While something waits the island breathes: a soft warm halo hugging the outline, slow and faint. It is an
