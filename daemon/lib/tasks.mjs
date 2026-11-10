@@ -190,14 +190,30 @@ function top(list, when = (t) => t.ts) {
 // Deduplicate nearby cards in one conversation by shared subject, retaining the newest.
 // A request followed by the owner’s promise can describe one task. Stalled work uses its
 // repository or pull request identity instead of wording.
+// Bucket by source+thread to avoid scanning all kept cards (O(N^2) -> O(N*B)) and cache
+// the parsed words Set and lowercased summary for each kept candidate.
 const content = (s) => new Set(String(s || '').toLowerCase().match(/[\p{L}\d]{4,}/gu) || [])
 function dedupe(list) {
   const kept = []
+  // Nested maps keep the conversation's identity typed: a missing thread (NULL) and a thread
+  // literally named "null" land in different buckets, which a composite string key conflated.
+  const buckets = new Map()
   for (const t of list) {
     const mine = content(t.summary)
-    const twin = t.card !== 'stalled' && kept.some((k) => k.source === t.source && k.thread === t.thread && (k.summary.toLowerCase() === t.summary.toLowerCase()
-      || (Math.abs(k.ts - t.ts) <= 1800 && [...mine].filter((w) => content(k.summary).has(w)).length >= Math.min(3, Math.max(2, mine.size - 1)))))
-    if (!twin) kept.push(t)
+    let threads = buckets.get(t.source)
+    if (!threads) buckets.set(t.source, (threads = new Map()))
+    const bucket = threads.get(t.thread)
+    const lower = (t.summary || '').toLowerCase()
+    const twin = t.card !== 'stalled' && bucket && bucket.some((k) => (
+      k.lower === lower ||
+      (Math.abs(k.t.ts - t.ts) <= 1800 && [...mine].filter((w) => k.words.has(w)).length >= Math.min(3, Math.max(2, mine.size - 1)))
+    ))
+    if (!twin) {
+      kept.push(t)
+      const entry = { t, words: mine, lower }
+      if (bucket) bucket.push(entry)
+      else threads.set(t.thread, [entry])
+    }
   }
   return kept
 }
