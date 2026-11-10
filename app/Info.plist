@@ -15,9 +15,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.7.23</string>
+	<string>0.7.24</string>
 	<key>CFBundleVersion</key>
-	<string>115</string>
+	<string>116</string>
 	<key>VahtiNode</key>
 	<string>__NODE__</string>
 	<key>VahtiRoot</key>
