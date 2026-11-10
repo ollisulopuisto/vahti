@@ -90,10 +90,43 @@ test('the non-Metal fallback slides too: a masked canvas, the orb always drawn, 
   // Devin: the fallback used to draw only when untucked - instant appear/disappear, no slide.
   const fallback = orb.slice(orb.indexOf('struct IslandFallback'), orb.indexOf('struct IslandFallback') + 2600)
   assert.match(fallback, /let canvas = depth \+ 40/)
-  assert.match(fallback, /\.offset\(x: -2, y: \(model\.tucked \? model\.notchInset - 40 : depth\) - canvas \/ 2\)/)
+  // The orb's 58pt frame is top-aligned in the canvas, so its centre sits 29 in: the offset puts the centre
+  // on the target (reveal depth open, inset - 40 tucked), not canvas / 2 - that centred the orb wrong.
+  assert.match(fallback, /\.offset\(y: \(model\.tucked \? model\.notchInset - 40 : depth\) - 29\)/)
+  assert.doesNotMatch(fallback, /canvas \/ 2/)
   assert.match(fallback, /\.mask\(VStack\(spacing: 0\) \{ Color\.clear\.frame\(height: model\.notchInset\); Color\.black \}\)/)
+  // The tall canvas must be masked BEFORE it is pinned to the pill's height, and the pin keeps the canvas
+  // top-anchored inside IslandView's fixed pill-height frame - otherwise the frame recentres the canvas
+  // and the painted orb misses the click target at the reveal depth.
+  assert.match(fallback, /\.fixedSize\(\)(\s*\/\/[^\n]*)*\s*\.frame\(width: model\.size\.width, height: model\.size\.height, alignment: \.top\)/)
+  assert.ok(fallback.indexOf('.mask(') < fallback.indexOf('.fixedSize()'), 'mask must wrap the tall canvas, not the pinned frame')
   const notchBranch = fallback.slice(fallback.indexOf('if model.notch {'), fallback.indexOf('} else {'))
   assert.doesNotMatch(notchBranch, /if !model\.tucked/)
+})
+
+test('the fallback paints the orb exactly where containsIsland clicks it (geometry simulation)', () => {
+  // Devin: the fallback canvas centred inside the pill-height view and the offset subtracted half the
+  // canvas, so the visible orb sat ~70pt above its click circle. Mirror the fixed layout: the canvas is
+  // top-anchored at the view's top (the pin makes the view exactly the pill's height, so IslandView's
+  // frame cannot recenter it), and the orb's centre lands on the target in both states.
+  const inset = 38, depth = inset + 4 + 39, pillH = inset + 4, orbR = 36, frame58 = 29
+  const canvas = depth + 40
+  // View-local y, 0 at the view's top (window top). containsIsland: orb circle at bounds.maxY - depth.
+  const clickCentre = depth
+  const painted = (tucked) => {
+    const target = tucked ? inset - 40 : depth
+    const centreInCanvas = frame58 + (target - frame58) // top-aligned frame + offset
+    const canvasTopInView = 0 // pinned: view height == frame height == pillH, no recentering shift
+    return canvasTopInView + centreInCanvas
+  }
+  assert.equal(painted(false), clickCentre, 'open orb centre must equal the click circle centre')
+  assert.equal(painted(true), inset - 40, 'tucked orb hides at the Metal slide\'s depth')
+  // Tucked, the whole orb is masked out (nothing shows above the housing line); open, it is fully below it.
+  assert.ok(painted(true) + frame58 <= inset, 'tucked orb fully hidden above the housing line')
+  assert.ok(painted(false) - frame58 >= inset, 'open orb fully below the housing line')
+  // The click circle (radius 36) contains the painted orb; the canvas holds the orb plus the hover grow.
+  assert.ok(Math.abs(painted(false) - clickCentre) <= orbR - frame58, 'painted orb inside its click circle')
+  assert.ok(painted(false) + frame58 * 1.08 <= canvas, 'hover-grown orb still on the canvas')
 })
 
 test('the wake path from the notch strip onto the orb is gapless (geometry simulation)', () => {

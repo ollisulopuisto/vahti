@@ -331,11 +331,16 @@ struct IslandFallback: View {
       let canvas = depth + 40
       ZStack(alignment: .top) {
         orb
-          .offset(x: -2, y: (model.tucked ? model.notchInset - 40 : depth) - canvas / 2)
+          // The orb's 58pt frame is top-aligned, so its centre sits 29 in: land the centre on the reveal
+          // depth (open) or the housing's hide depth (tucked) - exactly where containsIsland clicks it.
+          .offset(y: (model.tucked ? model.notchInset - 40 : depth) - 29)
       }
       .frame(width: model.size.width, height: canvas, alignment: .top)
-      .fixedSize()
       .mask(VStack(spacing: 0) { Color.clear.frame(height: model.notchInset); Color.black })
+      .fixedSize()
+      // Pin the tall canvas to the pill's height, top-anchored: IslandView's fixed frame then has nothing
+      // to recenter, and the canvas overflows straight down from the view's top.
+      .frame(width: model.size.width, height: model.size.height, alignment: .top)
       .accessibilityLabel("Vahti orb, non-Metal drawing")
     } else {
       ZStack {
