@@ -279,10 +279,16 @@ export async function reopen(db, id) {
   const codex = aiProvider(h.session) === 'codex'
   const bin = codex ? CODEX : CLAUDE
   if (!bin) return { error: `${codex ? 'Codex' : 'Claude Code'} isn't installed` }
-  const script = resolve(tmpDir, `open-${Date.now()}.command`)
-  // Claude finds a session by the folder it ran in.
-  writeFileSync(script, `#!/bin/zsh -l\ncd ${q(h.session.cwd || h.repo)} && exec ${q(bin)} ${codex ? 'resume' : '--resume'} ${q(h.session.id)}\n`)
-  chmodSync(script, 0o755)
-  spawn('open', [script], { stdio: 'ignore', detached: true }).unref()
-  return { ok: true }
+  const stamp = randomUUID()
+  const script = resolve(tmpDir, `open-${stamp}.command`)
+  const cleanup = () => rmSync(script, { force: true })
+  try {
+    // Claude finds a session by the folder it ran in. Launch scripts are owner-only and self-cleaning.
+    writeFileSync(script, `#!/bin/zsh -l\ncd ${q(h.session.cwd || h.repo)} && ${q(bin)} ${codex ? 'resume' : '--resume'} ${q(h.session.id)}\nstatus=$?\nrm -f -- ${q(script)}\nexit $status\n`, { mode: 0o700, flag: 'wx' })
+    const child = spawn('open', [script], { stdio: 'ignore', detached: true })
+    child.on('error', cleanup)
+    child.on('exit', code => { if (code !== 0) cleanup() })
+    child.unref()
+    return { ok: true }
+  } catch (error) { cleanup(); throw error }
 }
