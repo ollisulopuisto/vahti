@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.23] - 2026-11-10
+
+### Fixed
+- The notch island no longer vanishes mid-throw: the hover target is a fixed union of the top-edge strip and the revealed orb's own zone (plus a 150ms hysteresis), so moving from behind the notch down onto the orb never crosses a gap while the island is still answering.
+- The notch orb now wakes and sleeps by sliding down from and back up behind the camera housing - the shader paints only what hangs below the notch - instead of the pill growing and shrinking. The pill keeps one slim size and the orb keeps its scale throughout.
+
 ## [0.7.22] - 2026-11-10
 
 ### Changed

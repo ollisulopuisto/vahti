@@ -69,8 +69,57 @@ test('the top edge is the target: a thrown cursor wakes the island (Fitts)', () 
   // The hover region reaches past the window's painted sliver - the pointer is read globally,
   // so a cursor slammed to the screen's top edge within the housing's span plus margin lands here.
   assert.match(orb, /let margin: CGFloat = 48/)
-  assert.match(orb, /let edge = CGRect\(x: bounds\.midX - geometry\.width \/ 2 - margin, y: bounds\.maxY - geometry\.height - 8,/)
-  assert.match(orb, /if edge\.contains\(point\) \{ return true \}/)
+  assert.match(orb, /let strip = CGRect\(x: bounds\.midX - geometry\.width \/ 2 - margin, y: bounds\.maxY - geometry\.height - 8,/)
+  assert.match(orb, /if strip\.contains\(point\) \|\| zone\.contains\(point\) \{ return true \}/)
+})
+
+test('hover covers the revealed orb too: a static zone, so the wake path has no gap', () => {
+  // The orb's zone keys off the fixed reveal depth, never the animated geometry: while the island
+  // answers, every point between the strip and the orb stays hover.
+  assert.match(orb, /let depth = OrbModel\.notchOrbDepth\(inset: model\.notchInset\)/)
+  assert.match(orb, /let zone = CGRect\(x: bounds\.midX - 36 - margin, y: bounds\.maxY - depth - 36 - 24,/)
+  assert.match(orb, /width: \(36 \+ margin\) \* 2, height: depth \+ 36 \+ 24\)/)
+  // And a short hysteresis bridges the hand-off and ignores grazing corners.
+  assert.match(orb, /private var hoverLeftAt: CFTimeInterval\?/)
+  assert.match(orb, /if now - hoverLeftAt! < 0\.15 \{ hover = true \} else \{ hoverLeftAt = nil \}/)
+})
+
+test('the wake path from the notch strip onto the orb is gapless (geometry simulation)', () => {
+  // Mirror the Swift rect math with the repo's constants (margin 48, orb radius 36, zone margin 24,
+  // strip slack 8, inset 38 for the 14/16-inch housing, so depth = 81 and the slim pill is 42 tall)
+  // and walk the throws Olli described: slam to the top edge, then straight or diagonally onto the orb.
+  const inset = 38, depth = inset + 4 + 39, pillH = inset + 4, margin = 48, orbR = 36, zoneSlack = 24
+  const pillW = 200 // housing width fallback; the real one is wider, never narrower
+  const strip = { x0: -pillW / 2 - margin, x1: pillW / 2 + margin, y0: 0, y1: pillH + 8 }
+  const zone = { x0: -orbR - margin, x1: orbR + margin, y0: 0, y1: depth + orbR + zoneSlack }
+  const covered = (x, y) =>
+    (x >= strip.x0 && x <= strip.x1 && y >= strip.y0 && y <= strip.y1) ||
+    (x >= zone.x0 && x <= zone.x1 && y >= zone.y0 && y <= zone.y1)
+  const paths = [
+    { from: [0, 0], to: [0, depth] },        // slammed centre, straight down onto the orb
+    { from: [120, 6], to: [0, depth] },      // from beside the housing diagonally onto the orb
+    { from: [-120, 20], to: [30, depth + 30] }, // from the margin onto the orb's lower half
+    { from: [148, 0], to: [-30, depth] },    // across the whole strip, then down
+  ]
+  for (const { from, to } of paths) {
+    for (let s = 0; s <= 60; s++) {
+      const x = from[0] + (to[0] - from[0]) * (s / 60)
+      const y = from[1] + (to[1] - from[1]) * (s / 60)
+      assert.ok(covered(x, y), `gap at (${x.toFixed(1)}, ${y.toFixed(1)}) on ${JSON.stringify({ from, to })}`)
+    }
+  }
+  // The worst legitimate throw - the strip's far corner to the orb's far rim - must be gapless too.
+  for (const worst of [{ from: [-148, 20], to: [60, depth + 30] }, { from: [148, 20], to: [-60, depth + 30] }]) {
+    for (let s = 0; s <= 120; s++) {
+      const x = worst.from[0] + (worst.to[0] - worst.from[0]) * (s / 120)
+      const y = worst.from[1] + (worst.to[1] - worst.from[1]) * (s / 120)
+      assert.ok(covered(x, y), `gap at (${x.toFixed(1)}, ${y.toFixed(1)}) on ${JSON.stringify(worst)}`)
+    }
+  }
+  // The orb itself is fully inside its zone, with room for the breathing bob and the hover grow.
+  for (let a = 0; a < 16; a++) {
+    assert.ok(covered(Math.cos(a) * orbR, depth + Math.sin(a) * orbR), `orb rim ${a} uncovered`)
+  }
 })
 
 test('the top-edge margin is hover-only: clicks beside the housing stay with the menu bar', () => {
@@ -79,7 +128,7 @@ test('the top-edge margin is hover-only: clicks beside the housing stay with the
   assert.match(orb, /private func hoverContains\(_ point: NSPoint\) -> Bool \{\s*if model\.notch \{\s*let geometry = hitGeometry\s*let margin: CGFloat = 48/)
   assert.match(orb, /override func hitTest\(_ point: NSPoint\) -> NSView\? \{\s*containsIsland\(convert\(point, from: superview\)\) \? self : nil/)
   assert.match(orb, /let click = window\.isVisible && containsIsland\(point\)/)
-  assert.match(orb, /let hover = window\.isVisible && hoverContains\(point\)/)
+  assert.match(orb, /var hover = window\.isVisible && hoverContains\(point\)/)
   assert.match(orb, /let ignore = !click && start == nil/)
   const contains = orb.slice(orb.indexOf('func containsIsland'), orb.indexOf('private func hoverContains'))
   assert.match(contains, /let pill = CGRect\(x: bounds\.midX - geometry\.width \/ 2, y: bounds\.maxY - geometry\.height/)
@@ -105,6 +154,23 @@ test('hover in the notch still opens the glance card beside the pill', () => {
   assert.doesNotMatch(hovered, /if inside, !inNotch/)
 })
 
+test('the orb slides behind the housing to sleep: movement, not size', () => {
+  // Position animation driven by open, no reveal scaling in the notch, and the model's size is the
+  // slim pill in every state.
+  assert.match(island, /let reveal = g\.notch \? 1 : 0\.35 \+ 0\.65 \* open\.value/)
+  assert.match(island, /let orbY = g\.notch\s*\? midY - \(1 - open\.value\) \* \(midY - CGFloat\(g\.notchInset\) \+ 40\) \+ open\.value \* bob/)
+  assert.match(island, /let orbScale = \(g\.notch \? 1 : reveal\) \* grow\.value \* rest\.value/)
+  assert.match(island, /Float\(g\.notch \? 1 : min\(1, max\(0, open\.value\)\)\)/)
+  assert.match(orb, /notch \? OrbModel\.notchSize\(tucked: true, width: notchWidth, inset: notchInset\)/)
+  // The shader paints the notch's orb only below the housing, so the climb reads as passing behind it,
+  // and the completion rings ride the same clip instead of being cut by the slim pill's outline.
+  assert.match(metal, /float hide = clamp\(\(p\.y - u\.inset\) \* u\.scale, 0\.0, 1\.0\);/)
+  assert.match(metal, /o \*= hide;/)
+  assert.match(metal, /\* k \* 0\.85 \* u\.orbAlpha \* hide;/)
+  // The housing's depth travels in the uniform that was unused before.
+  assert.match(island, /g\.notch \? 1 : 0, g\.notchInset, 0,/)
+})
+
 test('the pill cannot be dragged off the notch', () => {
   assert.match(orb, /private func drag\(_ dy: CGFloat\) \{\s*if inNotch \{ return \}/)
 })
@@ -112,14 +178,15 @@ test('the pill cannot be dragged off the notch', () => {
 test('the renderer sizes, centres and flags the notch pill', () => {
   assert.match(island, /var notch = false/)
   assert.match(island, /var notchWidth: Float = 200/)
-  assert.match(island, /OrbModel\.notchSize\(tucked: g\.tucked, width: CGFloat\(g\.notchWidth\), inset: CGFloat\(g\.notchInset\)\)/)
+  // The pill never resizes: the renderer always uses the slim size and slides the orb instead.
+  assert.match(island, /OrbModel\.notchSize\(tucked: true, width: CGFloat\(g\.notchWidth\), inset: CGFloat\(g\.notchInset\)\)/)
   assert.match(island, /let midX = g\.notch \? window\.width \/ 2 : window\.width - width\.value \/ 2/)
   assert.match(island, /let midY = g\.notch \? OrbModel\.notchOrbDepth/)
   assert.match(island, /g\.notch \? 1 : 0/)
 })
 
 test('the shader turns the outline upright in the notch, flare off the top edge', () => {
-  assert.match(metal, /float press, notch, unused1, unused2;/)
+  assert.match(metal, /float press, notch, inset, unused2;/)
   assert.match(metal, /if \(u\.notch > 0\.5\) \{/)
   // Transposed axes: depth from the top becomes the outline's x, so the flare runs off the screen's top.
   assert.match(metal, /q = float2\(u\.islandHeight - p\.y, p\.x - \(u\.width - u\.islandWidth\) \* 0\.5\)/)
@@ -129,7 +196,7 @@ test('the shader turns the outline upright in the notch, flare off the top edge'
 test('input follows the pill: top-centred footprint, orb below the housing, and the pulse reuses tucked state', () => {
   assert.match(orb, /if model\.notch \{ return NSRect\(x: bounds\.midX - s\.width \/ 2, y: bounds\.maxY - s\.height/)
   // The painted footprint is the top-edge region (housing span plus margin, to the screen's top).
-  assert.match(orb, /let edge = CGRect\(x: bounds\.midX - geometry\.width \/ 2 - margin, y: bounds\.maxY - geometry\.height - 8/)
+  assert.match(orb, /let strip = CGRect\(x: bounds\.midX - geometry\.width \/ 2 - margin, y: bounds\.maxY - geometry\.height - 8/)
   assert.match(orb, /let orb = CGPoint\(x: bounds\.midX, y: bounds\.maxY - OrbModel\.notchOrbDepth\(inset: model\.notchInset\)\)/)
   // Nudging and the edge light key off tucked, which the notch's sleeping pill is.
   assert.match(island, /g\.tucked && g\.nudging/)
