@@ -17,8 +17,9 @@ const dir = mkdtempSync(join(tmpdir(), 'vahti-handoff-'))
 process.env.VAHTI_DATA_DIR = dir
 writeFileSync(join(dir, 'config.json'), JSON.stringify({ me: 'Sam', fullName: 'Sam', workRoots: [], online: false }))
 const { open, addItems, now } = await import('../lib/db.mjs')
-const { handoff, approveBrief, quotedMessages, start } = await import('../lib/handoff.mjs')
+const { handoff, approveBrief, quotedMessages, reopen, start } = await import('../lib/handoff.mjs')
 const { home } = await import('../lib/config.mjs')
+const { statSync } = await import('node:fs')
 after(() => rmSync(dir, { recursive: true, force: true }))
 
 function fixture(t, folder = join(dir, 'task')) {
@@ -105,4 +106,25 @@ test('the launch file contains the approved bytes and only the task folder', asy
   const script = readFileSync(scriptPath, 'utf8')
   assert.ok(script.includes(`cd '${h.repo}' &&`))
   assert.deepEqual(readFileSync(scriptPath.replace(/\.command$/, '.md')), Buffer.from(h.full))
+})
+
+test('reopen generates private self-cleaning launcher scripts with restricted permissions', async t => {
+  const db = fixture(t)
+  const taskFolder = join(dir, 'task')
+  addItems(db, [{
+    id: 'ai-session-task', source: 'ai', thread: 'session-thread', sender: 'claude', ts: now(), text: 'what next?',
+    meta: { kind: 'session', session: 'local_test_123', agent: 'claude', cwd: taskFolder },
+  }])
+  db.prepare("insert into tags (item_id, is_task, summary, card, model, tagged_at) values ('ai-session-task', 1, 'Resume work', 'ask', 'test', ?)").run(now())
+  const result = await reopen(db, 'ai-session-task')
+  if (result?.error && /isn't installed/.test(result.error)) return
+  assert.equal(result?.ok, true)
+  const [command, [scriptPath]] = launches.at(-1)
+  assert.equal(command, '/usr/bin/open')
+  const st = statSync(scriptPath)
+  assert.equal(st.mode & 0o777, 0o700)
+  const content = readFileSync(scriptPath, 'utf8')
+  assert.match(content, /^#!\/bin\/zsh -l/)
+  assert.match(content, /rm -f -- '.*'/)
+  assert.ok(content.includes(`cd '${taskFolder}' &&`))
 })
