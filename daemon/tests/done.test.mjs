@@ -61,3 +61,12 @@ test('page size and lookback are bounded independently of caller input', t => {
   assert.equal(donePage(db,{limit:0,days:1}).total,1)
   assert.equal(donePage(db,{days:10000}).days,365)
 })
+
+test('a missing thread and a thread literally named "null" keep their own dedupe buckets', t => {
+  const db = fixture(t)
+  card(db,'no-thread',{thread:null,summary:'Finish the archive page',done:t0-120})
+  card(db,'null-thread',{thread:'null',summary:'Finish the archive page',done:t0-60})
+  // Two distinct conversations; the same wording in each must not hide one task.
+  assert.deepEqual(completed(db).map(c=>c.id).sort(),['no-thread','null-thread'])
+  assert.deepEqual(brief(db).done.map(c=>c.id).sort(),['no-thread','null-thread'])
+})

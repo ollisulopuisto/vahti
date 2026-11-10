@@ -195,11 +195,14 @@ function top(list, when = (t) => t.ts) {
 const content = (s) => new Set(String(s || '').toLowerCase().match(/[\p{L}\d]{4,}/gu) || [])
 function dedupe(list) {
   const kept = []
+  // Nested maps keep the conversation's identity typed: a missing thread (NULL) and a thread
+  // literally named "null" land in different buckets, which a composite string key conflated.
   const buckets = new Map()
   for (const t of list) {
     const mine = content(t.summary)
-    const key = t.source + '\0' + t.thread
-    const bucket = buckets.get(key)
+    let threads = buckets.get(t.source)
+    if (!threads) buckets.set(t.source, (threads = new Map()))
+    const bucket = threads.get(t.thread)
     const lower = (t.summary || '').toLowerCase()
     const twin = t.card !== 'stalled' && bucket && bucket.some((k) => (
       k.lower === lower ||
@@ -209,7 +212,7 @@ function dedupe(list) {
       kept.push(t)
       const entry = { t, words: mine, lower }
       if (bucket) bucket.push(entry)
-      else buckets.set(key, [entry])
+      else threads.set(t.thread, [entry])
     }
   }
   return kept
