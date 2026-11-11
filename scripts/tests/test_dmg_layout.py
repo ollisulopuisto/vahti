@@ -2,6 +2,8 @@
 import importlib.util
 from pathlib import Path
 import tempfile
+import struct
+import zlib
 from unittest import mock
 import unittest
 
@@ -48,6 +50,19 @@ class LayoutTests(unittest.TestCase):
             self.fixture(mount)
             (mount / '.DS_Store').unlink()
             with self.assertRaises(ValueError):
+                validation.validate_dmg_layout(mount)
+
+    def test_private_png_metadata_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            mount = Path(td)
+            self.fixture(mount)
+            picture = mount / '.background/welcome.png'
+            data = picture.read_bytes()
+            kind = b'tEXt'
+            payload = b'Comment\x00SYNTHETIC_PRIVATE_MARKER'
+            chunk = struct.pack('>I', len(payload)) + kind + payload + struct.pack('>I', zlib.crc32(kind + payload) & 0xffffffff)
+            picture.write_bytes(data[:33] + chunk + data[33:])
+            with self.assertRaisesRegex(ValueError, 'metadata'):
                 validation.validate_dmg_layout(mount)
 
     def test_layout_validator_survives_source_export(self):

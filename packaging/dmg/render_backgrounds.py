@@ -41,4 +41,4 @@ def draw(name, color):
 
 if __name__ == "__main__":
     for slug, (name, color) in APPS.items():
-        draw(name, color).save(BASE / ("welcome-" + slug + ".png"), dpi=(72, 72))
+        draw(name, color).save(BASE / ("welcome-" + slug + ".png"), compress_level=9)
