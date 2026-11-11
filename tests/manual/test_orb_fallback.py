@@ -70,6 +70,7 @@ class NotchHoverTest(unittest.TestCase):
             out = pathlib.Path(directory)
             (out / 'main.swift').write_text(r"""
 import Foundation
+import CoreGraphics
 for origin in [CGPoint.zero, CGPoint(x: -1700, y: -400), CGPoint(x: 1920, y: 900)] {
   let screen = CGRect(x: origin.x, y: origin.y, width: 1512, height: 982)
   let left = CGRect(x: screen.minX, y: screen.maxY - 38, width: 656, height: 38)

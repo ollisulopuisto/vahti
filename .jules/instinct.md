@@ -125,3 +125,8 @@ Version 0.7.25/build 117, with native production-geometry regression tests in th
 existing orb smoke step and source-wiring guards. Local source tests pass; native
 compile, production pixel checks and real notch interaction await macOS. No merge,
 main push, release build, artifacts or new service. Rollback: revert this PR.
+
+Native CI caught that Foundation alone exposes CGRect's storage but not the
+CoreGraphics convenience API on macOS. Import CoreGraphics explicitly in the
+production helper and standalone fixture. The daemon suite passed in native CI;
+rerun the geometry smoke and packaged compile on this correction.

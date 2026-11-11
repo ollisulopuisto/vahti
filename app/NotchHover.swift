@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 // Launch uses the physical housing, not the orb's painted width or its future position.
 // Retention is deliberately wider, but only after the orb has opened.
