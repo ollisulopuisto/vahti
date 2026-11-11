@@ -53,6 +53,10 @@ test('cookies and URL bearer tokens are refused; one-use bootstrap is exact-orig
   assert.equal(r.headers['cache-control'], 'no-store')
   assert.equal(r.headers['referrer-policy'], 'no-referrer')
   assert.equal(r.headers['x-frame-options'], 'DENY')
+  assert.match(r.headers['content-security-policy'], /default-src 'self'/)
+  assert.match(r.headers['content-security-policy'], /frame-ancestors 'none'/)
+  assert.match(r.headers['content-security-policy'], /object-src 'none'/)
+  assert.match(r.headers['content-security-policy'], /base-uri 'none'/)
   const browserAuth = { 'x-vahti-token': JSON.parse(r.body).token }
   assert.equal((await get('/api/status', browserAuth)).status, 200)
   assert.equal((await get('/api/status', { ...browserAuth, host: `localhost:${port}` })).status, 401)
