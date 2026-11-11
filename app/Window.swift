@@ -55,6 +55,9 @@ final class Viewer: NSObject, NSWindowDelegate {
 
   @objc func reload() { Task { await store.refresh() } }
 
+  // macOS convention: Cmd-, opens Settings (the Setup page).
+  @objc func showSettings() { show("/setup") }
+
   func windowWillClose(_ notification: Notification) { NSApp.setActivationPolicy(.accessory) }
 
   // Stop the current login-agent job without removing its plist: reopening Vahti starts it again.
@@ -107,7 +110,7 @@ final class Viewer: NSObject, NSWindowDelegate {
       m.target = target
       return m
     }
-    submenu("Vahti", [item("Hide Vahti", #selector(NSApplication.hide(_:)), "h"), item("Quit Vahti", #selector(quit), "q", target: self)])
+    submenu("Vahti", [item("Settings…", #selector(showSettings), ",", target: self), .separator(), item("Hide Vahti", #selector(NSApplication.hide(_:)), "h"), item("Quit Vahti", #selector(quit), "q", target: self)])
     submenu("Edit", [
       item("Undo", Selector(("undo:")), "z"), item("Redo", Selector(("redo:")), "Z"), .separator(),
       item("Cut", #selector(NSText.cut(_:)), "x"), item("Copy", #selector(NSText.copy(_:)), "c"),
