@@ -333,6 +333,12 @@ if [ "$2" = view ]; then exit 1; fi
   return f
 }
 
+test('packaged daemon test tree retains the DMG artwork dependency', { skip: !available }, () => {
+  const packager = readFileSync(join(scripts, 'package-app.sh'), 'utf8')
+  assert.match(packager, /cp -R app scripts packaging \.github "\$CHECK\/"/,
+    'comment-stripped daemon tests need the committed DMG artwork beside scripts')
+})
+
 test('every release input fails before upload even when public publication is off', { skip: !available }, async t => {
   for (const kind of ['source', 'notes', 'changelog', 'appcast', 'bundle JS', 'bundle JSON', 'bundle HTML', 'bundle plist', 'Info.plist', 'missing artifact', 'mismatched image']) {
     await t.test(kind, t => {
