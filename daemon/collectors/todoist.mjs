@@ -1,34 +1,36 @@
 import { config } from '../lib/config.mjs'
-import { connection, todoistGet } from '../lib/todoist.mjs'
+import { connection, fetchFeed, parseFeed } from '../lib/todoist.mjs'
 import { addItems, cursor, now, setCursor, redactValue } from '../lib/db.mjs'
 export const source = 'todoist'
 
 const stamp = (value) => {
-  const ts = Date.parse(value || '') / 1000
+  // iCal DTSTART: 20261110 (all-day) or 20261110T153000Z (timed). Tasks due at noon float to noon UTC.
+  const match = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2}))?/.exec(value || '')
+  if (!match) return null
+  const ts = Date.parse(`${match[1]}-${match[2]}-${match[3]}T${match[4] ?? '00'}:${match[5] ?? '00'}:00Z`) / 1000
   return Number.isFinite(ts) ? Math.floor(ts) : null
 }
+const unescapeText = (value) => typeof value === 'string' ? value.replace(/\\n/gi, '\n').replace(/\\([,;\\])/g, '$1') : null
 
-export function taskItem(task, projectName, at = now()) {
-  if (!task || (typeof task.id !== 'string' && typeof task.id !== 'number') || typeof task.content !== 'string' || !task.content.trim()) return null
-  // An active task's moment is its due date when it has one, else when it was added.
-  const ts = stamp(task.due?.datetime || task.due?.date) ?? stamp(task.added_at)
+export function eventItem(event, at = now()) {
+  const summary = unescapeText(event?.SUMMARY)
+  if (!event || typeof event.UID !== 'string' || !event.UID.trim() || !summary?.trim()) return null
+  // An active task's moment is its due date; the feed carries one all-day event per due date.
+  const ts = stamp(event.DTSTART) ?? stamp(event.CREATED)
   if (!ts || ts > at + 366 * 86400) return null
-  const text = [task.content.trim(), typeof task.description === 'string' && task.description.trim()].filter(Boolean).join('\n\n').slice(0, 16000)
-  const thread = `todoist:${(projectName || 'Inbox').slice(0, 200)}`
-  return { id: `todoist:${String(task.id).slice(0, 100)}`, source, thread, sender: config.me, fromMe: true, ts, text,
-    meta: { project: (projectName || 'Inbox').slice(0, 200), priority: Number(task.priority) || 1,
-      due: typeof task.due?.date === 'string' ? task.due.date.slice(0, 40) : null,
-      time: typeof task.due?.datetime === 'string' ? task.due.datetime.slice(11, 16) : null,
-      labels: Array.isArray(task.labels) ? task.labels.filter((l) => typeof l === 'string').slice(0, 10) : [],
-      url: typeof task.url === 'string' ? task.url.slice(0, 500) : null } }
+  const description = unescapeText(event.DESCRIPTION)
+  const text = [summary.trim(), description?.trim()].filter(Boolean).join('\n\n').slice(0, 16000)
+  const due = stamp(event.DTSTART) ? `${event.DTSTART.slice(0, 4)}-${event.DTSTART.slice(4, 6)}-${event.DTSTART.slice(6, 8)}` : null
+  return { id: `todoist:${event.UID.slice(0, 120)}`, source, thread: 'todoist:Feed', sender: config.me, fromMe: true, ts, text,
+    meta: { due, time: null } }
 }
 
 // addItems only inserts: an edited Todoist task would otherwise stay as it first arrived. This pass carries the
-// API's current state into already-kept rows with the same redaction, and refreshes the task tag straight from
-// the API: the due date is Todoist's own calendar date, not words a model found in the text, so a deadline
+// feed's current state into already-kept rows with the same redaction, and refreshes the task tag straight from
+// the feed: the due date is Todoist's own calendar date, not words a model found in the text, so a deadline
 // reaches the brief without model tagging or the two-day backfill ever being involved. Owner decisions survive:
 // a renamed card keeps its summary (only the due date moves), and task_state is never touched. A task that
-// vanished from the API is left alone: completed and deleted look the same, so closing it here would guess.
+// vanished from the feed is left alone: completed and deleted look the same, so closing it here would guess.
 export function syncItems(db, items) {
   const existing = db.prepare('select text, thread, ts, meta from items where id = ?')
   const update = db.prepare('update items set text = ?, thread = ?, ts = ?, meta = ? where id = ?')
@@ -61,19 +63,16 @@ export function syncItems(db, items) {
   return synced
 }
 
-export async function collect(db, { get = todoistGet, at = now(), force = false } = {}) {
+export async function collect(db, { get = fetchFeed, at = now(), force = false } = {}) {
   const selected = connection()
   if (!selected) return 0
   if (!force && at - Number(cursor(db, 'todoist:last', 0)) < 300) return 0
-  const projects = await get(selected, '/rest/v2/projects')
-  const names = new Map(projects.filter((p) => p && p.id != null).map((p) => [String(p.id), typeof p.name === 'string' ? p.name : '']))
+  const ics = await get(selected)
   // Revoking the source while a request is in flight prevents storage of its result.
   if (connection() === null) return 0
-  const tasks = await get(selected, '/rest/v2/tasks')
-  if (connection() === null) return 0
   const items = []
-  for (const task of tasks) {
-    const item = taskItem(task, names.get(String(task?.project_id ?? '')), at)
+  for (const event of parseFeed(ics)) {
+    const item = eventItem(event, at)
     if (item) items.push(item)
   }
   const added = addItems(db, items)

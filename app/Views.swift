@@ -1255,7 +1255,7 @@ struct SetupView: View {
   @State private var report: String?
   @State private var copied = false
   @State private var draft: Profile?
-  @State private var todoistToken = ""
+  @State private var todoistFeed = ""
   @State private var todoistError: String? = nil
 
   @State private var tab = SetupTab.permissions
@@ -1349,9 +1349,9 @@ struct SetupView: View {
           calendarsPanel
         }
     }
-    Panel(title: "Todoist", footer: "Your active tasks, read every few minutes with your own Todoist API token (Todoist Settings, Integrations, Developer). The token is checked against Todoist, then stored only on this Mac. Tasks you complete stay in the vault as history.") {
+    Panel(title: "Todoist", footer: "Your active tasks, read from your own Todoist calendar feed every few minutes (Todoist Settings, Integrations, Calendar feed). The feed URL is checked once, then stored only on this Mac. Completing a task in Todoist clears its card here.") {
       if store.settings?.todoist == true {
-        row("Connected", "Active tasks are read with your token.", symbol: "checklist") {
+        row("Connected", "Active tasks are read from your feed.", symbol: "checklist") {
           Button("Disconnect") { Task { await store.disconnectTodoist() } }.buttonStyle(TextButton())
         }
         if let error = store.settings?.todoistError {
@@ -1360,13 +1360,13 @@ struct SetupView: View {
       } else {
         HStack(spacing: 10) {
           Image(systemName: "checklist").foregroundStyle(Vahti.dim).frame(width: 28, height: 28)
-          SecureField("Todoist API token", text: $todoistToken).textFieldStyle(.plain).font(.vahtiBody)
+          TextField("Todoist iCal feed URL", text: $todoistFeed).textFieldStyle(.plain).font(.vahtiBody)
           Button("Connect") {
             Task {
-              if let error = await store.connectTodoist(todoistToken) { todoistError = error }
-              else { todoistError = nil; todoistToken = "" }
+              if let error = await store.connectTodoist(todoistFeed) { todoistError = error }
+              else { todoistError = nil; todoistFeed = "" }
             }
-          }.buttonStyle(PillButton()).disabled(todoistToken.trimmingCharacters(in: .whitespaces).isEmpty)
+          }.buttonStyle(PillButton()).disabled(todoistFeed.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(.vertical, 13)
         if let todoistError { Text(todoistError).font(.vahtiSmall).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true) }
