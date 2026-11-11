@@ -15,7 +15,7 @@ export const SOURCES = [
   { id: 'discord', label: 'Discord', detail: 'Read from its window through Accessibility, in front or not' },
   { id: 'notifications', label: 'Notifications', detail: 'Mail and other apps, from Notification Center' },
   { id: 'calendar', label: 'Calendar' },
-  { id: 'todoist', label: 'Todoist', detail: 'Your active Todoist tasks, read with your own API token. Completed tasks stay as history' },
+  { id: 'todoist', label: 'Todoist', detail: 'Your active Todoist tasks, read from your own iCal calendar feed. Completed tasks stay as history' },
   { id: 'reminders', label: 'Your reminders', detail: 'Your own reminders with a date, from Reminders. Vahti ticks one off there once it sees it done' },
   { id: 'calls', label: 'Calls' },
   { id: 'ai', label: 'Claude and Codex sessions' },

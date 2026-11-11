@@ -291,17 +291,17 @@ export function serve(db, { install, port = config.port } = {}) {
           return
         } catch (error) { return json(res, { ok: false, error: String(error.message || 'Could not connect.').slice(0, 300) }, 400) }
       }
-      // The owner's own Todoist API token, entered in the app's Setup. The token is validated, written
+      // The owner's own Todoist iCal feed URL, entered in the app's Setup. The URL is validated, written
       // to a private file and never echoed, logged or returned.
       if (url.pathname === '/api/todoist' && post) {
         if (requestBody.length > 2000) return json(res, { ok: false, error: 'Request too large.' }, 400)
         try {
           const input = JSON.parse(requestBody || '{}')
           if (input.disconnect === true) { disconnectTodoist(); return json(res, { ok: true, todoist: false }) }
-          await connectTodoist({ token: input.token })
+          await connectTodoist({ url: input.url })
           return json(res, { ok: true, todoist: true })
         } catch (error) {
-          const message = error?.message === 'TODOIST_VERIFY_FAILED' ? 'Todoist could not be reached. Check the connection and try again.' : 'Could not use this token. Paste the API token from Todoist Settings, Integrations, Developer.'
+          const message = error?.message === 'TODOIST_FEED_UNREACHABLE' ? 'The feed could not be reached. Check the connection and try again.' : 'That URL isn\u2019t a Todoist calendar feed. Copy the feed URL from Todoist Settings, Integrations, Calendar.'
           return json(res, { ok: false, error: message }, 400)
         }
       }

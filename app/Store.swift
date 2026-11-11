@@ -517,7 +517,8 @@ final class Store {
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "content-type")
     request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-    guard let (data, response) = try? await daemonClient.data(for: request), (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+    // The daemon answers its 400s with the reason in JSON, so keep the body whatever the status.
+    guard let (data, _) = try? await daemonClient.data(for: request) else { return nil }
     return data
   }
 
@@ -709,14 +710,14 @@ final class Store {
   }
 
   // Switched at once here, so the toggle doesn't wait on the daemon.
-  // The token goes to the daemon once and is stored owner-only on this Mac; the field clears either way.
-  // Returns nil on success, else the daemon's reason so a refused token and a network failure read differently.
-  func connectTodoist(_ token: String) async -> String? {
+  // The feed URL goes to the daemon once and is stored owner-only on this Mac; the field clears either way.
+  // Returns nil on success, else the daemon's reason so an unreachable feed and a refused URL read differently.
+  func connectTodoist(_ url: String) async -> String? {
     struct Reply: Decodable { let ok: Bool; let todoist: Bool?; let error: String? }
-    let reply: Reply? = await post("/api/todoist", ["token": token])
+    let reply: Reply? = await post("/api/todoist", ["url": url])
     settings?.todoist = reply?.todoist
     if reply?.ok == true { return nil }
-    return reply?.error ?? "That token didn't work. Paste the API token from Todoist Settings, Integrations, Developer."
+    return reply?.error ?? "That URL didn't work. Copy the feed URL from Todoist Settings, Integrations, Calendar."
   }
 
   func disconnectTodoist() async {
