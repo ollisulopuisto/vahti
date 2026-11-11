@@ -112,3 +112,21 @@ and the live read-only verifier pass. Existing manual draft is untouched.
 ## 2026-11-09 - Subtler orb: drop the island background
 
 Olli: "make the Vahti orb more subtle. get rid of the background, for starters." The Metal island shader no longer fills the sky/sea or draws the hairline outline; the orb, cheer ripple and tucked-edge light are premultiplied over transparent. The non-Metal fallback drops its gradient. Hit geometry and clip are unchanged. Version 0.7.17/build 109 with What's New. Not compiled on Linux; macOS CI must validate. No merge, no build.
+
+## 2026-11-11 - Restrict tucked notch launch to the camera housing
+
+Olli reported that the orb appeared before the cursor entered the notch. Separate
+launch from retention: the physical housing in screen coordinates launches a
+tucked orb, while the existing wider local strip/orb union retains an already
+revealed orb. Do not fall through to the painted pill for closed hover, since it
+extends below the actual housing. Missing auxiliary geometry fails closed instead
+of inventing a hotspot. No right-edge, click, animation or exit-timing changes.
+Version 0.7.25/build 117, with native production-geometry regression tests in the
+existing orb smoke step and source-wiring guards. Local source tests pass; native
+compile, production pixel checks and real notch interaction await macOS. No merge,
+main push, release build, artifacts or new service. Rollback: revert this PR.
+
+Native CI caught that Foundation alone exposes CGRect's storage but not the
+CoreGraphics convenience API on macOS. Import CoreGraphics explicitly in the
+production helper and standalone fixture. The daemon suite passed in native CI;
+rerun the geometry smoke and packaged compile on this correction.

@@ -362,6 +362,8 @@ final class IslandHost: NSView {
   // Only in "tucked away, shown on hover": the notch's footprint stays a target while the orb is open. In always-shown
   // mode there is no visible notch, so that strip is empty desktop and lets clicks through.
   var keepsNotchTarget = false
+  // Screen coordinates from the real auxiliary menu-bar areas, independent of rendering caps.
+  var notchLaunchArea = CGRect.zero
   let model = OrbModel()
   private var start: NSPoint?
   private var moved = false
@@ -420,7 +422,7 @@ final class IslandHost: NSView {
     let geometry = hitGeometry
     if model.notch {
       // Clicks belong to the painted shapes alone: the pill hanging from the window's top, centred, and the
-      // orb below the housing once it is out. The generous top-edge region is hover-only (hoverContains),
+      // orb below the housing once it is out. The expanded retention region is hover-only (hoverContains),
       // so a menu extra beside the notch keeps its clicks.
       let pill = CGRect(x: bounds.midX - geometry.width / 2, y: bounds.maxY - geometry.height, width: geometry.width, height: geometry.height)
       if pill.contains(point) { return true }
@@ -453,10 +455,9 @@ final class IslandHost: NSView {
     return false
   }
 
-  // Fitts's law: the screen's top edge is the target, not the painted sliver. Anywhere within the
-  // housing's span, plus a margin, from the top edge down to the pill wakes it. The region can reach
-  // past the window: the pointer is read globally, so a cursor slammed to the edge still lands here.
-  // Hover only - it never feeds hitTest or ignoresMouseEvents, so clicks there stay with the menu bar.
+  // A tucked orb wakes only inside the actual camera housing. Once open, retain the generous
+  // strip-to-orb path so moving down onto it does not make it tuck under the pointer.
+  // Hover only: click routing still follows containsIsland.
   private func hoverContains(_ point: NSPoint) -> Bool {
     if model.notch {
       let geometry = hitGeometry
@@ -470,7 +471,11 @@ final class IslandHost: NSView {
       let depth = OrbModel.notchOrbDepth(inset: model.notchInset)
       let zone = CGRect(x: bounds.midX - 36 - margin, y: bounds.maxY - depth - 36 - 24,
                         width: (36 + margin) * 2, height: depth + 36 + 24)
-      if strip.contains(point) || zone.contains(point) { return true }
+      guard let window else { return false }
+      let screenPoint = window.convertPoint(toScreen: convert(point, to: nil))
+      // Test launch in screen coordinates; the wider retention rects remain window-local.
+      if NotchHover.contains(screenPoint, launch: notchLaunchArea, expanded: false, strip: .zero, orbZone: .zero) { return true }
+      return NotchHover.contains(point, launch: .zero, expanded: !model.tucked, strip: strip, orbZone: zone)
     }
     return containsIsland(point)
   }
@@ -929,6 +934,8 @@ final class Companion: NSObject {
     // inside it is drawn from the top (IslandView aligns top, the shader turns the outline upright).
     if inNotch, let ns = notchScreen {
       let f = ns.frame
+      island.notchLaunchArea = NotchHover.launchArea(screen: f, inset: ns.safeAreaInsets.top,
+        left: ns.auxiliaryTopLeftArea, right: ns.auxiliaryTopRightArea)
       islandPanel.setFrame(NSRect(x: f.midX - size.width / 2, y: f.maxY - size.height, width: size.width, height: size.height), display: true)
       movedIsland()
       return
