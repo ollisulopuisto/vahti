@@ -242,3 +242,31 @@ test('a forgotten task is not resurrected by the edit sync', async t => {
   assert.equal(db.prepare('select * from items where id = ?').all(item.id).length, 0)
   assert.equal(db.prepare('select * from tags where item_id = ?').all(item.id).length, 0)
 })
+
+test('a timezone change does not reopen a completed task whose due date is unchanged', async t => {
+  const db = open(':memory:'); t.after(() => db.close())
+  await connect()
+  await collect(db, { get: async () => ICS, at, force: true })
+  db.prepare("insert into task_state (item_id, status, changed_at, reason, completion_origin) values (?, 'done', ?, 'ticked', 'owner')").run('todoist:user-t1', at)
+  // Same feed event, read after the Mac moved to another timezone: local noon is a different instant.
+  const moved = eventItem(event, at, 'America/Los_Angeles')
+  const before = db.prepare('select ts from items where id = ?').get('todoist:user-t1').ts
+  assert.notEqual(moved.ts, before)
+  syncItems(db, [moved])
+  assert.equal(db.prepare('select ts from items where id = ?').get('todoist:user-t1').ts, moved.ts) // stored instant follows the new zone
+  const state = db.prepare('select * from task_state where item_id = ?').get('todoist:user-t1')
+  assert.equal(state?.status, 'done')
+  assert.equal(state.completion_origin, 'owner')
+})
+
+test('a floating-time task keeps its done state across a timezone change, but a later date reopens it', async t => {
+  const db = open(':memory:'); t.after(() => db.close())
+  await connect()
+  const timed = (dt) => ({ UID: 'user-t2-20261110@todoist.com', SUMMARY: 'Call Sam', DTSTART: dt })
+  await collect(db, { get: async () => ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:user-t2-20261110@todoist.com', 'SUMMARY:Call Sam', 'DTSTART:20261110T093000', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n'), at, force: true })
+  db.prepare("insert into task_state (item_id, status, changed_at, reason, completion_origin) values (?, 'done', ?, 'ticked', 'owner')").run('todoist:user-t2', at)
+  syncItems(db, [eventItem(timed('20261110T093000'), at, 'America/Los_Angeles')])
+  assert.equal(db.prepare('select status from task_state where item_id = ?').get('todoist:user-t2')?.status, 'done')
+  syncItems(db, [eventItem(timed('20261117T093000'), at, 'America/Los_Angeles')])
+  assert.equal(db.prepare('select status from task_state where item_id = ?').get('todoist:user-t2'), undefined)
+})

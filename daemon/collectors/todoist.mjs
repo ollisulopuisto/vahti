@@ -80,6 +80,8 @@ const forgottenForms = (gone, event, id) => {
   return gone.has(forgetKey('item', id)) || gone.has(forgetKey('item', `todoist:${event.UID}`)) || (apiId && gone.has(forgetKey('item', `todoist:${apiId}`)))
 }
 
+const parseMeta = (raw) => { try { return raw ? JSON.parse(raw) : null } catch { return null } }
+
 export function syncItems(db, items) {
   const existing = db.prepare('select text, thread, ts, meta from items where id = ?')
   const update = db.prepare('update items set text = ?, thread = ?, ts = ?, meta = ? where id = ?')
@@ -105,7 +107,11 @@ export function syncItems(db, items) {
       // The feed has no recurrence flag: a completed card whose date advances is treated as the
       // next occurrence and opens again. Limit: manually rescheduling a completed task reads the
       // same, and also reopens - acceptable, since completing a task normally ends its dates.
-      if (row.ts !== item.ts) db.prepare("delete from task_state where item_id = ? and status = 'done'").run(item.id)
+      // A timezone change moves the stored instant of a date-only or floating event without moving its calendar
+      // date or clock time, so reopen only when the due date or time shown to the owner actually advanced.
+      const before = parseMeta(row.meta)
+      const advanced = row.ts !== item.ts && ((before?.due ?? null) !== due || (before?.time ?? null) !== time)
+      if (advanced) db.prepare("delete from task_state where item_id = ? and status = 'done'").run(item.id)
       if (renamed) retagDue.run(due, time, item.id)
       else tag.run(item.id, due, time, summary, now())
       synced++
