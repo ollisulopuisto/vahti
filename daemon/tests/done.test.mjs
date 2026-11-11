@@ -7,7 +7,7 @@ import { join } from 'node:path'
 process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-done-'))
 after(() => rmSync(process.env.VAHTI_DATA_DIR, { recursive: true, force: true }))
 const { open, addItems, now } = await import('../lib/db.mjs')
-const { completed, donePage, brief } = await import('../lib/tasks.mjs')
+const { completed, donePage, brief, tasks } = await import('../lib/tasks.mjs')
 const t0 = now()
 const day = 86400
 function fixture(t) {
@@ -69,4 +69,27 @@ test('a missing thread and a thread literally named "null" keep their own dedupe
   // Two distinct conversations; the same wording in each must not hide one task.
   assert.deepEqual(completed(db).map(c=>c.id).sort(),['no-thread','null-thread'])
   assert.deepEqual(brief(db).done.map(c=>c.id).sort(),['no-thread','null-thread'])
+})
+
+test('completed reuses precomputed allTasks when days <= 14', t => {
+  const db = fixture(t)
+  card(db, 'task-recent', { done: t0 - 60 })
+  card(db, 'task-older', { at: t0 - 20 * day, done: t0 - 2 * day })
+  const all = tasks(db)
+  const fromScratch = completed(db, { days: 3 })
+  const withTasks = completed(db, { days: 3, allTasks: all })
+  assert.deepEqual(withTasks, fromScratch)
+})
+
+test('a shorter precomputed window is not reused for a longer completion query', t => {
+  const db = fixture(t)
+  card(db, 'two-days', { at: t0 - 3 * day, done: t0 - 2 * day })
+  card(db, 'recent', { done: t0 - 60 })
+  const shortList = tasks(db, { days: 1 })
+  const fromScratch = completed(db, { days: 3 })
+  const withShort = completed(db, { days: 3, allTasks: shortList })
+  // The 1-day list cannot answer a 3-day query: the completion from two days
+  // ago must be recovered with a fresh query, not silently dropped.
+  assert.deepEqual(withShort.map(c=>c.id), fromScratch.map(c=>c.id))
+  assert.ok(withShort.some(c=>c.id==='two-days'))
 })

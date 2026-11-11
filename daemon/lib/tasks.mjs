@@ -98,7 +98,7 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
   // priorityStatement each rebuild them (clean + set + sort + join) for every row otherwise.
   const named = people(me)
   const plainNamed = people(me.map(plain))
-  return rows.filter(r => r.confirmed === 1 || r.status || !priorityStatement(r, me, plainNamed)).map((r) => {
+  const evaluated = rows.filter(r => r.confirmed === 1 || r.status || !priorityStatement(r, me, plainNamed)).map((r) => {
     // old tags get the same wording and card rule without rewriting the vault.
     const asked = replyQuestion(r, me, named)
     r.summary = actionTitle(r.summary, r, me, asked, named)
@@ -162,6 +162,10 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
     delete r.raw_text
     return { ...r, from_me: !!r.from_me, state, reason, maybe, open_app: openApp(r) }
   })
+  // The query window travels with the result so completed() can tell whether a
+  // precomputed list actually covers its own lookback before reusing it.
+  Object.defineProperty(evaluated, 'windowDays', { value: days })
+  return evaluated
 }
 
 // The calendar's events, and the plans agreed in chats (plans.mjs) on those days, unless the calendar has the same
@@ -219,10 +223,16 @@ function dedupe(list) {
 }
 
 // Completed cards share one ordering and duplicate rule in both the brief and the full list.
-export function completed(db, { days = 365, sources, auth = authorization(sources ?? null) } = {}) {
+// If allTasks is provided and its window covers `days` (tasks() defaults to 14 days), reuse it
+// instead of re-evaluating tasks(db) and all its regex and SQL reply checks from scratch.
+export function completed(db, { days = 365, sources, auth = authorization(sources ?? null), allTasks } = {}) {
   db = readScope(db, auth)
   const cutoff = now() - days * 86400
-  return dedupe(tasks(db, { days, sources })
+  // Reuse a precomputed list only when its own query window covers this
+  // lookback; a 1-day list cannot answer a 3-day query. Callers passing a
+  // hand-built array keep the previous 14-day brief assumption.
+  const list = (allTasks && (allTasks.windowDays ?? 14) >= days) ? allTasks : tasks(db, { days, sources })
+  return dedupe(list
     .filter(t => ['handled', 'done'].includes(t.state) && (t.done_at || t.ts) > cutoff)
     .sort((a, b) => (b.done_at || b.ts) - (a.done_at || a.ts)))
 }
@@ -263,7 +273,8 @@ export function brief(db, { sources, auth = authorization(sources ?? null) } = {
   db = readScope(db, auth)
   const t0 = today()
   const week = plusDays(t0, 7)
-  const all = dedupe(tasks(db, { sources }).filter((t) => ['open', 'overdue', 'looks_done', 'looks_unneeded'].includes(t.state)))
+  const raw = tasks(db, { sources })
+  const all = dedupe(raw.filter((t) => ['open', 'overdue', 'looks_done', 'looks_unneeded'].includes(t.state)))
   const ev = events(db, t0, week, { sources })
   // Tasks both models agree on make the brief; the ones the second opinion doubts wait under "Maybe yours".
   const live = all.filter((t) => !t.maybe)
@@ -287,7 +298,8 @@ export function brief(db, { sources, auth = authorization(sources ?? null) } = {
     waiting: waiting(db, { sources }).slice(0, 8),
     // Done lately, the last one done first: what Vahti saw done (a reply, a call, a commit), shown so a wrong guess can
     // be undone, and what you ticked off yourself, so the one you just marked is at the top.
-    done: completed(db, { days: OVERDUE_DAYS, sources }).slice(0, SECTION_MAX),
+    // Pass raw tasks to completed() so OVERDUE_DAYS (3 days) reuses the already-evaluated 14-day list.
+    done: completed(db, { days: OVERDUE_DAYS, sources, allTasks: raw }).slice(0, SECTION_MAX),
   }
   b.owed = owed(db, live)
   b.ahead = ahead(db, b)
