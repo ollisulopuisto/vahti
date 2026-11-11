@@ -139,12 +139,22 @@ CoreGraphics convenience API on macOS. Import CoreGraphics explicitly in the
 production helper and standalone fixture. The daemon suite passed in native CI;
 rerun the geometry smoke and packaged compile on this correction.
 
-## 2026-11-12 - Softer notch glow that wraps, glow cycle as the alert
+## 2026-11-11 - Require half-depth notch entry
 
-**Task:** Olli: "that vahti glow around the notch is cool but too much! also it doesn't go around the sides. maybe maybe it a preferences toggle? or use the glow cycle ONCE instead of playing a sound." Approved "build it" after a plan note; PR only, no merge.
+Olli asked to cross the notch without invoking the orb. Interpret halfway as
+vertical depth from the housing bottom toward the screen top, not a horizontal
+centre target: only y >= housing.midY launches while tucked. The physical rect
+still uses the auxiliary menu-bar gap and top safe-area inset in screen coords.
+First attached notched display, missing-geometry fail-closed behavior and the
+non-notch right-edge fallback are unchanged. Full housing plus existing generous
+strip/orb retention apply once open. No entry dwell added; 150ms exit hysteresis,
+400ms tuck timer and glance timing stay intact. Lower-half sideways crossings
+are quiet; an upper-half crossing can still wake it. No network code touched.
 
-**What changed:** `app/Glow.swift` (new, pure/tested) owns the halo maths: peak 0.14 scaled by a new brightness setting (default 0.6), the nudge breathing, and a single-cycle pulse (`pulseAge` in [0, 1.8s)) that never repeats. `IslandGoal` carries glowOn/glowLevel/glowPulse so the render thread never reads defaults; Companion syncs them from UserDefaults (init + didChangeNotification) and routes both alert sites (`arrived` ting, `closed` chime) through `alert(sound:)`: glow on -> one cycle, glow off -> the sound with its 8-22h gate. The island window widened 224 -> 252 so the halo (reach ~12pt) is not clipped beside the pill; the pill itself is capped at window.width - 8, so old width left at most 4pt of halo room. Setup > Appearance gains "Glow around the notch" and a brightness slider; the island menu gains the same switch.
+Test-first native fixture covers halfway boundaries, sampled crossings, screen
+top, offset displays and retention. Test-only head 325da18 failed native CI
+run 43090265769 at "lower half must not launch". Fix validation follows on the
+PR; no physical Mac interaction or visual acceptance here. Version 0.7.26/build
+118 and What's New. PR only, no merge or release. Rollback: revert this PR.
 
-**Verification limits:** no Metal on the dev box; the glow's look is mocked by porting island_sdf + the halo falloff to Python (mock PNG in the PR). Real on-screen brightness and the side wrap need Olli's Mac. Swift compiles only in CI.
 
-**Learning:** the "glow" the user sees is the `u.glow` halo in orb.metal, driven from Island.swift's render loop, NOT the `u.edge` light that runs down the notch's edge while attention/working - that one is untouched.
