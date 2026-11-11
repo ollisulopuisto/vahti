@@ -106,6 +106,8 @@ jobs:
           fi
 
       - name: Build and Package App
+        env:
+          DMG_WELCOME_CAPTURE_LOG: "1"
         run: |
           SHOULD_NOTARIZE="${{ (github.event_name == 'workflow_dispatch' && inputs.notarize) || startsWith(github.ref, 'refs/tags/v') }}"
           if [ "$SHOULD_NOTARIZE" = "true" ]; then

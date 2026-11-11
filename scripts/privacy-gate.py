@@ -428,6 +428,11 @@ def allowed(name):
     p = Path(name)
     if any(s.startswith('.') or s in {'node_modules', '__pycache__'} for s in p.parts): return False
     if len(p.parts) == 1: return name in DOCUMENTS
+    if p.parts[:2] == ('packaging', 'dmg'):
+        return len(p.parts) == 3 and p.name in {
+            'restyle.py', 'capture.py', 'render_backgrounds.py', 'test_layout.py',
+            'welcome-vahti.png', 'README.md',
+        }
     if p.parts[0] == 'app': return p.parts[:3] != ('app', 'icon', 'explorations')
     # Images the README shows, and nothing else.
     if p.parts[0] == 'docs': return len(p.parts) == 2 and p.suffix == '.png'

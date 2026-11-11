@@ -190,6 +190,30 @@ def bundle(gate, app, source):
             if folder: shutil.rmtree(folder, ignore_errors=True)
 
 
+def validate_dmg_layout(mount):
+    entries = {p.name for p in mount.iterdir()}
+    if entries != {'Vahti.app', 'Applications', '.background', '.DS_Store'}:
+        raise ValueError('unexpected disk image payload')
+    background = mount / '.background'
+    expected = Path(__file__).resolve().parents[1] / 'packaging/dmg/welcome-vahti.png'
+    if background.is_symlink() or not background.is_dir():
+        raise ValueError('unexpected DMG background directory')
+    if {p.name for p in background.iterdir()} != {'welcome.png'}:
+        raise ValueError('unexpected DMG background files')
+    picture = background / 'welcome.png'
+    metadata = mount / '.DS_Store'
+    if picture.is_symlink():
+        raise ValueError('linked DMG artwork')
+    picture_bytes = picture.read_bytes()
+    canonical = privacy.strip_png_metadata(picture_bytes)
+    if picture_bytes != canonical:
+        raise ValueError('unexpected DMG artwork metadata')
+    if canonical != privacy.strip_png_metadata(expected.read_bytes()):
+        raise ValueError('DMG artwork does not match committed source')
+    if metadata.is_symlink() or not metadata.is_file() or not metadata.stat().st_size:
+        raise ValueError('missing Finder layout metadata')
+
+
 def disk_image(gate, image, app):
     # A DMG is not an opaque allowlist exception: mount read-only and compare all payloads.
     with tempfile.TemporaryDirectory(prefix='vahti-dmg-check-') as temp:
@@ -200,9 +224,7 @@ def disk_image(gate, image, app):
             subprocess.run(['hdiutil', 'attach', '-readonly', '-nobrowse', '-noautoopen', '-mountpoint', str(mount), str(image)],
                            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             attached = True
-            entries = {p.name for p in mount.iterdir()}
-            if entries != {'Vahti.app', 'Applications'}:
-                raise ValueError('unexpected disk image payload')
+            validate_dmg_layout(mount)
             link = mount / 'Applications'
             if not link.is_symlink() or os.readlink(link) != '/Applications':
                 raise ValueError('unexpected application shortcut')

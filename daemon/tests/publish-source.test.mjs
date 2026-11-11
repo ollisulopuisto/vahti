@@ -285,6 +285,10 @@ function releaseFixture(t) {
   write(join(f.repo, 'dist/Vahti.app/Contents/Info.plist'), plist)
   write(join(f.repo, 'dist/Vahti.app/Contents/Resources/daemon/lib/sample.mjs'), 'export const sample = true')
   write(join(f.repo, 'dist/Vahti.app/Contents/Resources/changelog.json'), readFileSync(join(f.repo, 'app/changelog.json')))
+  // The mounted-image double must include the same exact layout payload as a
+  // real release. Copy source art so the offline validator compares real bytes.
+  write(join(f.repo, 'packaging/dmg/welcome-vahti.png'),
+    readFileSync(join(scripts, '../packaging/dmg/welcome-vahti.png')))
   for (const name of ['Vahti.dmg', 'Vahti-1.2.3.dmg']) write(join(f.repo, 'dist', name), 'fixture image')
   // The external macOS tools are replaced by deterministic local doubles. No upload or mount occurs.
   write(join(f.repo, 'scripts/sparkle.sh'), '#!/bin/sh\nprintf "%s\\n" "$FAKE_SPARKLE"\n')
@@ -310,6 +314,9 @@ if [[ "$1" == attach ]]; then
     if [[ "$FIXTURE_ROOT" == directory-mode ]]; then chmod 755 "$mountpoint/Vahti.app/Contents"; fi
   fi
   ln -s /Applications "$mountpoint/Applications"
+  mkdir "$mountpoint/.background"
+  cp "$FIXTURE_ART" "$mountpoint/.background/welcome.png"
+  printf 'synthetic Finder layout fixture' > "$mountpoint/.DS_Store"
 fi
 `, { mode: 0o755 })
   // Notarization and Gatekeeper checks pass for the fixture build; a real release runs Apple's tools.
@@ -320,10 +327,17 @@ if [ "$2" = view ]; then exit 1; fi
 `, { mode: 0o755 })
   f.env.FAKE_SPARKLE = sparkle
   f.env.FIXTURE_APP = join(f.repo, 'dist/Vahti.app')
-  f.git('init', '-q'); f.git('add', 'app', 'daemon', 'scripts', 'README.md', 'LICENSE', 'SECURITY.md')
+  f.env.FIXTURE_ART = join(f.repo, 'packaging/dmg/welcome-vahti.png')
+  f.git('init', '-q'); f.git('add', 'app', 'daemon', 'scripts', 'packaging', 'README.md', 'LICENSE', 'SECURITY.md')
   f.release = () => f.run('bash', [join(f.repo, 'scripts/release-app.sh'), '--skip-build'])
   return f
 }
+
+test('packaged daemon test tree retains the DMG artwork dependency', { skip: !available }, () => {
+  const packager = readFileSync(join(scripts, 'package-app.sh'), 'utf8')
+  assert.match(packager, /cp -R app scripts packaging \.github "\$CHECK\/"/,
+    'comment-stripped daemon tests need the committed DMG artwork beside scripts')
+})
 
 test('every release input fails before upload even when public publication is off', { skip: !available }, async t => {
   for (const kind of ['source', 'notes', 'changelog', 'appcast', 'bundle JS', 'bundle JSON', 'bundle HTML', 'bundle plist', 'Info.plist', 'missing artifact', 'mismatched image']) {

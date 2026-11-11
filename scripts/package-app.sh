@@ -117,7 +117,7 @@ bun scripts/strip-comments.mjs "$RES/daemon"
 # Some tests read the app and release scripts beside the daemon, as in the repository.
 if [[ "${VAHTI_SKIP_TESTS:-false}" != "true" ]]; then
   CHECK="$(mktemp -d)"
-  mkdir "$CHECK/daemon" && cp -R "$RES/daemon/." "$CHECK/daemon/" && cp -R daemon/tests "$CHECK/daemon/tests" && cp -R app scripts .github "$CHECK/"
+  mkdir "$CHECK/daemon" && cp -R "$RES/daemon/." "$CHECK/daemon/" && cp -R daemon/tests "$CHECK/daemon/tests" && cp -R app scripts packaging .github "$CHECK/"
   (cd "$CHECK/daemon" && "$NODE_DIR/bin/node" --disable-warning=ExperimentalWarning --test 'tests/*.test.mjs' >"$TESTLOG" 2>&1) || { failed "$TESTLOG"; die "daemon tests fail on the copy without comments"; }
   rm -f "$TESTLOG"
   rm -rf "$CHECK"
@@ -175,6 +175,7 @@ STAGE="$(mktemp -d)"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -quiet -volname "Vahti" -srcfolder "$STAGE" -fs HFS+ -format UDZO -imagekey zlib-level=9 "$OUT/Vahti.dmg"
+python3 packaging/dmg/restyle.py "$OUT/Vahti.dmg" "Vahti.app" packaging/dmg/welcome-vahti.png
 xattr -c "$OUT/Vahti.dmg"
 codesign --force --timestamp --sign "$IDENTITY" "$OUT/Vahti.dmg"
 cp "$OUT/Vahti.dmg" "$OUT/Vahti-$VERSION.dmg"
@@ -190,7 +191,8 @@ if $RELEASE; then
   cp -R "$APP" "$STAGE/"
   rm "$OUT/Vahti.dmg"
   hdiutil create -quiet -volname "Vahti" -srcfolder "$STAGE" -fs HFS+ -format UDZO -imagekey zlib-level=9 "$OUT/Vahti.dmg"
-  xattr -c "$OUT/Vahti.dmg"
+  python3 packaging/dmg/restyle.py "$OUT/Vahti.dmg" "Vahti.app" packaging/dmg/welcome-vahti.png
+xattr -c "$OUT/Vahti.dmg"
   codesign --force --timestamp --sign "$IDENTITY" "$OUT/Vahti.dmg"
   cp "$OUT/Vahti.dmg" "$OUT/Vahti-$VERSION.dmg"
   [ "${VAHTI_VALIDATE_RELEASE:-false}" != "true" ] || scripts/release-app.sh --validate-only
