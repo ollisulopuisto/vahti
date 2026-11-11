@@ -1,26 +1,9 @@
-name: Build & Package Vahti
-
-on:
-  push:
-    branches: [ main ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-    inputs:
-      notarize:
-        description: 'Notarize with Apple (requires secrets)'
-        required: false
-        type: boolean
-        default: true
-
+name: Vahti morning package diagnostic
 permissions:
   contents: read
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  VAHTI_LANGUAGES: 'en,hr'
-
+  VAHTI_LANGUAGES: en,hr
 jobs:
   build:
     name: Build macOS App & DMG
@@ -28,140 +11,99 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+    - name: Check out repository
+      uses: actions/checkout@v4
+      with:
+        ref: 5d8787bdb512e0edd1b30c74214a5981d9e0889a
+    - name: Set up Node.js 24
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - name: Set up Bun
+      run: npm install -g bun
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Configure test environment
+      run: 'defaults write -g AppleLanguages -array "en" "hr"
 
-      - name: Set up Node.js 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
+        '
+    - name: Install daemon dependencies
+      run: 'npm --prefix daemon ci
 
-      - name: Set up Bun
-        # npm, not oven-sh/setup-bun: the action downloads Bun from the oven-sh/bun
-        # GitHub release assets, which have been serving 504s; the npm registry is
-        # already needed for daemon dependencies, so this adds no new dependency.
-        run: npm install -g bun
+        '
+    - name: Run daemon tests
+      run: 'npm --prefix daemon test
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        '
+    - name: Native non-Metal orb rendering smoke
+      run: python3 tests/manual/test_orb_fallback.py -v
+    - name: Credential transport guards
+      run: python3 -m unittest discover -s scripts/tests -p test_release_credentials.py -v
+    - name: Native dummy-keychain transport smoke check
+      run: python3 tests/manual/test_macos_keychain_transport.py -v
+    - name: Set up Apple Code Signing & Notarization
+      id: certs
+      env:
+        BUILD_CERT_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 || secrets.APPLE_CERTIFICATE_BASE64 || secrets.APPLE_CERTIFICATE_P12
+          }}
+        P12_PWD: ${{ secrets.P12_PASSWORD || secrets.APPLE_CERTIFICATE_PASSWORD }}
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || 'LWSR8T5392' }}
+      run: "if [ -n \"$BUILD_CERT_BASE64\" ] && [ -n \"$P12_PWD\" ]; then\n  echo \"Configuring Apple Developer ID Certificate...\"\
+        \n  KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain\n  KEYCHAIN_PWD=$(openssl rand -base64 32)\n  CERT_PATH=$RUNNER_TEMP/developer_id.p12\n\
+        \n  echo \"$BUILD_CERT_BASE64\" | base64 --decode > \"$CERT_PATH\"\n\n  export KEYCHAIN_PATH CERTIFICATE_PATH=\"$CERT_PATH\"\
+        \n  export KEYCHAIN_PASSWORD=\"$KEYCHAIN_PWD\" P12_PASSWORD=\"$P12_PWD\"\n  python3 scripts/macos_ci_credentials.py\
+        \ import-certificate\n  rm -f \"$CERT_PATH\"\n  echo \"has_cert=true\" >> \"$GITHUB_OUTPUT\"\nelse\n  echo \"No signing\
+        \ certificate secret found; build will use ad-hoc / local signing.\"\n  echo \"has_cert=false\" >> \"$GITHUB_OUTPUT\"\
+        \nfi\n\nif [ -n \"$BUILD_CERT_BASE64\" ] && [ -n \"$P12_PWD\" ] && [ -n \"$APPLE_ID\" ] && [ -n \"$APPLE_APP_PASSWORD\"\
+        \ ]; then\n  echo \"Configuring Apple ID for Notarization...\"\n  export KEYCHAIN_PATH=\"$RUNNER_TEMP/build.keychain\"\
+        \n  python3 scripts/macos_ci_credentials.py store-notary-credentials\n  echo \"has_notary=true\" >> \"$GITHUB_OUTPUT\"\
+        \nelse\n  echo \"Signing certificate or notary credentials missing; notarization setup skipped.\"\n  echo \"has_notary=false\"\
+        \ >> \"$GITHUB_OUTPUT\"\nfi\n"
+    - name: Build and Package App
+      run: "set -euo pipefail\n# Instrument only the build script. App and daemon bytes remain exactly merged main.\npython3\
+        \ - <<'PY'\nfrom pathlib import Path\np=Path('scripts/package-app.sh')\ns=p.read_text().replace('TESTLOG=\"$(mktemp)\"\
+        ', 'TESTLOG=\"$RUNNER_TEMP/vahti-package-tests.log\"')\np.write_text(s)\nPY\n(\n  while true; do\n    if [ -f \"$RUNNER_TEMP/vahti-package-tests.log\"\
+        \ ]; then\n      echo 'Package test progress (names only):'\n      grep -E '^(# Subtest:|ok [0-9]|not ok [0-9]|\u2714\
+        \ |\u2716 )' \"$RUNNER_TEMP/vahti-package-tests.log\" | tail -8 || true\n    fi\n    sleep 60\n  done\n) &\nmonitor=$!\n\
+        trap 'kill \"$monitor\" 2>/dev/null || true' EXIT\npython3 - <<'PY'\nimport subprocess\nsubprocess.run(['bash','scripts/package-app.sh','--release'],check=True,timeout=1200)\n\
+        PY\n"
+    - name: Remove signing keychain
+      if: always()
+      run: security delete-keychain "$RUNNER_TEMP/build.keychain" || true
+    - name: Verify and name the notarized download
+      if: github.event_name == 'workflow_dispatch'
+      run: "bash scripts/verify-notarized.sh dist/Vahti.dmg\nversion=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString'\
+        \ app/Info.plist)\nif [ \"${{ github.event_name }}\" = \"workflow_dispatch\" ]; then\n  name=\"Vahti-$version-manual.${{\
+        \ github.run_number }}-macos-arm64.dmg\"\nelse\n  name=\"Vahti-$version-macos-arm64.dmg\"\nfi\nmkdir -p release\n\
+        cp dist/Vahti.dmg \"release/$name\"\n(cd release && shasum -a 256 \"$name\" > \"$name.sha256\" && shasum -a 256 -c\
+        \ \"$name.sha256\")\necho \"Verified download: $name\"\ncat \"release/$name.sha256\"\n"
+    - name: Deliver manual notarized DMG to draft release
+      if: github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: manual-vahti
+        target_commitish: ${{ github.sha }}
+        name: Vahti manual builds
+        body: 'Notarized Apple Silicon builds from manual runs. Download the newest numbered DMG and its SHA256 file.
 
-      - name: Configure test environment
-        run: |
-          defaults write -g AppleLanguages -array "en" "hr"
-
-      - name: Install daemon dependencies
-        run: |
-          npm --prefix daemon ci
-
-      - name: Run daemon tests
-        run: |
-          npm --prefix daemon test
-
-      - name: Native non-Metal orb rendering smoke
-        run: python3 tests/manual/test_orb_fallback.py -v
-
-      - name: Credential transport guards
-        run: python3 -m unittest discover -s scripts/tests -p test_release_credentials.py -v
-
-      - name: Native dummy-keychain transport smoke check
-        run: python3 tests/manual/test_macos_keychain_transport.py -v
-
-      - name: Set up Apple Code Signing & Notarization
-        id: certs
-        env:
-          BUILD_CERT_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 || secrets.APPLE_CERTIFICATE_BASE64 || secrets.APPLE_CERTIFICATE_P12 }}
-          P12_PWD: ${{ secrets.P12_PASSWORD || secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || 'LWSR8T5392' }}
-        run: |
-          if [ -n "$BUILD_CERT_BASE64" ] && [ -n "$P12_PWD" ]; then
-            echo "Configuring Apple Developer ID Certificate..."
-            KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
-            KEYCHAIN_PWD=$(openssl rand -base64 32)
-            CERT_PATH=$RUNNER_TEMP/developer_id.p12
-
-            echo "$BUILD_CERT_BASE64" | base64 --decode > "$CERT_PATH"
-
-            export KEYCHAIN_PATH CERTIFICATE_PATH="$CERT_PATH"
-            export KEYCHAIN_PASSWORD="$KEYCHAIN_PWD" P12_PASSWORD="$P12_PWD"
-            python3 scripts/macos_ci_credentials.py import-certificate
-            rm -f "$CERT_PATH"
-            echo "has_cert=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No signing certificate secret found; build will use ad-hoc / local signing."
-            echo "has_cert=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          if [ -n "$BUILD_CERT_BASE64" ] && [ -n "$P12_PWD" ] && [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_PASSWORD" ]; then
-            echo "Configuring Apple ID for Notarization..."
-            export KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
-            python3 scripts/macos_ci_credentials.py store-notary-credentials
-            echo "has_notary=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Signing certificate or notary credentials missing; notarization setup skipped."
-            echo "has_notary=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Build and Package App
-        run: |
-          SHOULD_NOTARIZE="${{ (github.event_name == 'workflow_dispatch' && inputs.notarize) || startsWith(github.ref, 'refs/tags/v') }}"
-          if [ "$SHOULD_NOTARIZE" = "true" ]; then
-            if [ "${{ steps.certs.outputs.has_cert }}" != "true" ] || [ "${{ steps.certs.outputs.has_notary }}" != "true" ]; then
-              echo "::error::Notarized builds require both Developer ID certificate and notary credentials."
-              exit 1
-            fi
-            echo "==> Building Release Package (Notarized)..."
-            scripts/package-app.sh --release
-          else
-            echo "==> Building Package (Self-contained, non-notarized test build)..."
-            scripts/package-app.sh
-          fi
-
-      - name: Remove signing keychain
-        if: always()
-        run: security delete-keychain "$RUNNER_TEMP/build.keychain" || true
-
-      # No workflow artifacts: public standard-runner builds are free, but
-      # artifact retention is separately metered. Deliver only to Releases.
-      - name: Verify and name the notarized download
-        if: (github.event_name == 'workflow_dispatch' && inputs.notarize) || startsWith(github.ref, 'refs/tags/v')
-        run: |
-          bash scripts/verify-notarized.sh dist/Vahti.dmg
-          version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' app/Info.plist)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            name="Vahti-$version-manual.${{ github.run_number }}-macos-arm64.dmg"
-          else
-            name="Vahti-$version-macos-arm64.dmg"
-          fi
-          mkdir -p release
-          cp dist/Vahti.dmg "release/$name"
-          (cd release && shasum -a 256 "$name" > "$name.sha256" && shasum -a 256 -c "$name.sha256")
-          echo "Verified download: $name"
-          cat "release/$name.sha256"
-
-      - name: Deliver manual notarized DMG to draft release
-        if: github.event_name == 'workflow_dispatch' && inputs.notarize
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: manual-vahti
-          target_commitish: ${{ github.sha }}
-          name: Vahti manual builds
-          body: |
-            Notarized Apple Silicon builds from manual runs. Download the newest numbered DMG and its SHA256 file.
-          draft: true
-          prerelease: true
-          make_latest: false
-          fail_on_unmatched_files: true
-          files: release/*
-
-      - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          fail_on_unmatched_files: true
-          files: release/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          '
+        draft: true
+        prerelease: true
+        make_latest: false
+        fail_on_unmatched_files: true
+        files: release/*
+    - name: Publish GitHub Release
+      if: 'false'
+      uses: softprops/action-gh-release@v2
+      with:
+        fail_on_unmatched_files: true
+        files: release/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 35
+'on':
+  workflow_dispatch: {}
