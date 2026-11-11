@@ -63,6 +63,41 @@ test('a feed that refuses, is unreachable, or is not a calendar is never saved',
   assert.equal(existsSync(feedPath), false)
 })
 
+test('daylight transitions do not drift wall times; UTC instants display in the owner timezone', () => {
+  // Spring forward in Los Angeles (2026-03-08 02:00 -> 03:00): 03:30 PDT is 10:30 UTC.
+  const spring = eventItem({ UID: 'u-t9-20260308@todoist.com', SUMMARY: 'x', DTSTART: '20260308T033000' }, at, 'America/Los_Angeles')
+  assert.equal(spring.ts, Date.parse('2026-03-08T10:30:00Z') / 1000)
+  assert.equal(spring.meta.time, '03:30')
+  // A UTC instant is shown in the owner timezone: 23:30 UTC is 01:30 the next day in Helsinki.
+  const late = eventItem({ UID: 'u-t9-20261110@todoist.com', SUMMARY: 'x', DTSTART: '20261110T233000Z' }, at, 'Europe/Helsinki')
+  assert.equal(late.meta.due, '2026-11-11')
+  assert.equal(late.meta.time, '01:30')
+  const allDay = eventItem({ UID: 'u-t9-20261110@todoist.com', SUMMARY: 'x', DTSTART: '20261110' }, at, 'Europe/Helsinki')
+  assert.equal(allDay.meta.due, '2026-11-10')
+  assert.equal(allDay.meta.time, null)
+})
+
+test('forget records under the old per-date and numeric API ids still suppress the task', async t => {
+  const db = open(':memory:'); t.after(() => db.close())
+  await connect()
+  const numericFeed = ['BEGIN:VCALENDAR', ...vevent('123-456-20261110@todoist.com', 'Old task', '20261110'), 'END:VCALENDAR'].join('\r\n')
+  forget(db, { id: 'todoist:123-456-20261110@todoist.com' }) // forgotten under the per-date id
+  forget(db, { id: 'todoist:456' }) // and the old numeric API id of another task
+  assert.equal(await collect(db, { get: async () => numericFeed, at, force: true }), 0)
+  assert.equal(db.prepare('select * from items').all().length, 0)
+})
+
+test('a completed recurring task opens again when its date advances', async t => {
+  const db = open(':memory:'); t.after(() => db.close())
+  await connect()
+  await collect(db, { get: async () => ICS, at, force: true })
+  db.prepare("insert into task_state (item_id, status, changed_at, reason, completion_origin) values (?, 'done', ?, 'ticked', 'owner')").run('todoist:user-t1', at)
+  const advanced = ['BEGIN:VCALENDAR', ...vevent('user-t1-20261117@todoist.com', 'Fix the fence', '20261117'), 'END:VCALENDAR'].join('\r\n')
+  assert.equal(await collect(db, { get: async () => advanced, at: at + 400, force: true }), 1)
+  assert.equal(db.prepare('select * from task_state where item_id = ?').all('todoist:user-t1').length, 0) // next occurrence is open
+  assert.equal(db.prepare('select * from tags where item_id = ?').get('todoist:user-t1').due, '2026-11-17')
+})
+
 test('parseFeed unfolds lines and reads VEVENT fields; garbage is refused', () => {
   const folded = ICS.replace('Buy screws first', 'Buy screws\r\n  first')
   const events = parseFeed(folded)
