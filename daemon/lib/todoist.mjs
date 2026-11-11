@@ -7,12 +7,18 @@ import { config, configPath, dataDir } from './config.mjs'
 import { save } from './settings.mjs'
 
 export const feedPath = resolve(dataDir, 'todoist-feed')
-// The feed is fetched over https only; the URL itself is the credential.
-const FEED_URL = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/\S*)?$/i
+const legacyTokenPath = resolve(dataDir, 'todoist-token')
+// The feed is fetched over https only, from Todoist's own host (or a subdomain) on the default
+// port: the URL itself is the credential, so it must never point at userinfo, another host or a
+// private address.
+const FEED_URL = /^https:\/\/(?:[a-z0-9-]+\.)*todoist\.com(?:\/\S*)?$/i
 
 export function connection() {
   const saved = existsSync(configPath) ? JSON.parse(readFileSync(configPath, 'utf8')) : config
   if (!saved.todoist?.enabled || saved.off?.includes('todoist')) return null
+  // A legacy API-token connection is not a feed: report not-connected (Setup shows the feed-entry
+  // flow) and remove the old credential rather than claim a working connection without one.
+  try { readerFeed() } catch { rmSync(legacyTokenPath, { force: true }); return null }
   return { feedFile: feedPath }
 }
 export const todoistConnected = () => connection() !== null
@@ -64,6 +70,7 @@ export async function connectTodoist({ url, fetcher = fetch }) {
 }
 export function disconnectTodoist() {
   rmSync(feedPath, { force: true })
+  rmSync(legacyTokenPath, { force: true }) // a leftover API token goes too: nothing secret stays behind
   save({ todoist: { enabled: false } })
 }
 

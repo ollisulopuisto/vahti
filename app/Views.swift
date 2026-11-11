@@ -1360,7 +1360,7 @@ struct SetupView: View {
       } else {
         HStack(spacing: 10) {
           Image(systemName: "checklist").foregroundStyle(Vahti.dim).frame(width: 28, height: 28)
-          TextField("Todoist iCal feed URL", text: $todoistFeed).textFieldStyle(.plain).font(.vahtiBody)
+          SecureField("Todoist iCal feed URL", text: $todoistFeed).textFieldStyle(.plain).font(.vahtiBody)
           Button("Connect") {
             Task {
               if let error = await store.connectTodoist(todoistFeed) { todoistError = error }

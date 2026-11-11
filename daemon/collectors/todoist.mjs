@@ -1,28 +1,50 @@
 import { config } from '../lib/config.mjs'
 import { connection, fetchFeed, parseFeed } from '../lib/todoist.mjs'
 import { addItems, cursor, now, setCursor, redactValue } from '../lib/db.mjs'
+import { remove } from '../lib/privacy.mjs'
 export const source = 'todoist'
 
-const stamp = (value) => {
-  // iCal DTSTART: 20261110 (all-day) or 20261110T153000Z (timed). Tasks due at noon float to noon UTC.
-  const match = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2}))?/.exec(value || '')
+// A wall-clock time in the owner's timezone, as a UTC instant: noon for date-only values so an
+// all-day task lands on its own day whatever the offset; the written time for timestamped ones.
+const wallToUtc = (y, mo, d, h, mi, tz) => {
+  const guess = Date.UTC(y, mo - 1, d, h, mi)
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(guess))
+    const got = Object.fromEntries(parts.filter((p) => p.type !== 'literal').map((p) => [p.type, Number(p.value)]))
+    const asUtc = Date.UTC(got.year, got.month - 1, got.day, got.hour % 24, got.minute, got.second)
+    return Math.floor((guess + (guess - asUtc)) / 1000)
+  } catch { return Math.floor(guess / 1000) }
+}
+
+const stamp = (value, tz = config.timezone) => {
+  // iCal DTSTART: 20261110 (all-day, noon local) or 20261110T153000Z / 20261110T153000 (timed).
+  const match = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})\d{0,2}(Z)?)?/.exec(value || '')
   if (!match) return null
-  const ts = Date.parse(`${match[1]}-${match[2]}-${match[3]}T${match[4] ?? '00'}:${match[5] ?? '00'}:00Z`) / 1000
-  return Number.isFinite(ts) ? Math.floor(ts) : null
+  const [y, mo, d] = [Number(match[1]), Number(match[2]), Number(match[3])]
+  if (!match[4]) return wallToUtc(y, mo, d, 12, 0, tz)
+  const [h, mi] = [Number(match[4]), Number(match[5])]
+  if (match[6]) return Math.floor(Date.UTC(y, mo - 1, d, h, mi) / 1000)
+  return wallToUtc(y, mo, d, h, mi, tz)
 }
 const unescapeText = (value) => typeof value === 'string' ? value.replace(/\\n/gi, '\n').replace(/\\([,;\\])/g, '$1') : null
 
-export function eventItem(event, at = now()) {
+// Feed UIDs carry the due date (<owner>-<task>-<YYYYMMDD>@todoist.com); the stable task identity
+// is everything before the date, so a rescheduled task updates its card instead of cloning it, and
+// forgetting a task sticks across reschedules.
+const stableId = (uid) => { const m = /^(.+)-\d{8}@todoist\.com$/.exec(uid); return m ? m[1] : uid }
+
+export function eventItem(event, at = now(), tz = config.timezone) {
   const summary = unescapeText(event?.SUMMARY)
   if (!event || typeof event.UID !== 'string' || !event.UID.trim() || !summary?.trim()) return null
   // An active task's moment is its due date; the feed carries one all-day event per due date.
-  const ts = stamp(event.DTSTART) ?? stamp(event.CREATED)
+  const ts = stamp(event.DTSTART, tz) ?? stamp(event.CREATED, tz)
   if (!ts || ts > at + 366 * 86400) return null
   const description = unescapeText(event.DESCRIPTION)
   const text = [summary.trim(), description?.trim()].filter(Boolean).join('\n\n').slice(0, 16000)
-  const due = stamp(event.DTSTART) ? `${event.DTSTART.slice(0, 4)}-${event.DTSTART.slice(4, 6)}-${event.DTSTART.slice(6, 8)}` : null
-  return { id: `todoist:${event.UID.slice(0, 120)}`, source, thread: 'todoist:Feed', sender: config.me, fromMe: true, ts, text,
-    meta: { due, time: null } }
+  const due = stamp(event.DTSTART, tz) ? `${event.DTSTART.slice(0, 4)}-${event.DTSTART.slice(4, 6)}-${event.DTSTART.slice(6, 8)}` : null
+  const time = /^\d{8}T(\d{2})(\d{2})/.exec(event.DTSTART || '')
+  return { id: `todoist:${stableId(event.UID).slice(0, 120)}`, source, thread: 'todoist:Feed', sender: config.me, fromMe: true, ts, text,
+    meta: { due, time: time ? `${time[1]}:${time[2]}` : null } }
 }
 
 // addItems only inserts: an edited Todoist task would otherwise stay as it first arrived. This pass carries the
@@ -74,6 +96,12 @@ export async function collect(db, { get = fetchFeed, at = now(), force = false }
   for (const event of parseFeed(ics)) {
     const item = eventItem(event, at)
     if (item) items.push(item)
+  }
+  // Completed tasks vanish from the feed: a future card that no longer appears is done and clears.
+  // Past ones stay as history, and forgotten ids never come back (addItems checks forget records).
+  const keep = new Set(items.map((i) => i.id))
+  for (const row of db.prepare("select id from items where source = 'todoist' and ts > ?").all(at - 3600)) {
+    if (!keep.has(row.id)) remove(db, 'id = ?', [row.id])
   }
   const added = addItems(db, items)
   if (connection() === null) return added

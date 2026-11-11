@@ -32,7 +32,7 @@ const verifying = (url, init) => {
 const connect = () => connectTodoist({ url: feedUrl, fetcher: verifying })
 
 test('feed URL is validated, verified with a bounded read, stored owner-only, never in config.json', async () => {
-  for (const bad of ['', 'not-a-url', 'http://todoist.com/feed', 'ftp://todoist.com/x']) await assert.rejects(() => connectTodoist({ url: bad, fetcher: verifying }), /TODOIST_FEED_INVALID/)
+  for (const bad of ['', 'not-a-url', 'http://todoist.com/feed', 'ftp://todoist.com/x', 'https://evil.test/feed', 'https://todoist.com.evil.test/x', 'https://todoist.com:8443/x', 'https://user@todoist.com/x', 'https://192.168.1.1/x']) await assert.rejects(() => connectTodoist({ url: bad, fetcher: verifying }), /TODOIST_FEED_INVALID/)
   await connect()
   assert.equal(readerFeed(), feedUrl)
   assert.equal(existsSync(feedPath), true)
@@ -42,6 +42,15 @@ test('feed URL is validated, verified with a bounded read, stored owner-only, ne
   disconnectTodoist()
   assert.equal(todoistConnected(), false)
   assert.equal(existsSync(feedPath), false)
+})
+
+test('a legacy API-token connection shows as not connected and the old credential is removed', async () => {
+  const { save: saveSettings } = await import('../lib/settings.mjs')
+  writeFileSync(join(dir, 'todoist-token'), `${'a'.repeat(40)}\n`, { mode: 0o600 })
+  saveSettings({ todoist: { enabled: true } })
+  assert.equal(todoistConnected(), false) // no feed URL: never claim connected
+  assert.equal(existsSync(join(dir, 'todoist-token')), false) // legacy credential removed
+  saveSettings({ todoist: null })
 })
 
 test('a feed that refuses, is unreachable, or is not a calendar is never saved', async () => {
@@ -66,19 +75,25 @@ test('parseFeed unfolds lines and reads VEVENT fields; garbage is refused', () =
   assert.throws(() => parseFeed(42), /TODOIST_FEED_INVALID/)
 })
 
-test('event normalization keeps due date and owner authorship; no times or projects from a feed', () => {
-  const item = eventItem(event, at)
-  assert.equal(item.id, 'todoist:user-t1-20261110@todoist.com')
+test('event normalization keys on the stable task id; all-day dates land on local noon', () => {
+  const item = eventItem(event, at, 'UTC')
+  assert.equal(item.id, 'todoist:user-t1') // per-date UID collapses to the stable task id
   assert.equal(item.source, 'todoist')
   assert.equal(item.thread, 'todoist:Feed')
-  assert.equal(item.ts, Date.parse('2026-11-10T00:00:00Z') / 1000)
+  assert.equal(item.ts, Date.parse('2026-11-10T12:00:00Z') / 1000) // date-only = local noon, not UTC midnight
   assert.equal(item.text, 'Fix the fence\n\nBuy screws first')
   assert.equal(item.meta.due, '2026-11-10')
   assert.equal(item.meta.time, null)
   assert.equal(ownerAuthored(item), true)
-  const escaped = eventItem({ UID: 'u2', SUMMARY: 'Pay rent\\, then rest', DTSTART: '20261110', DESCRIPTION: 'line one\\nline two' }, at)
+  const west = eventItem(event, at, 'America/Los_Angeles')
+  assert.equal(west.ts, Date.parse('2026-11-10T20:00:00Z') / 1000) // noon PST is 20:00 UTC, still the 10th locally
+  const timed = eventItem({ UID: 'u-t2-20261110@todoist.com', SUMMARY: 'Call Sam', DTSTART: '20261110T153000Z' }, at, 'UTC')
+  assert.equal(timed.ts, Date.parse('2026-11-10T15:30:00Z') / 1000)
+  assert.equal(timed.meta.time, '15:30')
+  const escaped = eventItem({ UID: 'u2', SUMMARY: 'Pay rent\\, then rest', DTSTART: '20261110', DESCRIPTION: 'line one\\nline two' }, at, 'UTC')
+  assert.equal(escaped.id, 'todoist:u2')
   assert.equal(escaped.text, 'Pay rent, then rest\n\nline one\nline two')
-  for (const patch of [{ UID: '' }, { SUMMARY: '  ' }, { SUMMARY: undefined }, { DTSTART: 'bad', CREATED: 'bad' }]) assert.equal(eventItem({ ...event, ...patch }, at), null)
+  for (const patch of [{ UID: '' }, { SUMMARY: '  ' }, { SUMMARY: undefined }, { DTSTART: 'bad', CREATED: 'bad' }]) assert.equal(eventItem({ ...event, ...patch }, at, 'UTC'), null)
 })
 
 test('fetchFeed reads the stored URL and refuses non-calendar answers', async () => {
@@ -111,17 +126,19 @@ test('opt-in collector reads the feed once, deduplicates, obeys off-switch and f
   setSource('todoist', true)
   // Already stored, so a re-enabled collect adds nothing new.
   assert.equal(await collect(db, { get, at, force: true }), 0)
-  forget(db, { id: 'todoist:user-t1-20261110@todoist.com' })
+  forget(db, { id: 'todoist:user-t1' })
   assert.equal(await collect(db, { get, at: at + 400, force: true }), 0)
-  assert.equal(db.prepare('select * from items where id = ?').all('todoist:user-t1-20261110@todoist.com').length, 0)
-  assert.equal(db.prepare('select * from tags where item_id = ?').all('todoist:user-t1-20261110@todoist.com').length, 0)
+  const rescheduled = ['BEGIN:VCALENDAR', ...vevent('user-t1-20261120@todoist.com', 'Fix the fence', '20261120'), 'END:VCALENDAR'].join('\r\n')
+  assert.equal(await collect(db, { get: async () => rescheduled, at: at + 800, force: true }), 0) // a new per-date UID does not resurrect it
+  assert.equal(db.prepare('select * from items where id = ?').all('todoist:user-t1').length, 0)
+  assert.equal(db.prepare('select * from tags where item_id = ?').all('todoist:user-t1').length, 0)
 })
 
 test('collected tasks carry their feed due date straight into the task tag for the brief', async t => {
   const db = open(':memory:'); t.after(() => db.close())
   await connect()
   await collect(db, { get: async () => ICS, at, force: true })
-  const tag = db.prepare('select * from tags where item_id = ?').get('todoist:user-t1-20261110@todoist.com')
+  const tag = db.prepare('select * from tags where item_id = ?').get('todoist:user-t1')
   assert.equal(tag.is_task, 1)
   assert.equal(tag.due, '2026-11-10')
   assert.equal(tag.when_words, null)
@@ -135,42 +152,47 @@ test('edits sync: a text edit keeps its UID and updates in place; owner decision
   await connect()
   const get = async () => ICS
   await collect(db, { get, at, force: true })
-  db.prepare('insert into vectors (item_id, v) values (?, ?)').run('todoist:user-t1-20261110@todoist.com', Buffer.from([1, 2, 3]))
-  db.prepare("insert into task_state (item_id, status, changed_at, reason, completion_origin) values (?, 'done', ?, 'ticked', 'owner')").run('todoist:user-t1-20261110@todoist.com', at)
+  db.prepare('insert into vectors (item_id, v) values (?, ?)').run('todoist:user-t1', Buffer.from([1, 2, 3]))
+  db.prepare("insert into task_state (item_id, status, changed_at, reason, completion_origin) values (?, 'done', ?, 'ticked', 'owner')").run('todoist:user-t1', at)
   // The feed UID carries the due date, so an edit with the date unchanged keeps the UID.
   const edited = ['BEGIN:VCALENDAR', ...vevent('user-t1-20261110@todoist.com', 'Fix the gate', '20261110'), 'END:VCALENDAR'].join('\r\n')
   assert.equal(await collect(db, { get: async () => edited, at: at + 400, force: true }), 1)
-  const row = db.prepare('select * from items where id = ?').get('todoist:user-t1-20261110@todoist.com')
+  const row = db.prepare('select * from items where id = ?').get('todoist:user-t1')
   assert.equal(row.text, 'Fix the gate')
-  assert.equal(row.ts, Date.parse('2026-11-10T00:00:00Z') / 1000)
-  const tag = db.prepare('select * from tags where item_id = ?').get('todoist:user-t1-20261110@todoist.com')
+  assert.equal(JSON.parse(row.meta).due, '2026-11-10') // moment math itself is covered with explicit timezones above
+  const tag = db.prepare('select * from tags where item_id = ?').get('todoist:user-t1')
   assert.equal(tag.due, '2026-11-10')
   assert.equal(tag.summary, 'Fix the gate')
-  assert.equal(db.prepare('select * from vectors where item_id = ?').all('todoist:user-t1-20261110@todoist.com').length, 0)
-  const state = db.prepare('select * from task_state where item_id = ?').get('todoist:user-t1-20261110@todoist.com')
+  assert.equal(db.prepare('select * from vectors where item_id = ?').all('todoist:user-t1').length, 0)
+  const state = db.prepare('select * from task_state where item_id = ?').get('todoist:user-t1')
   assert.equal(state.status, 'done')
   assert.equal(state.completion_origin, 'owner')
 })
 
-test('a due-date move arrives as a new UID; the old card is left alone, completed and deleted look the same', async t => {
+test('a due-date move updates the same card in place (stable task id), and a vanished future card clears', async t => {
   const db = open(':memory:'); t.after(() => db.close())
   await connect()
   await collect(db, { get: async () => ICS, at, force: true })
   const moved = ['BEGIN:VCALENDAR', ...vevent('user-t1-20261112@todoist.com', 'Fix the fence', '20261112'), 'END:VCALENDAR'].join('\r\n')
   assert.equal(await collect(db, { get: async () => moved, at: at + 400, force: true }), 1)
-  assert.equal(db.prepare('select * from items where id = ?').all('todoist:user-t1-20261112@todoist.com').length, 1)
-  // The old event vanished from the feed: its card stays as it was.
-  assert.equal(db.prepare('select * from items where id = ?').all('todoist:user-t1-20261110@todoist.com').length, 1)
+  const rows = db.prepare('select * from items where id = ?').all('todoist:user-t1')
+  assert.equal(rows.length, 1) // same stable card, not a clone
+  assert.equal(JSON.parse(rows[0].meta).due, '2026-11-12')
+  assert.equal(db.prepare('select * from tags where item_id = ?').get('todoist:user-t1').due, '2026-11-12')
+  // Completed or deleted in Todoist: the event vanishes from the feed and the future card clears.
+  const empty = ['BEGIN:VCALENDAR', 'END:VCALENDAR'].join('\r\n')
+  assert.equal(await collect(db, { get: async () => empty, at: at + 800, force: true }), 0)
+  assert.equal(db.prepare('select * from items where id = ?').all('todoist:user-t1').length, 0)
 })
 
 test('an owner rename survives a feed edit', async t => {
   const db = open(':memory:'); t.after(() => db.close())
   await connect()
   await collect(db, { get: async () => ICS, at, force: true })
-  db.prepare('update tags set summary = ? where item_id = ?').run('Garden work', 'todoist:user-t1-20261110@todoist.com')
+  db.prepare('update tags set summary = ? where item_id = ?').run('Garden work', 'todoist:user-t1')
   const edited = ['BEGIN:VCALENDAR', ...vevent('user-t1-20261110@todoist.com', 'Fix the gate', '20261110'), 'END:VCALENDAR'].join('\r\n')
   await collect(db, { get: async () => edited, at: at + 400, force: true })
-  const tag = db.prepare('select * from tags where item_id = ?').get('todoist:user-t1-20261110@todoist.com')
+  const tag = db.prepare('select * from tags where item_id = ?').get('todoist:user-t1')
   assert.equal(tag.summary, 'Garden work')
   assert.equal(tag.due, '2026-11-10')
 })
