@@ -60,7 +60,7 @@ REPO="${VAHTI_PUBLIC_REPO:-ollisulopuisto/vahti}"
 [[ "$REPO" != off ]] || { echo "Source publication disabled."; exit 0; }
 [[ "$REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "publish-source: expected owner/repo" >&2; exit 2; }
 # Never publish an uncommitted tracked change or reuse a version already released.
-git diff --quiet HEAD -- app daemon scripts README.md LICENSE SECURITY.md || { echo "publish-source: commit the source changes first" >&2; exit 1; }
+git diff --quiet HEAD -- app daemon scripts packaging/dmg README.md LICENSE SECURITY.md || { echo "publish-source: commit the source changes first" >&2; exit 1; }
 CACHE="$HOME/Library/Caches/vahti-public"
 if [[ ! -d "$CACHE/.git" ]]; then
   [[ ! -e "$CACHE" ]] || { echo "publish-source: cache exists without a checkout" >&2; exit 1; }

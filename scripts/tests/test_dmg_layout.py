@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 import tempfile
+from unittest import mock
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -48,6 +49,30 @@ class LayoutTests(unittest.TestCase):
             (mount / '.DS_Store').unlink()
             with self.assertRaises(ValueError):
                 validation.validate_dmg_layout(mount)
+
+    def test_layout_validator_survives_source_export(self):
+        # Exercise the actual export function, including PNG metadata stripping.
+        with tempfile.TemporaryDirectory() as td:
+            tree = Path(td) / 'export'
+            tree.mkdir()
+            names = ['scripts/release-validation.py', 'scripts/privacy-gate.py',
+                     'packaging/dmg/welcome-vahti.png', 'packaging/dmg/restyle.py',
+                     'packaging/dmg/capture.py', 'README.md', 'LICENSE', 'SECURITY.md']
+            gate = mock.Mock()
+            with mock.patch.object(validation.privacy.subprocess, 'check_output', return_value=('\0'.join(names) + '\0').encode()):
+                validation.privacy.export(ROOT, tree, gate)
+            gate.tree.assert_called_once_with(tree)
+            self.assertTrue((tree / 'packaging/dmg/restyle.py').is_file())
+            exported_spec = importlib.util.spec_from_file_location('exported_validator', tree / 'scripts/release-validation.py')
+            exported = importlib.util.module_from_spec(exported_spec)
+            exported_spec.loader.exec_module(exported)
+            mount = Path(td) / 'mount'
+            mount.mkdir()
+            self.fixture(mount)
+            exported.validate_dmg_layout(mount)
+            # The exact allowlist still excludes unknown packaging files.
+            self.assertFalse(validation.privacy.allowed('packaging/dmg/private-notes.txt'))
+            self.assertFalse(validation.privacy.allowed('packaging/dmg/.secret'))
 
 
 if __name__ == '__main__':

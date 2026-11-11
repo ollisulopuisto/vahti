@@ -202,7 +202,7 @@ def validate_dmg_layout(mount):
         raise ValueError('unexpected DMG background files')
     picture = background / 'welcome.png'
     metadata = mount / '.DS_Store'
-    if picture.is_symlink() or picture.read_bytes() != expected.read_bytes():
+    if picture.is_symlink() or privacy.strip_png_metadata(picture.read_bytes()) != privacy.strip_png_metadata(expected.read_bytes()):
         raise ValueError('DMG artwork does not match committed source')
     if metadata.is_symlink() or not metadata.is_file() or not metadata.stat().st_size:
         raise ValueError('missing Finder layout metadata')
