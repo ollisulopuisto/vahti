@@ -80,3 +80,16 @@ test('completed reuses precomputed allTasks when days <= 14', t => {
   const withTasks = completed(db, { days: 3, allTasks: all })
   assert.deepEqual(withTasks, fromScratch)
 })
+
+test('a shorter precomputed window is not reused for a longer completion query', t => {
+  const db = fixture(t)
+  card(db, 'two-days', { at: t0 - 3 * day, done: t0 - 2 * day })
+  card(db, 'recent', { done: t0 - 60 })
+  const shortList = tasks(db, { days: 1 })
+  const fromScratch = completed(db, { days: 3 })
+  const withShort = completed(db, { days: 3, allTasks: shortList })
+  // The 1-day list cannot answer a 3-day query: the completion from two days
+  // ago must be recovered with a fresh query, not silently dropped.
+  assert.deepEqual(withShort.map(c=>c.id), fromScratch.map(c=>c.id))
+  assert.ok(withShort.some(c=>c.id==='two-days'))
+})
