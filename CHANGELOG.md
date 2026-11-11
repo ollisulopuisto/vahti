@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.25] - 2026-11-11
+
+### Fixed
+- A tucked notch orb wakes only when the pointer enters the physical camera housing, measured from the screen's auxiliary menu-bar areas and safe-area inset. The old side margin and future orb position no longer launch it early. Once revealed, the wider hover area still keeps the housing-to-orb path open.
+
 ## [0.7.24] - 2026-11-10
 
 ### Fixed

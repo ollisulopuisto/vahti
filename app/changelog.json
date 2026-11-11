@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.7.25",
+    "date": "2026-11-11",
+    "title": "Wake inside the notch",
+    "summary": "The hidden orb now waits until the pointer enters the camera notch itself, instead of waking as you approach it.",
+    "notes": [
+      "The launch target follows the physical camera housing, with no side or bottom margin.",
+      "Once open, the wider hover area still lets you move down onto the orb without closing it."
+    ]
+  },
+  {
     "version": "0.7.24",
     "date": "2026-11-10",
     "title": "Notch polish, everywhere",

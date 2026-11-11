@@ -65,12 +65,12 @@ test('no pill backdrop: only the orb and its effects show, in the shader and the
   assert.doesNotMatch(orb, /if model\.notch \{ Color\(white: 0\.02\)\.opacity\(0\.85\) \}/)
 })
 
-test('the top edge is the target: a thrown cursor wakes the island (Fitts)', () => {
+test('the physical housing launches; the wide top-edge strip only retains an open orb', () => {
   // The hover region reaches past the window's painted sliver - the pointer is read globally,
-  // so a cursor slammed to the screen's top edge within the housing's span plus margin lands here.
+  // so a cursor slammed inside the housing launches; the old margin is retention-only.
   assert.match(orb, /let margin: CGFloat = 48/)
   assert.match(orb, /let strip = CGRect\(x: bounds\.midX - geometry\.width \/ 2 - margin, y: bounds\.maxY - geometry\.height - 8,/)
-  assert.match(orb, /if strip\.contains\(point\) \|\| zone\.contains\(point\) \{ return true \}/)
+  assert.match(orb, /expanded: !model\.tucked, strip: strip, orbZone: zone/)
 })
 
 test('hover covers the revealed orb too: a static zone, so the wake path has no gap', () => {
@@ -240,10 +240,24 @@ test('the shader turns the outline upright in the notch, flare off the top edge'
 
 test('input follows the pill: top-centred footprint, orb below the housing, and the pulse reuses tucked state', () => {
   assert.match(orb, /if model\.notch \{ return NSRect\(x: bounds\.midX - s\.width \/ 2, y: bounds\.maxY - s\.height/)
-  // The painted footprint is the top-edge region (housing span plus margin, to the screen's top).
+  // The wider strip remains for retention only, never a tucked launch target.
   assert.match(orb, /let strip = CGRect\(x: bounds\.midX - geometry\.width \/ 2 - margin, y: bounds\.maxY - geometry\.height - 8/)
   assert.match(orb, /let orb = CGPoint\(x: bounds\.midX, y: bounds\.maxY - OrbModel\.notchOrbDepth\(inset: model\.notchInset\)\)/)
   // Nudging and the edge light key off tucked, which the notch's sleeping pill is.
   assert.match(island, /g\.tucked && g\.nudging/)
   assert.match(island, /g\.tucked && \(g\.attention > 0 \|\| g\.working\)/)
+})
+
+const notchHover = readFileSync('../app/NotchHover.swift', 'utf8')
+test('tucked launch uses exact screen housing, never the capped painted width or future orb', () => {
+  assert.match(orb, /island\.notchLaunchArea = NotchHover\.launchArea\(screen: f, inset: ns\.safeAreaInsets\.top,/)
+  assert.match(orb, /left: ns\.auxiliaryTopLeftArea, right: ns\.auxiliaryTopRightArea/)
+  assert.match(orb, /let screenPoint = window\.convertPoint\(toScreen: convert\(point, to: nil\)\)/)
+  assert.match(orb, /launch: notchLaunchArea, expanded: false/)
+  assert.match(orb, /return NotchHover\.contains\(point, launch: \.zero, expanded: !model\.tucked/)
+  assert.match(notchHover, /width: right\.minX - left\.maxX, height: inset/)
+  assert.match(notchHover, /return expanded && \(strip\.contains\(point\) \|\| orbZone\.contains\(point\)\)/)
+  const hover = orb.slice(orb.indexOf('private func hoverContains'), orb.indexOf('override func hitTest'))
+  assert.match(hover, /return NotchHover/)
+  assert.doesNotMatch(hover, /if .*return true.*containsIsland/)
 })
