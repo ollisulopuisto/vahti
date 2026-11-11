@@ -175,6 +175,7 @@ STAGE="$(mktemp -d)"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -quiet -volname "Vahti" -srcfolder "$STAGE" -fs HFS+ -format UDZO -imagekey zlib-level=9 "$OUT/Vahti.dmg"
+python3 packaging/dmg/restyle.py "$OUT/Vahti.dmg" "Vahti.app" packaging/dmg/welcome-vahti.png
 xattr -c "$OUT/Vahti.dmg"
 codesign --force --timestamp --sign "$IDENTITY" "$OUT/Vahti.dmg"
 cp "$OUT/Vahti.dmg" "$OUT/Vahti-$VERSION.dmg"
@@ -190,7 +191,8 @@ if $RELEASE; then
   cp -R "$APP" "$STAGE/"
   rm "$OUT/Vahti.dmg"
   hdiutil create -quiet -volname "Vahti" -srcfolder "$STAGE" -fs HFS+ -format UDZO -imagekey zlib-level=9 "$OUT/Vahti.dmg"
-  xattr -c "$OUT/Vahti.dmg"
+  python3 packaging/dmg/restyle.py "$OUT/Vahti.dmg" "Vahti.app" packaging/dmg/welcome-vahti.png
+xattr -c "$OUT/Vahti.dmg"
   codesign --force --timestamp --sign "$IDENTITY" "$OUT/Vahti.dmg"
   cp "$OUT/Vahti.dmg" "$OUT/Vahti-$VERSION.dmg"
   [ "${VAHTI_VALIDATE_RELEASE:-false}" != "true" ] || scripts/release-app.sh --validate-only
