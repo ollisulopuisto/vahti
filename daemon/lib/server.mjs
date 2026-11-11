@@ -141,8 +141,9 @@ export function serve(db, { install, port = config.port } = {}) {
     from items i left join tags t on t.item_id = i.id where ${where} order by i.ts limit ${limit}`).all(...params)
   const server = createServer(async (req, res) => {
     // Vahti's pages are never shown inside another site's frame, where a click could be borrowed.
+    // Content-Security-Policy enforces strict defense-in-depth against XSS, clickjacking, and data exfiltration.
     res.setHeader('x-frame-options', 'DENY')
-    res.setHeader('content-security-policy', "frame-ancestors 'none'")
+    res.setHeader('content-security-policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'")
     res.setHeader('cache-control', 'no-store')
     res.setHeader('referrer-policy', 'no-referrer')
     res.setHeader('x-content-type-options', 'nosniff')
