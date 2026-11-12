@@ -12,6 +12,9 @@ and this project adheres to [Calendar Versioning](https://calver.org/).
 - The app's repeating timers (clipboard, capture, flush, lists, menu bar, island light and checks) now allow macOS to coalesce their wakeups, a quarter of each interval at most. Nothing is captured less often.
 - Setup > Capture rhythm: how often Vahti checks the capture policy and hands over what it has read can be 5, 15, 30 or 60 seconds (5, as before, unless you change it). The trade-off: pausing capture or changing what Vahti may read takes effect up to that long afterwards. Between checks Vahti sends a status-only request every 20 seconds so the clipboard and app monitoring don't show as inactive, a failed check is retried on the next 5-second tick, and the timing uses a monotonic clock.
 
+### Fixed
+- Vahti could refuse to start ("Vahti could not start .../runtime/node ... -1102") after the Python helpers ran: they wrote `__pycache__` files into the signed app, which broke its signature seal, and the Gmail vault's strict check then rejected the launch. The helpers now run with `-B` and write no bytecode inside the app. If an install is already broken, delete the stray `__pycache__` folder under `Contents/Resources/daemon/sidecar`.
+
 ## [0.7.28] - 2026-11-12
 
 ### Fixed
