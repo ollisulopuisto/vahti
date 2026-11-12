@@ -12,7 +12,7 @@ enum IslandGlow {
   // Full strength, before the brightness setting scales it. 1.0 is as bright as it ever was.
   static let peak: Float = 0.14
 
-  // The breathing while a nudge waits, and the single cycle an alert plays instead of a sound.
+  // The breathing while an unseen notification waits, and the single cycle an alert plays instead of a sound.
   // `level` is Setup's brightness (0.2...1.0); `pulseAge` is the time since the alert, negative
   // before it. The pulse runs exactly one cycle and never repeats.
   static func value(at t: Double, pulseAge: TimeInterval, breathing: Bool, notch: Bool, level: Float) -> Float {

@@ -1,3 +1,14 @@
+## 2026-11-12 - The notch glows only for news (0.7.27)
+
+**Task:** Olli: "vahti build with no glow unless a notification has come in?" - after #55 the halo breathed whenever anything waited behind the tucked notch, which in practice meant most of the day (reminder nudges fire up to every half hour, 9-21, whenever an overdue/today/open card exists).
+
+**What changed:** `OrbModel.alerting` (threaded through `IslandGoal`) now carries "the waiting thing came in and is unseen"; the render loop breathes on `g.tucked && g.alerting` instead of `g.tucked && g.nudging`. `showToast` gains `alert: Bool = false`, recorded as `toastIsAlert`; `arrived()` and `remindOwed()` pass `alert: true`, the scheduled `nudge()` arms `nudging` with `alerting = false`, and a toast retreating behind the notch arms `alerting = toastIsAlert`. Showing the toast clears both flags, and Vahti's own cards (what's new, own-model offer, brief, done, update) clear `alerting` when they discard the waiting slot so a stale breath never outlives its notification.
+
+**Judgment call:** "a notification has come in" = `arrived()` (a new card) and `remindOwed()` (someone you owe wrote again). The scheduled reminder nudges and the morning/evening brief are Vahti's own routine, not news, so they wait dark; the one-cycle glow greeting on arrival/done is untouched (it *is* the moment something comes in).
+
+**Learning:** the waiting slot behind the notch is single (`waiting: (card, overdue)?`), so any card that takes it over must also reset the breath, or the glow points at a notification that is no longer there.
+
+
 ## 2026-11-06 - Rename Kier to Vahti (fork identity)
 
 **Task:** Olli asked for the app to be renamed Vahti, keeping a clear mention that it is a fork of Kier, and confirmed nothing has ever run on his Mac, so every identifier could change with no data migration.

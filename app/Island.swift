@@ -18,6 +18,8 @@ struct IslandGoal: Equatable {
   var hover = false
   var pressed = false
   var nudging = false
+  // The waiting thing is an unseen notification; only that breathes. A reminder waits dark.
+  var alerting = false
   var glance = false
   // Vahti's panel is open beside the island: the orb turns toward it.
   var panel = false
@@ -310,7 +312,7 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
     }
     let pulseAge = date.timeIntervalSince(g.glowPulse)
     let pulsing = g.glowOn && pulseAge >= 0 && pulseAge < IslandGlow.cycle
-    let glow = g.glowOn ? IslandGlow.value(at: t, pulseAge: pulseAge, breathing: g.tucked && g.nudging, notch: g.notch, level: g.glowLevel) : 0
+    let glow = g.glowOn ? IslandGlow.value(at: t, pulseAge: pulseAge, breathing: g.tucked && g.alerting, notch: g.notch, level: g.glowLevel) : 0
     let selectedHover = hoverVariant != .none && !g.tucked
     var u: [Float] = [
       Float(window.width), Float(window.height), g.scale, Float(t),

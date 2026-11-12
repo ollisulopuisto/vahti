@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.7.27",
+    "date": "2026-11-12",
+    "title": "The glow means news",
+    "summary": "The notch stays dark while nothing is new: its halo now breathes only for an unseen notification, not for reminders.",
+    "notes": [
+      "The glow breathes solely while an unseen notification waits behind the notch, and stops once you have seen it.",
+      "Reminder nudges, the morning and evening brief, and Vahti's own cards no longer light the notch; it still widens a little when a reminder waits, and hovering reveals it.",
+      "The one-cycle glow greeting for something new or something done is unchanged."
+    ]
+  },
+  {
     "version": "0.7.26",
     "date": "2026-11-12",
     "title": "A softer glow that wraps the notch",

@@ -185,12 +185,30 @@ test('the waiting pulse reaches the shader: u.glow breathes a halo round the out
   // The renderer has always fed the glow slot; the shader now reads it, so the notch (and the
   // right-edge island) visibly breathe while a nudge waits - an effect, not a backdrop.
   assert.match(metal, /if \(u\.glow > 0\.0\) \{\s*float halo = exp\(-sq\(d \/ 4\.0\)\) \* u\.glow;/)
-  // The render loop hands the maths to Glow.swift: breathing only while a nudge waits, scaled by
-  // Setup's brightness, off when the glow is switched off.
-  assert.match(island, /let glow = g\.glowOn \? IslandGlow\.value\(at: t, pulseAge: pulseAge, breathing: g\.tucked && g\.nudging, notch: g\.notch, level: g\.glowLevel\) : 0/)
+  // The render loop hands the maths to Glow.swift: breathing only while an unseen notification
+  // waits, scaled by Setup's brightness, off when the glow is switched off.
+  assert.match(island, /let glow = g\.glowOn \? IslandGlow\.value\(at: t, pulseAge: pulseAge, breathing: g\.tucked && g\.alerting, notch: g\.notch, level: g\.glowLevel\) : 0/)
   // Full strength is the old 0.14, the default sits under it, and the alert pulse is one cycle, never a repeat.
   assert.match(glow, /static let peak: Float = 0\.14/)
   assert.match(glow, /pulseAge >= 0 && pulseAge < cycle/)
+})
+
+test('the halo breathes only for an unseen notification, never for a reminder nudge', () => {
+  // The model carries the distinction: nudging (something waits) still widens the notch, while
+  // alerting (the waiting thing is a notification that came in and has not been seen) breathes.
+  assert.match(orb, /@Published var alerting = false/)
+  assert.match(orb, /g\.alerting = alerting/)
+  assert.match(island, /var alerting = false/)
+  // A scheduled reminder nudge arms the wait without the breath.
+  const nudge = orb.slice(orb.indexOf('private func nudge(_ card: Card, overdue: Bool)'))
+  assert.match(nudge, /island\.model\.nudging = true; island\.model\.alerting = false/)
+  // News that came in (a fresh card, or someone you owe writing again) toasts as an alert.
+  assert.match(orb, /showToast\(card, overdue: false, linger: nil, alert: true\)/)
+  assert.match(orb, /showToast\(o\.card, overdue: false, linger: nil, line: line, alert: true\)/)
+  // A toast that retreats behind the notch breathes only if it was an alert.
+  assert.match(orb, /island\.model\.alerting = self\.toastIsAlert/)
+  // Showing the toast clears both; the breath never outlives its being seen.
+  assert.match(orb, /island\.model\.nudging = false; island\.model\.alerting = false/)
 })
 
 test('the glow wraps the notch: the window leaves the halo room beside the pill', () => {
@@ -265,8 +283,8 @@ test('input follows the pill: top-centred footprint, orb below the housing, and 
   // The wider strip remains for retention only, never a tucked launch target.
   assert.match(orb, /let strip = CGRect\(x: bounds\.midX - geometry\.width \/ 2 - margin, y: bounds\.maxY - geometry\.height - 8/)
   assert.match(orb, /let orb = CGPoint\(x: bounds\.midX, y: bounds\.maxY - OrbModel\.notchOrbDepth\(inset: model\.notchInset\)\)/)
-  // Nudging and the edge light key off tucked, which the notch's sleeping pill is.
-  assert.match(island, /g\.tucked && g\.nudging/)
+  // The waiting glow and the edge light key off tucked, which the notch's sleeping pill is.
+  assert.match(island, /g\.tucked && g\.alerting/)
   assert.match(island, /g\.tucked && \(g\.attention > 0 \|\| g\.working\)/)
 })
 

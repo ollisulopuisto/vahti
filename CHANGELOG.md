@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.27] - 2026-11-12
+
+### Changed
+- The notch glows only when something has actually come in: the halo breathes solely while an unseen notification (a fresh card, or someone you owe writing again) waits behind the notch, and goes dark once you have seen it. Reminder nudges for things already on your list, the morning and evening brief, and Vahti's own cards no longer light it up; the notch still widens a little when a reminder waits, and hovering still reveals it.
+
 ## [0.7.26] - 2026-11-12
 
 ### Changed
