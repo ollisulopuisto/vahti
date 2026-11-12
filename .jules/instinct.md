@@ -1,13 +1,10 @@
-## 2026-11-12 - The notch glows only for news (0.7.27)
+## 2026-11-12 - No glow when nothing waits (0.7.27)
 
-**Task:** Olli: "vahti build with no glow unless a notification has come in?" - after #55 the halo breathed whenever anything waited behind the tucked notch, which in practice meant most of the day (reminder nudges fire up to every half hour, 9-21, whenever an overdue/today/open card exists).
+**Task:** Olli: "vahti build with no glow unless a notification has come in?", then, after a first cut that made only unseen notifications breathe: "ah i didn't mean that, also reminder nudges should glow." The wanted semantics: the halo breathes while anything waits for him (arrivals, owed replies, reminder nudges) and is dark when nothing does.
 
-**What changed:** `OrbModel.alerting` (threaded through `IslandGoal`) now carries "the waiting thing came in and is unseen"; the render loop breathes on `g.tucked && g.alerting` instead of `g.tucked && g.nudging`. `showToast` gains `alert: Bool = false`, recorded as `toastIsAlert`; `arrived()` and `remindOwed()` pass `alert: true`, the scheduled `nudge()` arms `nudging` with `alerting = false`, and a toast retreating behind the notch arms `alerting = toastIsAlert`. Showing the toast clears both flags, and Vahti's own cards (what's new, own-model offer, brief, done, update) clear `alerting` when they discard the waiting slot so a stale breath never outlives its notification.
+**What changed:** the gate stays `tucked && nudging`; the bug was that the breath outlived its cause. `waiting` is the single slot behind the tucked notch, but Vahti's own cards (what's new, own-model offer, brief, done, update) did `waiting = nil` without clearing `nudging`, so the notch kept breathing with nothing behind it - exactly what he saw after updating to 0.7.26, when the what's-new card fires. Those paths now clear `nudging` too, and `check()` reconciles: when the waiting card is no longer in `b.panel` (done, snoozed, handled off-device), the wait and the glow end.
 
-**Judgment call:** "a notification has come in" = `arrived()` (a new card) and `remindOwed()` (someone you owe wrote again). The scheduled reminder nudges and the morning/evening brief are Vahti's own routine, not news, so they wait dark; the one-cycle glow greeting on arrival/done is untouched (it *is* the moment something comes in).
-
-**Learning:** the waiting slot behind the notch is single (`waiting: (card, overdue)?`), so any card that takes it over must also reset the breath, or the glow points at a notification that is no longer there.
-
+**Learning:** `Brief.panel = forgotten + today.tasks + open + soon(<= 2 days)`, and every card that can wait (due() picks from forgotten/today/open; arrived() comes from panel) is in it, so "waiting card not in panel" is a safe resolved-elsewhere signal. State pairs like (waiting, nudging) need one invariant - nudging implies waiting - enforced at every mutation, not most.
 
 ## 2026-11-06 - Rename Kier to Vahti (fork identity)
 

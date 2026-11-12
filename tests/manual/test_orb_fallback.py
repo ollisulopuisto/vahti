@@ -153,27 +153,25 @@ print("Glow passed: one cycle, no repeat, breathing bounded, default subdued")
 
 
 class NotchGlowSourceTest(unittest.TestCase):
-    # Source concordance for the arming rules (runs on any platform; the mjs suite pins the same).
-    def test_breath_only_for_unseen_notifications(self):
+    # Source concordance for the glow's arming rules (runs on any platform; the mjs suite pins the same).
+    def test_glow_tracks_an_actual_wait(self):
+        import re
         orb = (ROOT / 'app/Orb.swift').read_text()
         island = (ROOT / 'app/Island.swift').read_text()
-        # The render loop breathes only while an unseen notification waits, not for any nudge.
-        self.assertIn('breathing: g.tucked && g.alerting', island)
-        self.assertNotIn('breathing: g.tucked && g.nudging', island)
-        # The model carries the distinction from Orb to the island's render thread.
-        self.assertIn('@Published var alerting = false', orb)
-        self.assertIn('g.alerting = alerting', orb)
-        self.assertIn('var alerting = false', island)
-        # A scheduled reminder nudge arms the wait without the breath.
+        # The render loop breathes while a nudge waits - reminders included - and never otherwise.
+        self.assertIn('breathing: g.tucked && g.nudging', island)
+        self.assertNotIn('alerting', orb)
+        self.assertNotIn('alerting', island)
         nudge = orb[orb.index('private func nudge(_ card: Card, overdue: Bool)'):]
-        self.assertIn('island.model.nudging = true; island.model.alerting = false', nudge)
-        self.assertNotIn('island.model.alerting = true', nudge.split('private func')[1])
-        # News that came in toasts as an alert; a retreating toast breathes only if it was one.
-        self.assertIn('showToast(card, overdue: false, linger: nil, alert: true)', orb)
-        self.assertIn('showToast(o.card, overdue: false, linger: nil, line: line, alert: true)', orb)
-        self.assertIn('island.model.alerting = self.toastIsAlert', orb)
-        # Showing the toast clears both, so the breath never outlives its being seen.
-        self.assertIn('island.model.nudging = false; island.model.alerting = false', orb)
+        self.assertIn('island.model.nudging = true', nudge)
+        # Every card that discards the waiting slot also stops the breath.
+        clears = re.findall(
+            r'waiting = nil\n\s+if island\.model\.nudging \{ withAnimation\(islandSpring\) \{ island\.model\.nudging = false \}; reshaped\(\) \}',
+            orb)
+        self.assertGreaterEqual(len(clears), 5,
+                                'whats-new/own-model/brief/done/update must each stop the breath when taking the slot')
+        # A waiting card that leaves the list (handled in the panel or off-device) ends the glow.
+        self.assertIn('if let w = waiting, !cards.contains(where: { $0.id == w.card.id })', orb)
 
 
 if __name__ == '__main__':

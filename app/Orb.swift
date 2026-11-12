@@ -29,10 +29,10 @@ final class OrbModel: ObservableObject {
   @Published var notch = false { didSet { sync() } }
   var notchWidth: CGFloat = 200 { didSet { sync() } }
   var notchInset: CGFloat = 0 { didSet { sync() } }
-  // A nudge is waiting behind the tucked notch; the notch widens a little until you hover it.
+  // A nudge is waiting behind the tucked notch; the notch widens a little and breathes until you
+  // hover it - and only while something actually waits: anything that takes the waiting slot
+  // clears it, and the periodic check stops the breath once the card is gone from the list.
   @Published var nudging = false { didSet { sync() } }
-  // The waiting thing came in and has not been seen; only that breathes. A reminder waits dark.
-  @Published var alerting = false { didSet { sync() } }
   // Vahti's panel is open beside the island; the orb turns toward it.
   @Published var panel = false { didSet { sync() } }
   // When something new last came in; the rim runs wild for a few seconds after.
@@ -58,7 +58,6 @@ final class OrbModel: ObservableObject {
       g.hover = hover
       g.pressed = pressed
       g.nudging = nudging
-      g.alerting = alerting
       g.panel = panel
       g.glance = glance != nil
       g.attention = attention
@@ -737,9 +736,6 @@ final class Companion: NSObject {
   private var waiting: (card: Card, overdue: Bool)?
   private var toastCard: (card: Card, overdue: Bool)?
   private var toastSeen = false
-  // The toast out now is news that came in (a fresh card, or someone you owe writing again);
-  // a reminder or one of Vahti's own cards is not. Decides whether a retreating toast breathes.
-  private var toastIsAlert = false
   private var toastTimer: Timer?
   private var onToast = false
   // What the glance is about, and whether the card out beside the island is that rather than a nudge.
@@ -928,7 +924,7 @@ final class Companion: NSObject {
       MainActor.assumeIsolated {
         guard let self, self.tucks, !self.island.model.hover, !self.onToast, self.chatPanel?.isVisible != true else { return }
         // A toast you didn't answer goes back behind the notch, which breathes until you hover it.
-        if let c = self.toastCard, !self.toastSeen, self.bubble?.isVisible == true { self.waiting = c; withAnimation(islandSpring) { self.island.model.nudging = true; self.island.model.alerting = self.toastIsAlert } }
+        if let c = self.toastCard, !self.toastSeen, self.bubble?.isVisible == true { self.waiting = c; withAnimation(islandSpring) { self.island.model.nudging = true } }
         self.hideToast()
         self.setTucked(true)
       }
@@ -953,8 +949,8 @@ final class Companion: NSObject {
     }
     guard chatPanel?.isVisible != true else { return }
     remember(card)
-    if tucks { setTucked(false); showToast(card, overdue: false, linger: nil, alert: true); tuckSoon(after: 5) }
-    else { showToast(card, overdue: false, linger: 25, alert: true) }
+    if tucks { setTucked(false); showToast(card, overdue: false, linger: nil); tuckSoon(after: 5) }
+    else { showToast(card, overdue: false, linger: 25) }
   }
 
   // MARK: Where the island sits
@@ -1232,6 +1228,12 @@ final class Companion: NSObject {
       PhoneSync.shared.tick()
       guard let b = store.brief else { return }
       let cards = b.panel
+      // The thing the notch breathes for left the list some other way (done, snoozed, handled in
+      // the panel or off-device): the wait is over, so the glow goes with it.
+      if let w = waiting, !cards.contains(where: { $0.id == w.card.id }) {
+        waiting = nil
+        if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
+      }
       // Work a session left behind hasn't just arrived: it waits for a quiet nudge instead of a ting.
       if let seen, mode != .hidden, let fresh = cards.filter({ !seen.contains($0.id) && $0.card != "stalled" }).max(by: { $0.ts < $1.ts }) { arrived(fresh) }
       // A card that left the list because Vahti saw it done (not one you ticked yourself) gets its own moment.
@@ -1277,7 +1279,7 @@ final class Companion: NSObject {
     guard mode != .hidden, bubble?.isVisible != true, chatPanel?.isVisible != true, updater?.pending == nil else { return }
     defaults.set(version, forKey: "vahtiNotesSeen")
     waiting = nil
-    island.model.alerting = false
+    if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
     toastCard = nil
     toastSeen = true
     glanceOut = false
@@ -1304,7 +1306,7 @@ final class Companion: NSObject {
             bubble?.isVisible != true, chatPanel?.isVisible != true else { return }
       defaults.set(true, forKey: "vahtiModelOffered")
       waiting = nil
-      island.model.alerting = false
+      if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
       toastCard = nil
       toastSeen = true
       glanceOut = false
@@ -1330,11 +1332,10 @@ final class Companion: NSObject {
 
   private func nudge(_ card: Card, overdue: Bool) {
     remember(card)
-    // Tucked away, it doesn't throw a toast at you: the notch widens, and the toast comes out when
-    // you hover it. A reminder is not news, so it waits dark; only an unseen notification breathes.
+    // Tucked away, it doesn't throw a toast at you: the notch breathes, and the toast comes out when you hover it.
     if tucks && island.model.tucked {
       waiting = (card, overdue)
-      withAnimation(islandSpring) { island.model.nudging = true; island.model.alerting = false }
+      withAnimation(islandSpring) { island.model.nudging = true }
       reshaped()
       return
     }
@@ -1397,7 +1398,7 @@ final class Companion: NSObject {
     defaults.set(m.at, forKey: "vahtiBriefSeen")
     island.model.burst = Date()
     waiting = nil
-    island.model.alerting = false
+    if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
     toastCard = nil
     toastSeen = island.model.hover
     glanceOut = false
@@ -1414,17 +1415,16 @@ final class Companion: NSObject {
     defaults.set(Array(((defaults.stringArray(forKey: "vahtiOwedSeen") ?? []) + ["\(o.card.id)@\(o.at)"]).suffix(200)), forKey: "vahtiOwedSeen")
     island.model.burst = Date()
     let line = "\(o.who) just wrote. You still owe this"
-    if tucks { setTucked(false); showToast(o.card, overdue: false, linger: nil, line: line, alert: true); tuckSoon(after: 8) }
-    else { showToast(o.card, overdue: false, linger: 25, line: line, alert: true) }
+    if tucks { setTucked(false); showToast(o.card, overdue: false, linger: nil, line: line); tuckSoon(after: 8) }
+    else { showToast(o.card, overdue: false, linger: 25, line: line) }
   }
 
-  private func showToast(_ card: Card, overdue: Bool, linger: TimeInterval?, line custom: String? = nil, alert: Bool = false) {
+  private func showToast(_ card: Card, overdue: Bool, linger: TimeInterval?, line custom: String? = nil) {
     waiting = nil
     glanceOut = false
     toastCard = (card, overdue)
     toastSeen = island.model.hover
-    toastIsAlert = alert
-    if island.model.nudging || island.model.alerting { withAnimation(islandSpring) { island.model.nudging = false; island.model.alerting = false }; reshaped() }
+    if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
     let model = ToastModel()
     toast = model
     let line: String = custom ?? (overdue ? "Overdue, from \(card.who)" : card.who)
@@ -1448,7 +1448,7 @@ final class Companion: NSObject {
     }
     island.model.celebrated = Date()
     waiting = nil
-    island.model.alerting = false
+    if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
     glanceOut = false
     toastCard = nil
     toastSeen = true
@@ -1466,7 +1466,7 @@ final class Companion: NSObject {
   func showUpdate() {
     guard let u = updater, chatPanel?.isVisible != true || u.offer.phase != .available else { return }
     waiting = nil
-    island.model.alerting = false
+    if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
     toastCard = nil
     toastSeen = true
     glanceOut = false
