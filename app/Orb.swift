@@ -395,7 +395,7 @@ final class IslandHost: NSView {
       model.renderer = canvas.renderer
       // The hour's light, looked at every couple of seconds; the island only wakes for it when it has changed.
       canvas.renderer.set { $0.light = Daylight.goal }
-      Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak canvas] _ in
+      Timer.coalesced(every: 2) { [weak canvas] _ in
         MainActor.assumeIsolated {
           canvas?.renderer.checkHealth()
           canvas?.renderer.set { $0.light = Daylight.goal }
@@ -503,19 +503,49 @@ final class IslandHost: NSView {
     guard window != nil else { return }
     // Movement restores input even while the panel is click-through. The timer also
     // follows animated shape changes beneath a stationary pointer, in menu tracking too.
+    // Every mouse event syncs at once; the timer only covers a pointer that holds still.
     if let m = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged]) { [weak self] _ in
-      self?.syncPointer()
+      self?.pointerMoved()
     } { pointerMonitors.append(m) }
     if let m = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged]) { [weak self] event in
-      self?.syncPointer()
+      self?.pointerMoved()
       return event
     } { pointerMonitors.append(m) }
-    let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
-      MainActor.assumeIsolated { self?.syncPointer() }
+    pointerFastUntil = CACurrentMediaTime() + Self.pointerLinger
+    startPointerTimer(fast: true)
+    syncPointer()
+  }
+
+  // The pointer timer runs at 60 Hz while the pointer is moving, over the island, or just was, so animated shape
+  // changes under a stationary pointer are followed frame by frame. Otherwise it drops to 10 Hz: a quiet
+  // desktop no longer wakes the app sixty times a second. Mouse movement itself is never delayed (monitors).
+  private static let pointerLinger: CFTimeInterval = 1.5
+  private var pointerFastUntil: CFTimeInterval = 0
+  private var pointerTimerFast = true
+
+  private func startPointerTimer(fast: Bool) {
+    pointerTimer?.invalidate()
+    pointerTimerFast = fast
+    let timer = Timer(timeInterval: fast ? 1.0 / 60 : 0.1, repeats: true) { [weak self] _ in
+      MainActor.assumeIsolated { self?.pointerTick() }
     }
+    if !fast { timer.tolerance = 0.03 }
     pointerTimer = timer
     RunLoop.main.add(timer, forMode: .common)
+  }
+
+  private func pointerMoved() {
+    pointerFastUntil = CACurrentMediaTime() + Self.pointerLinger
+    if !pointerTimerFast { startPointerTimer(fast: true) }
     syncPointer()
+  }
+
+  private func pointerTick() {
+    syncPointer()
+    let now = CACurrentMediaTime()
+    if model.hover || model.pressed || model.glance != nil || start != nil { pointerFastUntil = now + Self.pointerLinger }
+    let fast = now < pointerFastUntil
+    if fast != pointerTimerFast { startPointerTimer(fast: fast) }
   }
 
   deinit {
@@ -828,7 +858,7 @@ final class Companion: NSObject {
         if recording { self?.hotKey = nil; self?.findKey = nil } else { self?.shortcuts() }
       }
     }
-    Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.check() } }
+    Timer.coalesced(every: 20) { [weak self] _ in MainActor.assumeIsolated { self?.check() } }
     Timer.scheduledTimer(withTimeInterval: 8, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.check() } }
     observeWorking()
   }

@@ -125,10 +125,10 @@ final class Eyes {
     }
     if let app = NSWorkspace.shared.frontmostApplication { switched(to: app) }
     loadLists()
-    Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.loadLists() }
-    Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.clipboard() }
-    Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in self?.screen() }
-    Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.flush() }
+    Timer.coalesced(every: 60) { [weak self] _ in self?.loadLists() }
+    Timer.coalesced(every: 1) { [weak self] _ in self?.clipboard() }
+    Timer.coalesced(every: 4) { [weak self] _ in self?.screen() }
+    Timer.coalesced(every: 5) { [weak self] _ in self?.flush() }
   }
 
   private func emit(_ source: String, thread: String, text: String, at: Date = Date(), meta: [String: Any] = [:]) {
@@ -376,8 +376,27 @@ final class Eyes {
 
   // MARK: Hand over to the daemon
 
+  // Monotonic seconds (system uptime), so a clock change can neither stall nor stampede the checks.
+  private func uptime() -> TimeInterval { ProcessInfo.processInfo.systemUptime }
+  // Uptime of the last check that succeeded; nil means the next 5 s tick checks again, which is also how a failed
+  // fetch or hand-over is retried without waiting a whole period.
+  private var lastFlush: TimeInterval?
+  // Uptime of the last request of any kind to the daemon.
+  private var lastContact: TimeInterval = 0
+  // The daemon calls clipboard and app monitoring inactive after 30 s without a request (setup.mjs, `watching`).
+  private static let heartbeat: TimeInterval = 20
+
   private func flush() {
     guard !flushing else { return }
+    let t = uptime()
+    // The timer ticks every 5 s; the owner's chosen period (Setup > Capture rhythm) decides which ticks do the
+    // work. Half a second of slack so a tick that fires a hair early still counts. The first tick always runs.
+    if let last = lastFlush, t >= last, t - last < Double(FlushPeriod.seconds) - 0.5 {
+      // Between checks, a status-only request keeps the daemon from marking the eyes inactive.
+      if t - lastContact >= Self.heartbeat { sendHeartbeat() }
+      return
+    }
+    lastContact = t
     flushing = true
     let policyURL = ingest.deletingLastPathComponent().appendingPathComponent("capture-policy")
     var request = URLRequest(url: policyURL)
@@ -387,11 +406,14 @@ final class Eyes {
       DispatchQueue.main.async {
         guard let self else { return }
         guard (response as? HTTPURLResponse)?.statusCode == 200, let json, let policy = CapturePolicy(json: json) else {
+          // lastFlush stays nil: the next tick tries again.
+          self.lastFlush = nil
           self.capturePolicy = nil
           self.pending.removeAll()
           self.flushing = false
           return
         }
+        self.lastFlush = self.uptime()
         self.capturePolicy = policy
         self.pending.removeAll { item in
           let meta = item["meta"] as? [String: Any] ?? [:]
@@ -402,8 +424,31 @@ final class Eyes {
     }
   }
 
+  private func status() -> [String: Any] {
+    ["accessibility": AXIsProcessTrusted(), "front": front?.bundle ?? "", "phone": PhoneSync.allowed, "events": PhoneSync.eventsAllowed, "reminders": PhoneSync.remindersAllowed]
+  }
+
+  // Status only, no items: nothing is sent early and the capture policy isn't re-read. A failure sends the next
+  // tick to a full check, which restores the policy.
+  private func sendHeartbeat() {
+    flushing = true
+    lastContact = uptime()
+    var request = URLRequest(url: ingest)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "content-type")
+    request.httpBody = try? JSONSerialization.data(withJSONObject: ["status": status(), "items": [[String: Any]]()])
+    request.timeoutInterval = 10
+    daemonClient.send(request) { [weak self] _, response, _ in
+      DispatchQueue.main.async {
+        guard let self else { return }
+        self.flushing = false
+        if (response as? HTTPURLResponse)?.statusCode != 200 { self.lastFlush = nil }
+      }
+    }
+  }
+
   private func sendPermitted() {
-    var body: [String: Any] = ["status": ["accessibility": AXIsProcessTrusted(), "front": front?.bundle ?? "", "phone": PhoneSync.allowed, "events": PhoneSync.eventsAllowed, "reminders": PhoneSync.remindersAllowed]]
+    var body: [String: Any] = ["status": status()]
     let batch = pending
     body["items"] = batch
     var request = URLRequest(url: ingest)
@@ -414,7 +459,8 @@ final class Eyes {
     daemonClient.send(request) { [weak self] _, response, _ in
       DispatchQueue.main.async { self?.flushing = false }
       guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-        DispatchQueue.main.async { self?.capturePolicy = nil; self?.pending.removeAll() }
+        // lastFlush = nil: the next tick fetches the policy and retries, rather than waiting out the period.
+        DispatchQueue.main.async { self?.lastFlush = nil; self?.capturePolicy = nil; self?.pending.removeAll() }
         return
       }
       // Only what the daemon accepted leaves the queue; the rest is retried in 5 seconds.
@@ -451,9 +497,9 @@ final class Bar: NSObject, NSMenuDelegate {
     item.menu = menu
     applyIconOnly()
     refresh()
-    Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.refresh() }
+    Timer.coalesced(every: 60) { [weak self] _ in self?.refresh() }
     checkObscured()
-    Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in self?.checkObscured() }
+    Timer.coalesced(every: 300) { [weak self] _ in self?.checkObscured() }
   }
 
   // Icon only keeps the item narrow, so it survives a crowded menu bar or the notch.
@@ -647,7 +693,7 @@ if daemon {
   // the login agent starts the new one. This also catches launchd restarting the old copy before an update had finished
   // installing.
   let build = info["CFBundleVersion"] as? String
-  Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
+  Timer.coalesced(every: 10) { _ in
     let plist = Bundle.main.bundleURL.appendingPathComponent("Contents/Info.plist")
     guard let now = NSDictionary(contentsOf: plist)?["CFBundleVersion"] as? String, now != build else { return }
     kill(child.processIdentifier, SIGTERM)

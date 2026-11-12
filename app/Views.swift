@@ -1254,6 +1254,7 @@ struct SetupView: View {
   @AppStorage("vahtiNotchGlow") private var notchGlow = true
   @AppStorage("vahtiGlowLevel") private var glowLevel = 0.6
   @AppStorage("vahtiAppearance") private var appearance = Appearance.hour.rawValue
+  @AppStorage(FlushPeriod.key) private var flushPeriod = FlushPeriod.defaultSeconds
   @State private var report: String?
   @State private var copied = false
   @State private var draft: Profile?
@@ -1515,6 +1516,14 @@ struct SetupView: View {
           }
         }
           }
+      Panel(title: "Capture rhythm", footer: "Longer means fewer wakeups and less CPU. Pausing capture, or changing what Vahti may read, takes effect at the next check, so up to this long afterwards.") {
+        row("Check for capture changes every", "How often Vahti asks the daemon what it may read, and hands over what it has read since. Messages wait in memory between checks.", symbol: "timer") {
+          Picker("", selection: $flushPeriod) {
+            ForEach(FlushPeriod.choices, id: \.self) { Text("\($0) sec").tag($0) }
+          }
+          .labelsHidden().fixedSize()
+        }
+      }
       // Shown whole before it's copied, and never sent by Vahti: you paste it where you report the bug.
       Panel(title: "Diagnostics", footer: "Only what's shown here: versions, which parts run, counts, and the kinds of trouble in Vahti's log, never their words. No names, messages, chats, files or paths. Vahti never sends it; you copy it into your bug report.") {
         row("Report for a bug", report == nil ? "See exactly what it holds before you copy it." : nil, symbol: "stethoscope") {
