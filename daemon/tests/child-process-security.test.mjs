@@ -31,6 +31,7 @@ test('app and inference workers use controlled environment and isolated Python f
   for (const file of ['runtime', 'second', 'speak']) {
     const source = readFileSync(new URL(`../lib/${file}.mjs`, import.meta.url), 'utf8')
     assert.doesNotMatch(source, /\.\.\.process.env|env: process.env/)
-    assert.match(source, /\[\s*["']-I["'],\s*["']-E["']/)
+    // -B (no bytecode) may lead: the signed bundle must not be written into (see sidecar-bytecode.test.mjs).
+    assert.match(source, /\[\s*(?:["']-B["'],\s*)?["']-I["'],\s*["']-E["']/)
   }
 })
