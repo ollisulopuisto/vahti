@@ -125,10 +125,10 @@ final class Eyes {
     }
     if let app = NSWorkspace.shared.frontmostApplication { switched(to: app) }
     loadLists()
-    Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.loadLists() }
-    Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.clipboard() }
-    Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in self?.screen() }
-    Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.flush() }
+    Timer.coalesced(every: 60) { [weak self] _ in self?.loadLists() }
+    Timer.coalesced(every: 1) { [weak self] _ in self?.clipboard() }
+    Timer.coalesced(every: 4) { [weak self] _ in self?.screen() }
+    Timer.coalesced(every: 5) { [weak self] _ in self?.flush() }
   }
 
   private func emit(_ source: String, thread: String, text: String, at: Date = Date(), meta: [String: Any] = [:]) {
@@ -451,9 +451,9 @@ final class Bar: NSObject, NSMenuDelegate {
     item.menu = menu
     applyIconOnly()
     refresh()
-    Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.refresh() }
+    Timer.coalesced(every: 60) { [weak self] _ in self?.refresh() }
     checkObscured()
-    Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in self?.checkObscured() }
+    Timer.coalesced(every: 300) { [weak self] _ in self?.checkObscured() }
   }
 
   // Icon only keeps the item narrow, so it survives a crowded menu bar or the notch.
@@ -647,7 +647,7 @@ if daemon {
   // the login agent starts the new one. This also catches launchd restarting the old copy before an update had finished
   // installing.
   let build = info["CFBundleVersion"] as? String
-  Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
+  Timer.coalesced(every: 10) { _ in
     let plist = Bundle.main.bundleURL.appendingPathComponent("Contents/Info.plist")
     guard let now = NSDictionary(contentsOf: plist)?["CFBundleVersion"] as? String, now != build else { return }
     kill(child.processIdentifier, SIGTERM)

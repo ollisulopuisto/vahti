@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [Unreleased]
+
+### Changed
+- Fewer idle wakeups: the island's pointer timer ran at 60 Hz all the time; it now runs at 60 Hz only while the pointer moves, is over the island, or did within the last 1.5 seconds, and at 10 Hz otherwise. Mouse movement still syncs at once through the event monitors, so the notch wake is not delayed; only a pointer that holds still while the island changes shape beneath it can be noticed up to about 100 ms later.
+- The app's repeating timers (clipboard, capture, flush, lists, menu bar, island light and checks) now allow macOS to coalesce their wakeups, a quarter of each interval at most. Nothing is captured less often.
+
 ## [0.7.28] - 2026-11-12
 
 ### Fixed
