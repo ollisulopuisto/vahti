@@ -10,7 +10,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/).
 ### Changed
 - Fewer idle wakeups: the island's pointer timer ran at 60 Hz all the time; it now runs at 60 Hz only while the pointer moves, is over the island, or did within the last 1.5 seconds, and at 10 Hz otherwise. Mouse movement still syncs at once through the event monitors, so the notch wake is not delayed; only a pointer that holds still while the island changes shape beneath it can be noticed up to about 100 ms later.
 - The app's repeating timers (clipboard, capture, flush, lists, menu bar, island light and checks) now allow macOS to coalesce their wakeups, a quarter of each interval at most. Nothing is captured less often.
-- Setup > Capture rhythm: how often Vahti checks the capture policy and hands over what it has read can be 5, 15, 30 or 60 seconds (5, as before, unless you change it). The trade-off: pausing capture or changing what Vahti may read takes effect up to that long afterwards.
+- Setup > Capture rhythm: how often Vahti checks the capture policy and hands over what it has read can be 5, 15, 30 or 60 seconds (5, as before, unless you change it). The trade-off: pausing capture or changing what Vahti may read takes effect up to that long afterwards. Between checks Vahti sends a status-only request every 20 seconds so the clipboard and app monitoring don't show as inactive, a failed check is retried on the next 5-second tick, and the timing uses a monotonic clock.
 
 ## [0.7.28] - 2026-11-12
 
