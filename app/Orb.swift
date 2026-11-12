@@ -1232,12 +1232,18 @@ final class Companion: NSObject {
       guard let b = store.brief else { return }
       let cards = b.panel
       // The thing the notch breathes for is over: the wait and the glow go with it. A panel card
-      // ends when it leaves the list (done, snoozed, handled off-device); an owed reply's task can
-      // sit off the panel and daemon's owed list covers only the last 20 minutes, so an unseen owed
-      // wait survives until it is viewed or the task itself is handled.
+      // ends when it leaves the list (done, snoozed, handled off-device). An owed reply's task can
+      // sit off the panel and daemon's owed list covers only the last 20 minutes, and the brief's
+      // done preview is bounded, so an owed wait is reconciled against the card itself: it survives
+      // while the task is open and ends when the task is done, snoozed, dismissed, handled - or gone.
       if let w = waiting {
-        let handled = (b.done ?? []).contains { $0.id == w.card.id && $0.state == "handled" }
-        if handled || (!w.owed && !cards.contains(where: { $0.id == w.card.id })) {
+        if w.owed {
+          let state = await store.card(w.card.id)?.state
+          if state == nil || ["done", "handled", "snoozed", "dismissed"].contains(state!) {
+            waiting = nil
+            if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
+          }
+        } else if !cards.contains(where: { $0.id == w.card.id }) {
           waiting = nil
           if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
         }

@@ -176,8 +176,10 @@ class NotchGlowSourceTest(unittest.TestCase):
         self.assertIn('private var waiting: (card: Card, overdue: Bool, owed: Bool)?', orb)
         self.assertIn('showToast(o.card, overdue: false, linger: nil, line: line, owed: true)', orb)
         self.assertIn('self.waiting = (c.card, c.overdue, owed: self.toastIsOwed)', orb)
-        self.assertIn('$0.id == w.card.id && $0.state == "handled"', orb)
-        self.assertIn('!w.owed && !cards.contains(where: { $0.id == w.card.id })', orb)
+        # The owed wait reconciles against the card's own state, not the bounded done preview.
+        self.assertIn('let state = await store.card(w.card.id)?.state', orb)
+        self.assertIn('["done", "handled", "snoozed", "dismissed"].contains(state', orb)
+        self.assertIn('} else if !cards.contains(where: { $0.id == w.card.id }) {', orb)
 
 
 if __name__ == '__main__':

@@ -211,8 +211,12 @@ test('the glow tracks an actual wait: reminders breathe, and nothing waiting sta
   assert.match(orb, /private var waiting: \(card: Card, overdue: Bool, owed: Bool\)\?/)
   assert.match(orb, /showToast\(o\.card, overdue: false, linger: nil, line: line, owed: true\)/)
   assert.match(orb, /self\.waiting = \(c\.card, c\.overdue, owed: self\.toastIsOwed\)/)
-  assert.match(orb, /\$0\.id == w\.card\.id && \$0\.state == "handled"/)
-  assert.match(orb, /!w\.owed && !cards\.contains\(where: \{ \$0\.id == w\.card\.id \}\)/)
+  // The owed wait is reconciled against the card's own state (the brief's done preview is bounded
+  // to six entries and three days): it survives while the task is open and ends when the task is
+  // done, snoozed, dismissed, handled - or gone entirely. Panel cards still end off-list.
+  assert.match(orb, /let state = await store\.card\(w\.card\.id\)\?\.state/)
+  assert.match(orb, /\["done", "handled", "snoozed", "dismissed"\]\.contains\(state/)
+  assert.match(orb, /\} else if !cards\.contains\(where: \{ \$0\.id == w\.card\.id \}\) \{/)
 })
 
 test('the glow wraps the notch: the window leaves the halo room beside the pill', () => {
