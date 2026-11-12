@@ -10,3 +10,16 @@ extension Timer {
     return timer
   }
 }
+
+/// How often the capture side asks the daemon for the capture policy and hands over what it has read.
+/// Setup > Capture rhythm; 5 seconds, the old fixed value, unless the owner picks another.
+enum FlushPeriod {
+  static let key = "vahtiFlushSeconds"
+  static let choices = [5, 15, 30, 60]
+  static let defaultSeconds = 5
+
+  static var seconds: Int {
+    let value = UserDefaults.standard.object(forKey: key) as? Int ?? defaultSeconds
+    return choices.contains(value) ? value : defaultSeconds
+  }
+}

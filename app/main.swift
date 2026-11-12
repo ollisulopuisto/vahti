@@ -376,8 +376,14 @@ final class Eyes {
 
   // MARK: Hand over to the daemon
 
+  private var lastFlush = Date.distantPast
+
   private func flush() {
     guard !flushing else { return }
+    // The timer ticks every 5 s; the owner's chosen period (Setup > Capture rhythm) decides which ticks do the
+    // work. Half a second of slack so a tick that fires a hair early still counts. The first tick always runs.
+    guard Date().timeIntervalSince(lastFlush) >= Double(FlushPeriod.seconds) - 0.5 else { return }
+    lastFlush = Date()
     flushing = true
     let policyURL = ingest.deletingLastPathComponent().appendingPathComponent("capture-policy")
     var request = URLRequest(url: policyURL)
