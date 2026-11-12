@@ -39,7 +39,7 @@ export const logTo = (fn) => { log = fn }
 // Stopped with the daemon, or by itself once idle; ready() starts it again.
 function start() {
   if (child || !installed()) return
-  child = spawn(SECOND.python, ['-I', '-E', SCRIPT, SECOND.model, SECOND.socket], {
+  child = spawn(SECOND.python, ['-B', '-I', '-E', SCRIPT, SECOND.model, SECOND.socket], {
     env: {
       VAHTI_SIDECAR_TOKEN: sidecarToken(), HF_HUB_OFFLINE: '1', TRANSFORMERS_OFFLINE: '1', TOKENIZERS_PARALLELISM: 'false', VAHTI_IDLE: String(SECOND.idle),
       VAHTI_OWNER: config.me, VAHTI_PRONOUN: config.pronoun, ...(config.decisionAbout && { VAHTI_DECISION_ABOUT: config.decisionAbout }),
