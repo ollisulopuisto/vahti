@@ -308,7 +308,7 @@ test('tucked launch uses exact screen housing, never the capped painted width or
   assert.match(orb, /island\.notchLaunchArea = NotchHover\.launchArea\(screen: f, inset: ns\.safeAreaInsets\.top,/)
   assert.match(orb, /left: ns\.auxiliaryTopLeftArea, right: ns\.auxiliaryTopRightArea/)
   assert.match(orb, /let screenPoint = window\.convertPoint\(toScreen: convert\(point, to: nil\)\)/)
-  assert.match(orb, /launch: notchLaunchArea, expanded: false/)
+  assert.match(orb, /launch: notchLaunchArea, expanded: !model\.tucked/)
   assert.match(orb, /return NotchHover\.contains\(point, launch: \.zero, expanded: !model\.tucked/)
   assert.match(notchHover, /width: right\.minX - left\.maxX, height: inset/)
   assert.match(notchHover, /return expanded && \(strip\.contains\(point\) \|\| orbZone\.contains\(point\)\)/)

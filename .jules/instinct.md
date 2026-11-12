@@ -139,6 +139,24 @@ CoreGraphics convenience API on macOS. Import CoreGraphics explicitly in the
 production helper and standalone fixture. The daemon suite passed in native CI;
 rerun the geometry smoke and packaged compile on this correction.
 
+## 2026-11-11 - Require half-depth notch entry
+
+Olli asked to cross the notch without invoking the orb. Interpret halfway as
+vertical depth from the housing bottom toward the screen top, not a horizontal
+centre target: only y >= housing.midY launches while tucked. The physical rect
+still uses the auxiliary menu-bar gap and top safe-area inset in screen coords.
+First attached notched display, missing-geometry fail-closed behavior and the
+non-notch right-edge fallback are unchanged. Full housing plus existing generous
+strip/orb retention apply once open. No entry dwell added; 150ms exit hysteresis,
+400ms tuck timer and glance timing stay intact. Lower-half sideways crossings
+are quiet; an upper-half crossing can still wake it. No network code touched.
+
+Test-first native fixture covers halfway boundaries, sampled crossings, screen
+top, offset displays and retention. Test-only head 325da18 failed native CI
+run 43090265769 at "lower half must not launch". Fix validation follows on the
+PR; no physical Mac interaction or visual acceptance here. Version 0.7.26/build
+118 and What's New. PR only, no merge or release. Rollback: revert this PR.
+
 ## 2026-11-12 - Softer notch glow that wraps, glow cycle as the alert
 
 **Task:** Olli: "that vahti glow around the notch is cool but too much! also it doesn't go around the sides. maybe maybe it a preferences toggle? or use the glow cycle ONCE instead of playing a sound." Approved "build it" after a plan note; PR only, no merge.

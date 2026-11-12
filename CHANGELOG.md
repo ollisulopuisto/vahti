@@ -5,16 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.28] - 2026-11-12
+
+### Fixed
+- A tucked notch orb waits until the pointer reaches the upper half of the physical camera housing (halfway from its bottom edge toward the screen top). Sideways crossings through the lower half no longer wake it. The full width and screen-top target remain; once open, the existing wider hover region and exit timing are unchanged. No entry delay is added.
+
 ## [0.7.27] - 2026-11-12
 
 ### Fixed
 - The notch no longer glows when nothing waits: the halo's breath used to survive the thing it announced. A what's-new, own-model, brief, done or update card taking over the waiting slot left the glow pointing at nothing (the idle glow after an update), and a card handled in the panel or off-device kept the notch breathing until you happened to hover it. Anything that discards the waiting slot now stops the breath, and the periodic check ends the glow once the waiting card leaves the list. Reminder nudges and arrivals both still glow while they wait.
+
 
 ## [0.7.26] - 2026-11-12
 
 ### Changed
 - The notch glow is softer and now wraps the notch's sides: Setup gains a glow switch and a brightness slider (defaulting well under the old strength), and the island's window is wide enough that the halo is no longer clipped at its left and right edges.
 - Alerts can glow instead of sound: with the glow on, something new or something done plays one glow cycle in place of the ting or the chime; turning the glow off in Setup (or from the island's menu) brings the sounds back.
+
 
 ## [0.7.25] - 2026-11-11
 

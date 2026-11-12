@@ -466,7 +466,7 @@ final class IslandHost: NSView {
     return false
   }
 
-  // A tucked orb wakes only inside the actual camera housing. Once open, retain the generous
+  // A tucked orb wakes only in the upper half of the actual camera housing. Once open, retain the generous
   // strip-to-orb path so moving down onto it does not make it tuck under the pointer.
   // Hover only: click routing still follows containsIsland.
   private func hoverContains(_ point: NSPoint) -> Bool {
@@ -485,7 +485,7 @@ final class IslandHost: NSView {
       guard let window else { return false }
       let screenPoint = window.convertPoint(toScreen: convert(point, to: nil))
       // Test launch in screen coordinates; the wider retention rects remain window-local.
-      if NotchHover.contains(screenPoint, launch: notchLaunchArea, expanded: false, strip: .zero, orbZone: .zero) { return true }
+      if NotchHover.contains(screenPoint, launch: notchLaunchArea, expanded: !model.tucked, strip: .zero, orbZone: .zero) { return true }
       return NotchHover.contains(point, launch: .zero, expanded: !model.tucked, strip: strip, orbZone: zone)
     }
     return containsIsland(point)

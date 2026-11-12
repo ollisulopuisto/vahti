@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.7.28",
+    "date": "2026-11-12",
+    "title": "Halfway into the notch",
+    "summary": "Cross the lower half of the notch without waking the orb. Reach the upper half to bring Vahti out.",
+    "notes": [
+      "Halfway is measured upward from the camera housing's bottom edge. The screen's top edge still wakes Vahti immediately.",
+      "The wider hover area and exit timing stay the same once the orb is open."
+    ]
+  },
+  {
     "version": "0.7.27",
     "date": "2026-11-12",
     "title": "No glow when nothing waits",

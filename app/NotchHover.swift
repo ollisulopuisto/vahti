@@ -2,7 +2,8 @@ import Foundation
 import CoreGraphics
 
 // Launch uses the physical housing, not the orb's painted width or its future position.
-// Retention is deliberately wider, but only after the orb has opened.
+// Tucked launch requires the upper half: enter halfway from the housing bottom toward the screen top.
+// Retention keeps the full housing and is deliberately wider, but only after the orb has opened.
 enum NotchHover {
   static func launchArea(screen: CGRect, inset: CGFloat, left: CGRect?, right: CGRect?) -> CGRect {
     guard let left, let right, inset > 0, right.minX > left.maxX else { return .zero }
@@ -14,7 +15,7 @@ enum NotchHover {
     let inHousing = launch.width > 0 && launch.height > 0
       && point.x >= launch.minX && point.x <= launch.maxX
       && point.y >= launch.minY && point.y <= launch.maxY
-    if inHousing { return true }
+    if inHousing && (expanded || point.y >= launch.midY) { return true }
     return expanded && (strip.contains(point) || orbZone.contains(point))
   }
 }

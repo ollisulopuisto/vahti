@@ -83,7 +83,16 @@ for origin in [CGPoint.zero, CGPoint(x: -1700, y: -400), CGPoint(x: 1920, y: 900
     NotchHover.contains(CGPoint(x: launch.midX + x, y: screen.maxY - depth),
       launch: launch, expanded: open, strip: strip, orbZone: zone)
   }
-  precondition(hit(0, 0) && hit(-100, 0) && hit(100, 38), "housing boundaries must launch")
+  precondition(launch == CGRect(x: screen.minX + 656, y: screen.maxY - 38, width: 200, height: 38),
+    "launch geometry must remain the complete physical housing")
+  precondition(hit(0, 0) && hit(-100, 0) && hit(100, 19), "top and halfway boundaries must launch")
+  precondition(!hit(0, 19.01) && !hit(-100, 38) && !hit(100, 38), "lower half must not launch")
+  // Cross the housing sideways below the halfway line without waking, then cross above it.
+  for x in stride(from: -150, through: 150, by: 1) {
+    precondition(!hit(CGFloat(x), 30), "crossing the lower half must not launch")
+    precondition(hit(CGFloat(x), 18) == (abs(x) <= 100), "upper half keeps the physical width")
+  }
+  precondition(hit(0, 30, true) && hit(100, 38, true), "open lower housing must retain hover")
   precondition(!hit(-100.01, 10) && !hit(100.01, 10), "no side margin while tucked")
   precondition(!hit(0, 38.01) && !hit(0, 81), "no launch below housing or at future orb")
   precondition(!hit(0, -0.01), "no launch above this screen")
@@ -98,7 +107,7 @@ for origin in [CGPoint.zero, CGPoint(x: -1700, y: -400), CGPoint(x: 1920, y: 900
 let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
 precondition(NotchHover.launchArea(screen: screen, inset: 38, left: nil, right: nil) == .zero)
 precondition(!NotchHover.contains(.zero, launch: .zero, expanded: false, strip: screen, orbZone: screen))
-print("Production notch geometry passed: housing boundaries, no early wake, open hand-off, offset displays, unavailable geometry")
+print("Production notch geometry passed: half-depth boundary, lower-half crossing, top edge, open hand-off, offset displays, unavailable geometry")
 """)
             executable = out / 'notch-hover'
             subprocess.run(['xcrun', 'swiftc', str(ROOT / 'app/NotchHover.swift'),
