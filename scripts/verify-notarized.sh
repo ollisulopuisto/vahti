@@ -16,6 +16,8 @@ codesign -dvv "$APP" 2>&1 | grep -F 'TeamIdentifier=LWSR8T5392'
 xcrun stapler validate "$APP"
 spctl --assess --type execute --verbose=2 "$APP"
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" = 'to.sulopuis.vahti'
+python3 "$(dirname "$0")/ci/test_verify_entitlements.py"
+python3 "$(dirname "$0")/ci/verify_entitlements.py" "$APP"
 lipo "$APP/Contents/MacOS/Vahti" -verify_arch arm64
 test -x "$APP/Contents/Resources/runtime/node"
 lipo "$APP/Contents/Resources/runtime/node" -verify_arch arm64

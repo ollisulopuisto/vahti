@@ -145,7 +145,9 @@ PLIST
 codesign --force --timestamp --options runtime --entitlements "$ENT" --identifier to.sulopuis.vahti.node --sign "$IDENTITY" "$RES/runtime/node"
 for part in "$FW/Versions/B/Autoupdate" "$FW/Versions/B/Updater.app" "$FW"; do codesign --force --timestamp --options runtime --sign "$IDENTITY" "$part"; done
 # The app writes plans and dated tasks into Calendar and Reminders (PhoneSync.swift); under the hardened runtime that
-# takes the calendars entitlement, without which macOS refuses the access without asking.
+# takes the calendars entitlement, the one Apple documents for EventKit (Calendar and Reminders), without which macOS
+# refuses the access without asking. The older reminders key below is undocumented; scripts/ci/verify_entitlements.py
+# does not require it. It is kept only so this build signs as before.
 APPENT="$(mktemp -d)/vahti.entitlements"
 cat > "$APPENT" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -153,6 +155,7 @@ cat > "$APPENT" <<'PLIST'
 <plist version="1.0">
 <dict>
   <key>com.apple.security.personal-information.calendars</key><true/>
+  <key>com.apple.security.personal-information.reminders</key><true/>
 </dict>
 </plist>
 PLIST
