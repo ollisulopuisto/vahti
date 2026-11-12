@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.7.27",
+    "date": "2026-11-12",
+    "title": "No glow when nothing waits",
+    "summary": "The notch's glow used to outlive whatever it announced; it now always tracks something that is actually waiting for you.",
+    "notes": [
+      "A what's-new, brief, done or update card taking over the notch no longer leaves the glow pointing at nothing.",
+      "Once the waiting card is done or snoozed - in the panel or off-device - the glow stops on the next check.",
+      "Reminder nudges and new arrivals both still glow while they wait; the one-cycle glow greeting is unchanged."
+    ]
+  },
+  {
     "version": "0.7.26",
     "date": "2026-11-12",
     "title": "A softer glow that wraps the notch",

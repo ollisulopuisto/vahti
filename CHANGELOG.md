@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.27] - 2026-11-12
+
+### Fixed
+- The notch no longer glows when nothing waits: the halo's breath used to survive the thing it announced. A what's-new, own-model, brief, done or update card taking over the waiting slot left the glow pointing at nothing (the idle glow after an update), and a card handled in the panel or off-device kept the notch breathing until you happened to hover it. Anything that discards the waiting slot now stops the breath, and the periodic check ends the glow once the waiting card leaves the list. Reminder nudges and arrivals both still glow while they wait.
+
 ## [0.7.26] - 2026-11-12
 
 ### Changed

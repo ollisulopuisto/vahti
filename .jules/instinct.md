@@ -1,3 +1,11 @@
+## 2026-11-12 - No glow when nothing waits (0.7.27)
+
+**Task:** Olli: "vahti build with no glow unless a notification has come in?", then, after a first cut that made only unseen notifications breathe: "ah i didn't mean that, also reminder nudges should glow." The wanted semantics: the halo breathes while anything waits for him (arrivals, owed replies, reminder nudges) and is dark when nothing does.
+
+**What changed:** the gate stays `tucked && nudging`; the bug was that the breath outlived its cause. `waiting` is the single slot behind the tucked notch, but Vahti's own cards (what's new, own-model offer, brief, done, update) did `waiting = nil` without clearing `nudging`, so the notch kept breathing with nothing behind it - exactly what he saw after updating to 0.7.26, when the what's-new card fires. Those paths now clear `nudging` too, and `check()` reconciles: when the waiting card is no longer in `b.panel` (done, snoozed, handled off-device), the wait and the glow end.
+
+**Learning:** `Brief.panel = forgotten + today.tasks + open + soon(<= 2 days)`, and every card that can wait (due() picks from forgotten/today/open; arrived() comes from panel) is in it, so "waiting card not in panel" is a safe resolved-elsewhere signal. State pairs like (waiting, nudging) need one invariant - nudging implies waiting - enforced at every mutation, not most.
+
 ## 2026-11-06 - Rename Kier to Vahti (fork identity)
 
 **Task:** Olli asked for the app to be renamed Vahti, keeping a clear mention that it is a fork of Kier, and confirmed nothing has ever run on his Mac, so every identifier could change with no data migration.

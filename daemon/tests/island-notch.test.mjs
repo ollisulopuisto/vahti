@@ -7,6 +7,7 @@ const island = readFileSync('../app/Island.swift', 'utf8')
 const metal = readFileSync('../app/orb.metal', 'utf8')
 const views = readFileSync('../app/Views.swift', 'utf8')
 const glow = readFileSync('../app/Glow.swift', 'utf8')
+const store = readFileSync('../app/Store.swift', 'utf8')
 
 test('"In the notch" is a real island mode, pickable in Setup and the orb menu', () => {
   assert.match(orb, /case always, hover, notch, hidden/)
@@ -191,6 +192,38 @@ test('the waiting pulse reaches the shader: u.glow breathes a halo round the out
   // Full strength is the old 0.14, the default sits under it, and the alert pulse is one cycle, never a repeat.
   assert.match(glow, /static let peak: Float = 0\.14/)
   assert.match(glow, /pulseAge >= 0 && pulseAge < cycle/)
+})
+
+test('the glow tracks an actual wait: reminders breathe, and nothing waiting stays dark', () => {
+  // No leftover distinction: a reminder nudge arms the same breath as news that came in.
+  assert.doesNotMatch(orb, /alerting/)
+  assert.doesNotMatch(island, /alerting/)
+  const nudge = orb.slice(orb.indexOf('private func nudge(_ card: Card, overdue: Bool)'))
+  assert.match(nudge, /island\.model\.nudging = true/)
+  // Every card that discards the waiting slot (what's new, own-model offer, brief, done, update)
+  // also stops the breath - a glow pointing at nothing was the "glow when idle" he saw.
+  const clears = orb.match(/waiting = nil\n(\s+)if island\.model\.nudging \{ withAnimation\(islandSpring\) \{ island\.model\.nudging = false \}; reshaped\(\) \}/g) || []
+  assert.ok(clears.length >= 5, `expected at least 5 waiting-slot clears that stop the breath, found ${clears.length}`)
+  // And once the waiting card leaves the list (done or snoozed in the panel or off-device),
+  // the periodic check ends the wait and the glow with it.
+  // The wait remembers coming from an owed reply: b.owed only covers the last 20 minutes
+  // (daemon OWED_MINUTES), so list membership cannot retire an unseen owed toast. It survives
+  // until viewed, or until the task itself is handled; anything else ends when it leaves the panel.
+  assert.match(orb, /private var waiting: \(card: Card, overdue: Bool, owed: Bool\)\?/)
+  assert.match(orb, /showToast\(o\.card, overdue: false, linger: nil, line: line, owed: true\)/)
+  assert.match(orb, /self\.waiting = \(c\.card, c\.overdue, owed: self\.toastIsOwed\)/)
+  // The owed wait is reconciled against the card's own state (the brief's done preview is bounded
+  // to six entries and three days): it survives while the task is open and ends when the task is
+  // done, snoozed, dismissed, handled - or gone entirely. Panel cards still end off-list.
+  // The daemon decides: a terminal state or a confirmed 404 ends the wait; a failed lookup
+  // (daemon down, undecodable answer) decides nothing and never steals an unseen reply's glow.
+  assert.match(store, /enum CardLookup \{ case card\(Card\), missing, failed \}/)
+  assert.match(store, /http\.statusCode == 404 \{ return \.missing \}/)
+  assert.match(orb, /switch await store\.lookupCard\(w\.card\.id\)/)
+  assert.match(orb, /case \.missing: over = true/)
+  assert.match(orb, /case \.failed: over = false/)
+  assert.match(orb, /\["done", "handled", "snoozed", "dismissed"\]\.contains\(card\.state \?\? "open"\)/)
+  assert.match(orb, /\} else if !cards\.contains\(where: \{ \$0\.id == w\.card\.id \}\) \{/)
 })
 
 test('the glow wraps the notch: the window leaves the halo room beside the pill', () => {
