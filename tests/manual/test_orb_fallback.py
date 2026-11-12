@@ -58,7 +58,8 @@ window.orderOut(nil)
 ''')
             executable = out / 'orb-smoke'
             subprocess.run(['xcrun', 'swiftc', str(ROOT / 'app/Island.swift'),
-                            str(ROOT / 'app/IslandArtwork.swift'), str(out / 'Palette.swift'), str(out / 'OrbFixture.swift'),
+                            str(ROOT / 'app/IslandArtwork.swift'), str(ROOT / 'app/Glow.swift'),
+                            str(out / 'Palette.swift'), str(out / 'OrbFixture.swift'),
                             str(out / 'main.swift'), '-o', str(executable)], check=True)
             subprocess.run([str(executable)], check=True, timeout=20)
 
