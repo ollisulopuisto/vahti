@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [0.7.26] - 2026-11-12
+
+### Changed
+- The notch glow is softer and now wraps the notch's sides: Setup gains a glow switch and a brightness slider (defaulting well under the old strength), and the island's window is wide enough that the halo is no longer clipped at its left and right edges.
+- Alerts can glow instead of sound: with the glow on, something new or something done plays one glow cycle in place of the ting or the chime; turning the glow off in Setup (or from the island's menu) brings the sounds back.
+
 ## [0.7.25] - 2026-11-11
 
 ### Fixed

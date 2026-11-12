@@ -25,6 +25,10 @@ struct IslandGoal: Equatable {
   var working = false
   var burst = Date.distantPast
   var celebrated = Date.distantPast
+  // The halo round the outline: Setup's switch and brightness, and when the last one-cycle alert began.
+  var glowOn = true
+  var glowLevel: Float = 0.6
+  var glowPulse = Date.distantPast
   // The orb's middle in screen points from the top left, for the highlight that leans toward the pointer.
   var center = CGPoint.zero
   var light = SIMD3<Float>(0, 0, 0)
@@ -304,7 +308,9 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
       hoverMouse = smoothed
       mouse = (CGFloat(smoothed.x), CGFloat(smoothed.y))
     }
-    let glow = g.tucked && g.nudging ? 0.07 + 0.07 * sin(t * (g.notch ? 3.6 : 2.4)) : 0
+    let pulseAge = date.timeIntervalSince(g.glowPulse)
+    let pulsing = g.glowOn && pulseAge >= 0 && pulseAge < IslandGlow.cycle
+    let glow = g.glowOn ? IslandGlow.value(at: t, pulseAge: pulseAge, breathing: g.tucked && g.nudging, notch: g.notch, level: g.glowLevel) : 0
     let selectedHover = hoverVariant != .none && !g.tucked
     var u: [Float] = [
       Float(window.width), Float(window.height), g.scale, Float(t),
@@ -347,12 +353,12 @@ final class IslandRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sen
 
     // 60 frames a second while you're on it, something just happened or it's moving; 30 for the slow light that orbits
     // it while something waits or Vahti works; 24 when still. Tucked and quiet, or out of sight, it rests on its last frame.
-    let want: Float = g.hover || g.pressed || fresh > 0 || cheer > 0 || moving ? 60 : g.attention > 0 || g.nudging || working > 0 ? 30 : 24
+    let want: Float = g.hover || g.pressed || fresh > 0 || cheer > 0 || pulsing || moving ? 60 : g.attention > 0 || g.nudging || working > 0 ? 30 : 24
     if want != rate {
       rate = want
       link.preferredFrameRateRange = CAFrameRateRange(minimum: 8, maximum: want, preferred: want)
     }
-    let quiet = g.tucked && !g.hover && !g.nudging && !g.working && g.attention == 0 && fresh == 0 && cheer == 0 && edge == 0
+    let quiet = g.tucked && !g.hover && !g.nudging && !g.working && g.attention == 0 && fresh == 0 && cheer == 0 && edge == 0 && !pulsing
     let pause = !g.visible || (quiet && !moving && !lighting)
     lock.withLock { expectsFrames = !pause }
     if pause { link.isPaused = true }

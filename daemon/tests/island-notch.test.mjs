@@ -6,6 +6,7 @@ const orb = readFileSync('../app/Orb.swift', 'utf8')
 const island = readFileSync('../app/Island.swift', 'utf8')
 const metal = readFileSync('../app/orb.metal', 'utf8')
 const views = readFileSync('../app/Views.swift', 'utf8')
+const glow = readFileSync('../app/Glow.swift', 'utf8')
 
 test('"In the notch" is a real island mode, pickable in Setup and the orb menu', () => {
   assert.match(orb, /case always, hover, notch, hidden/)
@@ -184,12 +185,33 @@ test('the waiting pulse reaches the shader: u.glow breathes a halo round the out
   // The renderer has always fed the glow slot; the shader now reads it, so the notch (and the
   // right-edge island) visibly breathe while a nudge waits - an effect, not a backdrop.
   assert.match(metal, /if \(u\.glow > 0\.0\) \{\s*float halo = exp\(-sq\(d \/ 4\.0\)\) \* u\.glow;/)
-  assert.match(island, /let glow = g\.tucked && g\.nudging \? 0\.07 \+ 0\.07 \* sin\(t \* \(g\.notch \? 3\.6 : 2\.4\)\) : 0/)
+  // The render loop hands the maths to Glow.swift: breathing only while a nudge waits, scaled by
+  // Setup's brightness, off when the glow is switched off.
+  assert.match(island, /let glow = g\.glowOn \? IslandGlow\.value\(at: t, pulseAge: pulseAge, breathing: g\.tucked && g\.nudging, notch: g\.notch, level: g\.glowLevel\) : 0/)
+  // Full strength is the old 0.14, the default sits under it, and the alert pulse is one cycle, never a repeat.
+  assert.match(glow, /static let peak: Float = 0\.14/)
+  assert.match(glow, /pulseAge >= 0 && pulseAge < cycle/)
+})
+
+test('the glow wraps the notch: the window leaves the halo room beside the pill', () => {
+  // The halo reaches about 12pt past the outline; a 224pt window clipped it beside a 216pt pill.
+  assert.match(orb, /static let window = CGSize\(width: 252, height: 136\)/)
+  assert.match(glow, /static let reach: CGFloat = 12/)
+  // The pill's cap keeps the reach free even for a housing wider than the window.
+  assert.match(orb, /min\(max\(housing > 0 \? housing : 200, 120\), OrbModel\.window\.width - 2 \* IslandGlow\.reach\)/)
+})
+
+test('alerts glow once instead of sounding while the glow is on', () => {
+  assert.match(orb, /private var notchGlow: Bool \{ defaults\.object\(forKey: "vahtiNotchGlow"\) as\? Bool \?\? true \}/)
+  // The non-Metal fallback paints no halo, so there the sound stays or the alert would be silent.
+  assert.match(orb, /if notchGlow, island\.model\.renderStatus == \.metal \{ island\.model\.glowPulse = Date\(\) \} else \{ makeSound\(\) \}/)
+  assert.match(views, /@AppStorage\("vahtiNotchGlow"\)/)
+  assert.match(views, /@AppStorage\("vahtiGlowLevel"\)/)
 })
 
 test('the notch answers faster: shorter spring response, quicker pulse', () => {
   assert.match(island, /let springResponse = g\.notch \? 0\.26 : 0\.42/)
-  assert.match(island, /sin\(t \* \(g\.notch \? 3\.6 : 2\.4\)\)/)
+  assert.match(glow, /sin\(t \* \(notch \? 3\.6 : 2\.4\)/)
   assert.match(metal, /fmod\(u\.time \* \(u\.notch > 0\.5 \? 0\.5 : 0\.35\), 2\.2\)/)
 })
 

@@ -37,6 +37,11 @@ final class OrbModel: ObservableObject {
   @Published var burst = Date.distantPast { didSet { sync() } }
   // When Vahti last saw something done; a green ring ripples out from the orb.
   @Published var celebrated = Date.distantPast { didSet { sync() } }
+  // The halo round the outline: Setup's switch and brightness, and the last one-cycle alert that
+  // stood in for a sound. Kept on the model so the island's thread never reads defaults itself.
+  var glowOn = true { didSet { sync() } }
+  var glowLevel: CGFloat = 0.6 { didSet { sync() } }
+  var glowPulse = Date.distantPast { didSet { sync() } }
   var center = NSPoint.zero { didSet { sync() } }
   weak var renderer: IslandRenderer? { didSet { sync() } }
 
@@ -57,14 +62,18 @@ final class OrbModel: ObservableObject {
       g.working = working
       g.burst = burst
       g.celebrated = celebrated
+      g.glowOn = glowOn
+      g.glowLevel = Float(glowLevel)
+      g.glowPulse = glowPulse
       g.center = CGPoint(x: center.x, y: top - center.y)
     }
   }
 
   // How much of its window the island fills: a notch when tucked, taller with a line under the orb. The window itself
   // stays at the biggest size, so changes are drawn as one smooth spring and never resize a window. Wide enough for
-  // the camera-notch pill as well as the right-edge island; what is not painted lets the mouse through.
-  nonisolated static let window = CGSize(width: 224, height: 136)
+  // the camera-notch pill as well as the right-edge island, with IslandGlow.reach to spare on both sides of the
+  // pill so the halo wraps the notch instead of clipping at the window's edge; what is not painted lets the mouse through.
+  nonisolated static let window = CGSize(width: 252, height: 136)
   nonisolated static func size(tucked: Bool, nudging: Bool, glance: Bool) -> CGSize {
     if tucked { return nudging ? CGSize(width: 18, height: 76) : CGSize(width: 12, height: 64) }
     return CGSize(width: 78, height: glance ? 136 : 104)
@@ -741,6 +750,18 @@ final class Companion: NSObject {
     set { defaults.set(newValue.rawValue, forKey: "vahtiIslandMode") }
   }
   private var sound: Bool { defaults.object(forKey: "vahtiSound") as? Bool ?? true }
+  // Setup's glow switch: on, one silent glow cycle stands in for the ting and the chime.
+  private var notchGlow: Bool { defaults.object(forKey: "vahtiNotchGlow") as? Bool ?? true }
+  // Something to tell you: one glow cycle when the glow is on, else the sound (which keeps its own quiet
+  // hours). The non-Metal drawing has no halo, so there the sound stays or the alert would be silent.
+  private func alert(sound makeSound: () -> Void) {
+    if notchGlow, island.model.renderStatus == .metal { island.model.glowPulse = Date() } else { makeSound() }
+  }
+  // Setup's glow switch and brightness, live: the island's thread reads them from the model.
+  private func syncGlow() {
+    island.model.glowOn = notchGlow
+    island.model.glowLevel = defaults.object(forKey: "vahtiGlowLevel") as? Double ?? 0.6
+  }
   private let panelSize = NSSize(width: 400, height: 580)
   // Nudges: at most one every half hour, in the daytime; overdue things come back after three hours, up to three times.
   private let gap: TimeInterval = 30 * 60
@@ -766,16 +787,19 @@ final class Companion: NSObject {
     island.onHover = { [weak self] inside in self?.hovered(inside) }
     islandPanel.contentView = island
     island.model.tucked = tucks
+    syncGlow()
     place()
     apply()
     NotificationCenter.default.addObserver(forName: .vahtiWindowShown, object: nil, queue: .main) { [weak self] _ in
       MainActor.assumeIsolated { if self?.chatPanel?.isVisible == true { self?.closeChat() } }
     }
-    // The mode can also be changed on the Setup page.
+    // The mode and the glow can also be changed on the Setup page.
     var last = mode
     NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
       MainActor.assumeIsolated {
-        guard let self, self.mode != last else { return }
+        guard let self else { return }
+        self.syncGlow()
+        guard self.mode != last else { return }
         last = self.mode
         self.apply()
       }
@@ -837,9 +861,10 @@ final class Companion: NSObject {
     islandPanel.level = inNotch ? .statusBar : .floating
     islandPanel.collectionBehavior = inNotch ? [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle] : [.canJoinAllSpaces, .fullScreenAuxiliary]
     if let ns = inNotch ? notchScreen : nil {
-      // As wide as the camera housing, or 200 when the system won't say (spotifast's cap), within the window.
+      // As wide as the camera housing, or 200 when the system won't say (spotifast's cap), within the window -
+      // with the halo's reach kept free on both sides, so the glow never clips at the window's edge.
       let housing = ns.frame.width - (ns.auxiliaryTopLeftArea?.width ?? 0) - (ns.auxiliaryTopRightArea?.width ?? 0)
-      island.model.notchWidth = min(max(housing > 0 ? housing : 200, 120), OrbModel.window.width - 8)
+      island.model.notchWidth = min(max(housing > 0 ? housing : 200, 120), OrbModel.window.width - 2 * IslandGlow.reach)
       island.model.notchInset = ns.safeAreaInsets.top
     }
     switch mode {
@@ -917,7 +942,9 @@ final class Companion: NSObject {
   private func arrived(_ card: Card) {
     island.model.burst = Date()
     let hour = Calendar.current.component(.hour, from: Date())
-    if sound, hour >= 8, hour < 22, let ting = NSSound(named: "Glass") { ting.volume = 0.4; ting.play() }
+    alert {
+      if self.sound, hour >= 8, hour < 22, let ting = NSSound(named: "Glass") { ting.volume = 0.4; ting.play() }
+    }
     guard chatPanel?.isVisible != true else { return }
     remember(card)
     if tucks { setTucked(false); showToast(card, overdue: false, linger: nil); tuckSoon(after: 5) }
@@ -987,6 +1014,8 @@ final class Companion: NSObject {
     }
     add("Ting when something new comes in") { [weak self] in self?.defaults.set(!(self?.sound ?? true), forKey: "vahtiSound") }
     m.items.last?.state = sound ? .on : .off
+    add("Glow around the notch") { [weak self] in self?.defaults.set(!(self?.notchGlow ?? true), forKey: "vahtiNotchGlow") }
+    m.items.last?.state = notchGlow ? .on : .off
     m.addItem(.separator())
     add("Open Vahti") { viewer.show("/") }
     add("What's New") { [weak self] in self?.openNotes() }
@@ -1399,11 +1428,13 @@ final class Companion: NSObject {
     present(host, linger: linger)
   }
 
-  // Vahti ticked something off on its own: its chime, a green ripple from the orb, and a toast where the check draws
-  // itself and the task is struck through, with how Vahti knows and a way to undo it.
+  // Vahti ticked something off on its own: its chime (or one glow cycle), a green ripple from the orb, and a toast
+  // where the check draws itself and the task is struck through, with how Vahti knows and a way to undo it.
   private func closed(_ card: Card) {
     let hour = Calendar.current.component(.hour, from: Date())
-    if sound, hour >= 8, hour < 22 { Chime.done() }
+    alert {
+      if self.sound, hour >= 8, hour < 22 { Chime.done() }
+    }
     island.model.celebrated = Date()
     waiting = nil
     glanceOut = false

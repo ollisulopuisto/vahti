@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.7.26",
+    "date": "2026-11-12",
+    "title": "A softer glow that wraps the notch",
+    "summary": "The notch's glow is gentler, reaches around its sides, and can greet news with one silent cycle instead of a sound.",
+    "notes": [
+      "Setup gains a glow switch and a brightness slider; the default sits well under the old strength.",
+      "The island's window is wider, so the halo is no longer clipped at the notch's sides.",
+      "With the glow on, one cycle of it stands in for the ting and the done chime; turn the glow off to bring the sounds back."
+    ]
+  },
+  {
     "version": "0.7.25",
     "date": "2026-11-11",
     "title": "Wake inside the notch",
