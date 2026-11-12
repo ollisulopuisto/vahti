@@ -733,9 +733,12 @@ final class Companion: NSObject {
   private var tuckTimer: Timer?
   // The nudge's toast: its slide, the nudge waiting behind a tucked notch, and whether the pointer is on it.
   private var toast = ToastModel()
-  private var waiting: (card: Card, overdue: Bool)?
+  private var waiting: (card: Card, overdue: Bool, owed: Bool)?
   private var toastCard: (card: Card, overdue: Bool)?
   private var toastSeen = false
+  // The toast out now is an owed reply; daemon's owed list covers only the last 20 minutes, so an
+  // unseen one must remember what it is rather than ask the list again.
+  private var toastIsOwed = false
   private var toastTimer: Timer?
   private var onToast = false
   // What the glance is about, and whether the card out beside the island is that rather than a nudge.
@@ -924,7 +927,7 @@ final class Companion: NSObject {
       MainActor.assumeIsolated {
         guard let self, self.tucks, !self.island.model.hover, !self.onToast, self.chatPanel?.isVisible != true else { return }
         // A toast you didn't answer goes back behind the notch, which breathes until you hover it.
-        if let c = self.toastCard, !self.toastSeen, self.bubble?.isVisible == true { self.waiting = c; withAnimation(islandSpring) { self.island.model.nudging = true } }
+        if let c = self.toastCard, !self.toastSeen, self.bubble?.isVisible == true { self.waiting = (c.card, c.overdue, owed: self.toastIsOwed); withAnimation(islandSpring) { self.island.model.nudging = true } }
         self.hideToast()
         self.setTucked(true)
       }
@@ -1228,14 +1231,16 @@ final class Companion: NSObject {
       PhoneSync.shared.tick()
       guard let b = store.brief else { return }
       let cards = b.panel
-      // The thing the notch breathes for left the list some other way (done, snoozed, handled in
-      // the panel or off-device): the wait is over, so the glow goes with it.
-      // An owed reply's task can be due further out than the panel's two-day window, so an
-      // unanswered owed toast keeps its wait (and glow) until seen even off the panel list.
-      if let w = waiting, !cards.contains(where: { $0.id == w.card.id }),
-         !(b.owed ?? []).contains(where: { $0.card.id == w.card.id }) {
-        waiting = nil
-        if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
+      // The thing the notch breathes for is over: the wait and the glow go with it. A panel card
+      // ends when it leaves the list (done, snoozed, handled off-device); an owed reply's task can
+      // sit off the panel and daemon's owed list covers only the last 20 minutes, so an unseen owed
+      // wait survives until it is viewed or the task itself is handled.
+      if let w = waiting {
+        let handled = (b.done ?? []).contains { $0.id == w.card.id && $0.state == "handled" }
+        if handled || (!w.owed && !cards.contains(where: { $0.id == w.card.id })) {
+          waiting = nil
+          if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
+        }
       }
       // Work a session left behind hasn't just arrived: it waits for a quiet nudge instead of a ting.
       if let seen, mode != .hidden, let fresh = cards.filter({ !seen.contains($0.id) && $0.card != "stalled" }).max(by: { $0.ts < $1.ts }) { arrived(fresh) }
@@ -1337,7 +1342,7 @@ final class Companion: NSObject {
     remember(card)
     // Tucked away, it doesn't throw a toast at you: the notch breathes, and the toast comes out when you hover it.
     if tucks && island.model.tucked {
-      waiting = (card, overdue)
+      waiting = (card, overdue, owed: false)
       withAnimation(islandSpring) { island.model.nudging = true }
       reshaped()
       return
@@ -1418,15 +1423,16 @@ final class Companion: NSObject {
     defaults.set(Array(((defaults.stringArray(forKey: "vahtiOwedSeen") ?? []) + ["\(o.card.id)@\(o.at)"]).suffix(200)), forKey: "vahtiOwedSeen")
     island.model.burst = Date()
     let line = "\(o.who) just wrote. You still owe this"
-    if tucks { setTucked(false); showToast(o.card, overdue: false, linger: nil, line: line); tuckSoon(after: 8) }
-    else { showToast(o.card, overdue: false, linger: 25, line: line) }
+    if tucks { setTucked(false); showToast(o.card, overdue: false, linger: nil, line: line, owed: true); tuckSoon(after: 8) }
+    else { showToast(o.card, overdue: false, linger: 25, line: line, owed: true) }
   }
 
-  private func showToast(_ card: Card, overdue: Bool, linger: TimeInterval?, line custom: String? = nil) {
+  private func showToast(_ card: Card, overdue: Bool, linger: TimeInterval?, line custom: String? = nil, owed: Bool = false) {
     waiting = nil
     glanceOut = false
     toastCard = (card, overdue)
     toastSeen = island.model.hover
+    toastIsOwed = owed
     if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
     let model = ToastModel()
     toast = model

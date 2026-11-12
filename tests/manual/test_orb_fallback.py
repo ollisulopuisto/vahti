@@ -171,9 +171,13 @@ class NotchGlowSourceTest(unittest.TestCase):
         self.assertGreaterEqual(len(clears), 5,
                                 'whats-new/own-model/brief/done/update must each stop the breath when taking the slot')
         # A waiting card that leaves the list (handled in the panel or off-device) ends the glow.
-        self.assertIn('if let w = waiting, !cards.contains(where: { $0.id == w.card.id })', orb)
-        # An owed reply's task can sit outside the panel's two-day window; its wait survives.
-        self.assertIn('!(b.owed ?? []).contains(where: { $0.card.id == w.card.id })', orb)
+        # The wait remembers an owed origin: b.owed only covers the last 20 minutes, so an unseen
+        # owed toast survives until viewed or the task is handled; other waits end off-panel.
+        self.assertIn('private var waiting: (card: Card, overdue: Bool, owed: Bool)?', orb)
+        self.assertIn('showToast(o.card, overdue: false, linger: nil, line: line, owed: true)', orb)
+        self.assertIn('self.waiting = (c.card, c.overdue, owed: self.toastIsOwed)', orb)
+        self.assertIn('$0.id == w.card.id && $0.state == "handled"', orb)
+        self.assertIn('!w.owed && !cards.contains(where: { $0.id == w.card.id })', orb)
 
 
 if __name__ == '__main__':
