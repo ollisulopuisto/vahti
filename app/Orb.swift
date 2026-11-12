@@ -1230,7 +1230,10 @@ final class Companion: NSObject {
       let cards = b.panel
       // The thing the notch breathes for left the list some other way (done, snoozed, handled in
       // the panel or off-device): the wait is over, so the glow goes with it.
-      if let w = waiting, !cards.contains(where: { $0.id == w.card.id }) {
+      // An owed reply's task can be due further out than the panel's two-day window, so an
+      // unanswered owed toast keeps its wait (and glow) until seen even off the panel list.
+      if let w = waiting, !cards.contains(where: { $0.id == w.card.id }),
+         !(b.owed ?? []).contains(where: { $0.card.id == w.card.id }) {
         waiting = nil
         if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
       }

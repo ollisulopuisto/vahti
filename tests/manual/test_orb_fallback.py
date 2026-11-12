@@ -172,6 +172,8 @@ class NotchGlowSourceTest(unittest.TestCase):
                                 'whats-new/own-model/brief/done/update must each stop the breath when taking the slot')
         # A waiting card that leaves the list (handled in the panel or off-device) ends the glow.
         self.assertIn('if let w = waiting, !cards.contains(where: { $0.id == w.card.id })', orb)
+        # An owed reply's task can sit outside the panel's two-day window; its wait survives.
+        self.assertIn('!(b.owed ?? []).contains(where: { $0.card.id == w.card.id })', orb)
 
 
 if __name__ == '__main__':

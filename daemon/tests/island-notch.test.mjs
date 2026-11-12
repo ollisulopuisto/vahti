@@ -205,7 +205,10 @@ test('the glow tracks an actual wait: reminders breathe, and nothing waiting sta
   assert.ok(clears.length >= 5, `expected at least 5 waiting-slot clears that stop the breath, found ${clears.length}`)
   // And once the waiting card leaves the list (done or snoozed in the panel or off-device),
   // the periodic check ends the wait and the glow with it.
-  assert.match(orb, /if let w = waiting, !cards\.contains\(where: \{ \$0\.id == w\.card\.id \}\) \{\s*waiting = nil/)
+  assert.match(orb, /if let w = waiting, !cards\.contains\(where: \{ \$0\.id == w\.card\.id \}\)/)
+  // An owed reply's task can be due further out than the panel's two-day "coming up" window, so
+  // the panel alone cannot retire its wait: an unanswered owed toast keeps glowing until seen.
+  assert.match(orb, /!\(b\.owed \?\? \[\]\)\.contains\(where: \{ \$0\.card\.id == w\.card\.id \}\)/)
 })
 
 test('the glow wraps the notch: the window leaves the halo room beside the pill', () => {
