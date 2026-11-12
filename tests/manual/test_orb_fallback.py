@@ -105,5 +105,50 @@ print("Production notch geometry passed: housing boundaries, no early wake, open
             subprocess.run([str(executable)], check=True, timeout=20)
 
 
+@unittest.skipUnless(sys.platform == 'darwin', 'Swift compiler needs macOS')
+class NotchGlowTest(unittest.TestCase):
+    def test_glow_cycle_breathing_and_window_room(self):
+        with tempfile.TemporaryDirectory(prefix='vahti-glow-') as directory:
+            out = pathlib.Path(directory)
+            (out / 'main.swift').write_text(r'''
+import Foundation
+func near(_ a: Float, _ b: Float, _ tol: Float = 0.01) -> Bool { abs(a - b) <= tol }
+// Breathing: bounded by the scaled peak, and silent when nothing waits.
+let scaled = IslandGlow.peak * 0.6
+for i in 0..<200 {
+  let t = Double(i) * 0.05
+  let b = IslandGlow.value(at: t, pulseAge: 100, breathing: true, notch: true, level: 0.6)
+  precondition(b >= 0 && b <= scaled + 1e-6, "breathing out of range")
+  precondition(IslandGlow.value(at: t, pulseAge: 100, breathing: false, notch: true, level: 0.6) == 0,
+    "no glow without a nudge")
+}
+// One cycle: still before it, brightest halfway, done after exactly one cycle, and never repeated.
+precondition(IslandGlow.value(at: 0, pulseAge: -0.1, breathing: false, notch: true, level: 1) == 0)
+precondition(IslandGlow.value(at: 0, pulseAge: 0, breathing: false, notch: true, level: 1) == 0)
+let mid = IslandGlow.value(at: 0, pulseAge: IslandGlow.cycle / 2, breathing: false, notch: true, level: 1)
+precondition(near(mid, IslandGlow.peak, 0.005), "the pulse peaks halfway through its cycle")
+precondition(IslandGlow.value(at: 0, pulseAge: IslandGlow.cycle, breathing: false, notch: true, level: 1) < 0.01)
+precondition(IslandGlow.value(at: 0, pulseAge: IslandGlow.cycle * 3.5, breathing: false, notch: true, level: 1) == 0,
+  "the alert pulse must not repeat")
+// Softer by default: full brightness is the old strength, the default sits clearly under it.
+let soft = IslandGlow.value(at: 0, pulseAge: IslandGlow.cycle / 2, breathing: false, notch: true, level: 0.6)
+precondition(soft < mid * 0.7, "the default glow should be clearly softer than full brightness")
+print("Glow passed: one cycle, no repeat, breathing bounded, default subdued")
+''')
+            executable = out / 'glow'
+            subprocess.run(['xcrun', 'swiftc', str(ROOT / 'app/Glow.swift'),
+                            str(out / 'main.swift'), '-o', str(executable)], check=True)
+            subprocess.run([str(executable)], check=True, timeout=20)
+        # The halo wraps the notch's sides only if the window grew past the old 224pt by the
+        # halo's reach on both sides; a real housing (about 200pt) then leaves it room to paint.
+        import re
+        orb = (ROOT / 'app/Orb.swift').read_text()
+        glow = (ROOT / 'app/Glow.swift').read_text()
+        width = float(re.search(r'static let window = CGSize\(width: ([\d.]+)', orb).group(1))
+        reach = float(re.search(r'static let reach: CGFloat = ([\d.]+)', glow).group(1))
+        self.assertGreaterEqual(width, 224 + 2 * reach,
+                                'the window must clear the old width by the halo reach on each side')
+
+
 if __name__ == '__main__':
     unittest.main()

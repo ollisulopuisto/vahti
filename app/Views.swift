@@ -1251,6 +1251,8 @@ struct SetupView: View {
   // Read by the island (Companion in Orb.swift), which follows changes as they're made.
   @AppStorage("vahtiIslandMode") private var islandMode = IslandMode.always.rawValue
   @AppStorage("vahtiSound") private var sound = true
+  @AppStorage("vahtiNotchGlow") private var notchGlow = true
+  @AppStorage("vahtiGlowLevel") private var glowLevel = 0.6
   @AppStorage("vahtiAppearance") private var appearance = Appearance.hour.rawValue
   @State private var report: String?
   @State private var copied = false
@@ -1434,7 +1436,7 @@ struct SetupView: View {
   }
 
   @ViewBuilder private var appearanceSettings: some View {
-      Panel(title: "The island", footer: "The ting stays quiet from 22:00 to 08:00.") {
+      Panel(title: "The island", footer: "The ting and the chime stay quiet from 22:00 to 08:00; the glow is silent at any hour.") {
         row("At the screen edge", "Always there, tucked away until you hover, a pill in the camera notch that wakes on hover, or hidden.", symbol: "capsule") {
           Picker("", selection: $islandMode) {
             ForEach(IslandMode.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
@@ -1449,6 +1451,14 @@ struct SetupView: View {
         }
         row("Ting when something new comes in", nil, symbol: "bell") {
           Toggle("", isOn: $sound).toggleStyle(.switch).labelsHidden().controlSize(.small)
+        }
+        row("Glow around the notch", "A soft halo hugs the island while something waits, wrapping the notch's sides. When something comes in or gets done, one glow cycle instead of the sound.", symbol: "circle.dotted") {
+          Toggle("", isOn: $notchGlow).toggleStyle(.switch).labelsHidden().controlSize(.small)
+        }
+        if notchGlow {
+          row("Glow brightness", "Softer than it was; 100% is as bright as it used to be.", symbol: "sun.max") {
+            Slider(value: $glowLevel, in: 0.2...1.0).frame(width: 140)
+          }
         }
       }
           Panel(title: "Shortcuts", footer: "Click one and press the keys you'd like, with Command, Option or Control. Escape keeps it as it was.") {
