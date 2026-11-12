@@ -7,6 +7,7 @@ const island = readFileSync('../app/Island.swift', 'utf8')
 const metal = readFileSync('../app/orb.metal', 'utf8')
 const views = readFileSync('../app/Views.swift', 'utf8')
 const glow = readFileSync('../app/Glow.swift', 'utf8')
+const store = readFileSync('../app/Store.swift', 'utf8')
 
 test('"In the notch" is a real island mode, pickable in Setup and the orb menu', () => {
   assert.match(orb, /case always, hover, notch, hidden/)
@@ -214,8 +215,14 @@ test('the glow tracks an actual wait: reminders breathe, and nothing waiting sta
   // The owed wait is reconciled against the card's own state (the brief's done preview is bounded
   // to six entries and three days): it survives while the task is open and ends when the task is
   // done, snoozed, dismissed, handled - or gone entirely. Panel cards still end off-list.
-  assert.match(orb, /let state = await store\.card\(w\.card\.id\)\?\.state/)
-  assert.match(orb, /\["done", "handled", "snoozed", "dismissed"\]\.contains\(state/)
+  // The daemon decides: a terminal state or a confirmed 404 ends the wait; a failed lookup
+  // (daemon down, undecodable answer) decides nothing and never steals an unseen reply's glow.
+  assert.match(store, /enum CardLookup \{ case card\(Card\), missing, failed \}/)
+  assert.match(store, /http\.statusCode == 404 \{ return \.missing \}/)
+  assert.match(orb, /switch await store\.lookupCard\(w\.card\.id\)/)
+  assert.match(orb, /case \.missing: over = true/)
+  assert.match(orb, /case \.failed: over = false/)
+  assert.match(orb, /\["done", "handled", "snoozed", "dismissed"\]\.contains\(card\.state \?\? "open"\)/)
   assert.match(orb, /\} else if !cards\.contains\(where: \{ \$0\.id == w\.card\.id \}\) \{/)
 })
 

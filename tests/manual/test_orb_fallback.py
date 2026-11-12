@@ -176,9 +176,14 @@ class NotchGlowSourceTest(unittest.TestCase):
         self.assertIn('private var waiting: (card: Card, overdue: Bool, owed: Bool)?', orb)
         self.assertIn('showToast(o.card, overdue: false, linger: nil, line: line, owed: true)', orb)
         self.assertIn('self.waiting = (c.card, c.overdue, owed: self.toastIsOwed)', orb)
-        # The owed wait reconciles against the card's own state, not the bounded done preview.
-        self.assertIn('let state = await store.card(w.card.id)?.state', orb)
-        self.assertIn('["done", "handled", "snoozed", "dismissed"].contains(state', orb)
+        # The owed wait reconciles against the card's own state; a failed lookup decides nothing.
+        store = (ROOT / 'app/Store.swift').read_text()
+        self.assertIn('enum CardLookup { case card(Card), missing, failed }', store)
+        self.assertIn('http.statusCode == 404 { return .missing }', store)
+        self.assertIn('switch await store.lookupCard(w.card.id)', orb)
+        self.assertIn('case .missing: over = true', orb)
+        self.assertIn('case .failed: over = false', orb)
+        self.assertIn('["done", "handled", "snoozed", "dismissed"].contains(card.state ?? "open")', orb)
         self.assertIn('} else if !cards.contains(where: { $0.id == w.card.id }) {', orb)
 
 

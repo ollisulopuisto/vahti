@@ -593,6 +593,18 @@ final class Store {
     await get("/api/card?id=\(id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? id)")
   }
 
+  // One card, with the daemon's answer kept apart from the question failing: missing is a
+  // confirmed 404, failed is a daemon hiccup or an undecodable answer and decides nothing.
+  enum CardLookup { case card(Card), missing, failed }
+
+  func lookupCard(_ id: String) async -> CardLookup {
+    guard let url = URL(string: base + "/api/card?id=\(id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? id)"),
+          let (data, response) = try? await daemonClient.data(for: daemonRequest(url)) else { return .failed }
+    if let http = response as? HTTPURLResponse, http.statusCode == 404 { return .missing }
+    guard let card = try? JSONDecoder().decode(Card.self, from: data) else { return .failed }
+    return .card(card)
+  }
+
   func event(_ id: String) async -> EventInfo? {
     await get("/api/event?id=\(id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? id)")
   }

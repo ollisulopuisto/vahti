@@ -1238,8 +1238,15 @@ final class Companion: NSObject {
       // while the task is open and ends when the task is done, snoozed, dismissed, handled - or gone.
       if let w = waiting {
         if w.owed {
-          let state = await store.card(w.card.id)?.state
-          if state == nil || ["done", "handled", "snoozed", "dismissed"].contains(state!) {
+          // The daemon decides: a terminal state or a confirmed 404 ends the wait; a failed
+          // lookup decides nothing, so a daemon hiccup never steals an unseen reply's glow.
+          let over: Bool
+          switch await store.lookupCard(w.card.id) {
+          case .card(let card): over = ["done", "handled", "snoozed", "dismissed"].contains(card.state ?? "open")
+          case .missing: over = true
+          case .failed: over = false
+          }
+          if over {
             waiting = nil
             if island.model.nudging { withAnimation(islandSpring) { island.model.nudging = false }; reshaped() }
           }
