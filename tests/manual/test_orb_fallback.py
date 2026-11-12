@@ -140,15 +140,16 @@ print("Glow passed: one cycle, no repeat, breathing bounded, default subdued")
             subprocess.run(['xcrun', 'swiftc', str(ROOT / 'app/Glow.swift'),
                             str(out / 'main.swift'), '-o', str(executable)], check=True)
             subprocess.run([str(executable)], check=True, timeout=20)
-        # The halo wraps the notch's sides only if the window grew past the old 224pt by the
-        # halo's reach on both sides; a real housing (about 200pt) then leaves it room to paint.
+        # The halo wraps the notch's sides only if the window leaves the halo's reach on both
+        # sides of the widest allowed pill (the pill is capped at window.width - 2 * reach).
         import re
         orb = (ROOT / 'app/Orb.swift').read_text()
         glow = (ROOT / 'app/Glow.swift').read_text()
         width = float(re.search(r'static let window = CGSize\(width: ([\d.]+)', orb).group(1))
         reach = float(re.search(r'static let reach: CGFloat = ([\d.]+)', glow).group(1))
-        self.assertGreaterEqual(width, 224 + 2 * reach,
-                                'the window must clear the old width by the halo reach on each side')
+        self.assertIn('OrbModel.window.width - 2 * IslandGlow.reach', orb)
+        self.assertGreaterEqual(width - 2 * reach, 200,
+                                'even the fallback 200pt housing must keep the halo reach on each side')
 
 
 if __name__ == '__main__':

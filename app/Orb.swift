@@ -752,9 +752,10 @@ final class Companion: NSObject {
   private var sound: Bool { defaults.object(forKey: "vahtiSound") as? Bool ?? true }
   // Setup's glow switch: on, one silent glow cycle stands in for the ting and the chime.
   private var notchGlow: Bool { defaults.object(forKey: "vahtiNotchGlow") as? Bool ?? true }
-  // Something to tell you: one glow cycle when the glow is on, else the sound (which keeps its own quiet hours).
+  // Something to tell you: one glow cycle when the glow is on, else the sound (which keeps its own quiet
+  // hours). The non-Metal drawing has no halo, so there the sound stays or the alert would be silent.
   private func alert(sound makeSound: () -> Void) {
-    if notchGlow { island.model.glowPulse = Date() } else { makeSound() }
+    if notchGlow, island.model.renderStatus == .metal { island.model.glowPulse = Date() } else { makeSound() }
   }
   // Setup's glow switch and brightness, live: the island's thread reads them from the model.
   private func syncGlow() {
@@ -860,9 +861,10 @@ final class Companion: NSObject {
     islandPanel.level = inNotch ? .statusBar : .floating
     islandPanel.collectionBehavior = inNotch ? [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle] : [.canJoinAllSpaces, .fullScreenAuxiliary]
     if let ns = inNotch ? notchScreen : nil {
-      // As wide as the camera housing, or 200 when the system won't say (spotifast's cap), within the window.
+      // As wide as the camera housing, or 200 when the system won't say (spotifast's cap), within the window -
+      // with the halo's reach kept free on both sides, so the glow never clips at the window's edge.
       let housing = ns.frame.width - (ns.auxiliaryTopLeftArea?.width ?? 0) - (ns.auxiliaryTopRightArea?.width ?? 0)
-      island.model.notchWidth = min(max(housing > 0 ? housing : 200, 120), OrbModel.window.width - 8)
+      island.model.notchWidth = min(max(housing > 0 ? housing : 200, 120), OrbModel.window.width - 2 * IslandGlow.reach)
       island.model.notchInset = ns.safeAreaInsets.top
     }
     switch mode {

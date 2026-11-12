@@ -197,11 +197,14 @@ test('the glow wraps the notch: the window leaves the halo room beside the pill'
   // The halo reaches about 12pt past the outline; a 224pt window clipped it beside a 216pt pill.
   assert.match(orb, /static let window = CGSize\(width: 252, height: 136\)/)
   assert.match(glow, /static let reach: CGFloat = 12/)
+  // The pill's cap keeps the reach free even for a housing wider than the window.
+  assert.match(orb, /min\(max\(housing > 0 \? housing : 200, 120\), OrbModel\.window\.width - 2 \* IslandGlow\.reach\)/)
 })
 
 test('alerts glow once instead of sounding while the glow is on', () => {
   assert.match(orb, /private var notchGlow: Bool \{ defaults\.object\(forKey: "vahtiNotchGlow"\) as\? Bool \?\? true \}/)
-  assert.match(orb, /if notchGlow \{ island\.model\.glowPulse = Date\(\) \} else \{ makeSound\(\) \}/)
+  // The non-Metal fallback paints no halo, so there the sound stays or the alert would be silent.
+  assert.match(orb, /if notchGlow, island\.model\.renderStatus == \.metal \{ island\.model\.glowPulse = Date\(\) \} else \{ makeSound\(\) \}/)
   assert.match(views, /@AppStorage\("vahtiNotchGlow"\)/)
   assert.match(views, /@AppStorage\("vahtiGlowLevel"\)/)
 })
