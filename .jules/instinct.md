@@ -1,3 +1,9 @@
+## 2026-11-16 - Three-action triage cleanup (0.7.30)
+
+Brief and orb detail now share Dismiss / Done / Send to Todoist. Removed Tomorrow / Not mine and changed toast Later to Dismiss. Existing completion confirmation and Maybe yours claim flows stay separate; Todoist cards cannot be sent back to Todoist, and sending without a token points to Setup. Setup labels distinguish read feed from send token. No daemon API, storage, learning or outbound network behavior changed. First-send warning and failure retention use the existing send path.
+
+Native compile and visual capture run in the existing macOS smoke job. Live Todoist exchange and actual user-account behavior are not tested here. Rollback: revert this PR.
+
 ## 2026-11-16 - Send to Todoist: Vahti triages, Todoist is the backend (0.7.29)
 
 **Task:** Olli: "build vahti D8" (iMessage 2026-11-16 08:20). The design was his over iMessage 2026-11-15: Todoist as the backend because data spreads around (11:09, voice 11:35), the three card actions Dismiss / Mark done / Send to Todoist (19:42), one click to the Inbox with no project/label and the due "the way vahti infers all dates" (21:18). Open points kept the proposed defaults he never overruled: Dismiss = this card only, no learning; Done in app yes; Snooze no (Todoist snooze is mobile-only). Vahti schedules no reminders.

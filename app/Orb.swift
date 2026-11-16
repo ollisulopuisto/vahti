@@ -1482,7 +1482,7 @@ final class Companion: NSObject {
     let line: String = custom ?? (overdue ? "Overdue, from \(card.who)" : card.who)
     let host = FirstClickHost(rootView: NudgeView(model: model, line: line, text: card.headline, actions: [
       .init(symbol: "checkmark", help: "Mark done") { [weak self] in self?.toastCard = nil; self?.store.mark(card, "done"); self?.hideToast() },
-      .init(symbol: "clock", help: "Later") { [weak self] in self?.toastCard = nil; self?.store.mark(card, "snoozed"); self?.hideToast() },
+      .init(symbol: "xmark", help: "Dismiss this card") { [weak self] in self?.toastCard = nil; self?.store.mark(card, "dismissed"); self?.hideToast() },
     ], open: { [weak self] in
       // Open the referenced card, even when the panel is already visible; this action is never a toggle.
       self?.toastCard = nil; self?.hideToast(); self?.store.show = card.id
@@ -2236,7 +2236,7 @@ struct ItemPage: View {
   private var ticked: Bool { ["handled", "done", "dismissed"].contains(card.state ?? "") }
   // Show whether the owner or Vahti closed a card, and the supporting evidence when Vahti closed it.
   private var closedBy: String {
-    if card.reason == "marked in the timeline" { return card.state == "dismissed" ? "You marked it not yours" : "You marked it done" }
+    if card.reason == "marked in the timeline" { return card.state == "dismissed" ? "You dismissed this card" : "You marked it done" }
     if card.reason == "ticked off in Reminders" { return "You ticked it off in Reminders" }
     if card.reason == "deleted in Reminders" { return "You deleted it in Reminders" }
     return howDone(card.reason).map { "Vahti saw it done: \($0)" } ?? "Done"
@@ -2342,16 +2342,20 @@ struct ItemPage: View {
       HStack(spacing: 8) {
         openSession
         if card.canReply { Button(card.openLabel) { store.reply(card) } }
-        Button("Tomorrow") { store.mark(card, "snoozed"); back() }
-        // Work your own session left behind is yours by definition. One the second opinion doubts can be claimed.
-        if card.maybe?.on == true { Button("Mine") { store.mark(card, "mine"); back() } }
-        if card.card != "promise" && card.card != "stalled" { Button("Not mine") { store.mark(card, "dismissed"); back() } }
+        if !ticked && !card.needsConfirmation {
+          if card.maybe?.on == true { Button("Mine") { store.mark(card, "mine") } }
+        }
         Spacer()
         handOff
       }
       .buttonStyle(.bordered).controlSize(.small).focusable(false)
       .padding(.horizontal, 12).padding(.top, 8)
       .overlay(alignment: .top) { Rectangle().fill(Glass.hairline).frame(height: 0.5) }
+
+      if !ticked && !card.needsConfirmation {
+        CardTriageActions(card: card, finished: back)
+          .padding(.horizontal, 12).padding(.top, 8)
+      }
 
       InputBar(placeholder: "Ask about this…", agent: $agent) { q in
         withAnimation(.easeOut(duration: 0.2)) { showContext = false }

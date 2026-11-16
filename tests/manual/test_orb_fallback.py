@@ -196,5 +196,49 @@ class NotchGlowSourceTest(unittest.TestCase):
         self.assertIn('} else if !cards.contains(where: { $0.id == w.card.id }) {', orb)
 
 
+
+@unittest.skipUnless(sys.platform == 'darwin', 'AppKit needs macOS')
+class TriageButtonsTest(unittest.TestCase):
+    def test_production_actions_fit_wide_and_narrow(self):
+        with tempfile.TemporaryDirectory(prefix='vahti-triage-') as directory:
+            out = pathlib.Path(directory)
+            design = (ROOT / 'app/Design.swift').read_text()
+            views = (ROOT / 'app/Views.swift').read_text()
+            production = 'import SwiftUI\n' + design[design.index('struct PillButton:'):design.index('\nstruct TextButton:')]
+            production += views[views.index('struct TriageButtons<'):views.index('\nstruct CardTriageActions:')]
+            (out / 'Actions.swift').write_text(production)
+            (out / 'main.swift').write_text(r'''
+import AppKit
+import SwiftUI
+MainActor.assumeIsolated {
+  let app = NSApplication.shared
+  app.setActivationPolicy(.accessory)
+  for width: CGFloat in [500, 200] {
+    let actions = TriageButtons(dismiss: {}, done: {}) {
+      Button("Send to Todoist") {}.buttonStyle(PillButton(prominent: true))
+    }.padding(16).frame(width: width, alignment: .leading).background(Color(white: 0.08)).environment(\.colorScheme, .dark)
+    let host = NSHostingView(rootView: actions)
+    let fit = host.fittingSize
+    precondition(fit.width <= width + 1, "triage actions overflow")
+    precondition(fit.height > (width < 300 ? 90 : 40), "actions unexpectedly clipped")
+    host.frame = NSRect(origin: .zero, size: fit)
+    let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+    window.contentView = host
+    window.orderFrontRegardless()
+    RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+    host.layoutSubtreeIfNeeded()
+    guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { fatalError("no triage bitmap") }
+    host.cacheDisplay(in: host.bounds, to: bitmap)
+    guard let data = bitmap.representation(using: .png, properties: [:]) else { fatalError("no PNG") }
+    print("TRIAGE_CAPTURE_\(Int(width))=\(data.base64EncodedString())")
+    window.orderOut(nil)
+  }
+}
+''')
+            executable = out / 'triage-smoke'
+            subprocess.run(['xcrun', 'swiftc', str(out / 'Actions.swift'), str(out / 'main.swift'), '-o', str(executable)], check=True)
+            subprocess.run([str(executable)], check=True, timeout=20)
+
+
 if __name__ == '__main__':
     unittest.main()
