@@ -85,7 +85,7 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
   const rows = db.prepare(`
     select i.id, i.rowid rid, i.source, i.thread, i.sender, i.from_me, i.ts, coalesce(t.said, i.text) text, i.text raw_text, i.url, i.meta, t.due, t.when_words, t.amount, t.urgency, t.summary, t.second, t.quiet, t.confirmed, t.card, t.hint, t.hint_url, t.model, s.status, s.reason, s.url evidence_url, s.changed_at done_at, s.completion_origin
     from tags t join items i on i.id = t.item_id left join task_state s on s.item_id = i.id
-    where t.is_task = 1 and (i.ts > ? or t.due >= ? or s.changed_at > ?
+    where t.is_task = 1 and (i.ts > ? or t.due >= ? or s.changed_at > ? or s.status = 'snoozed'
       or (i.source = 'vahti' and (s.status is null or s.status in ('open', 'snoozed', 'looks_done', 'looks_unneeded')))
       or (t.card = 'callback' and (s.status is null or s.status in ('open', 'snoozed', 'looks_done', 'looks_unneeded')))) ${sourceFilter(sources)}
     order by i.ts desc`).all(now() - days * 86400, plusDays(t0, -days), now() - days * 86400)
@@ -126,7 +126,13 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
     }
 
     // "Tomorrow" hides a task until its date comes round.
-    if (state === 'snoozed') state = (reason?.match(/\d{4}-\d{2}-\d{2}/)?.[0] || '') > t0 ? 'snoozed' : 'open'
+    if (state === 'snoozed') {
+      const wake = reason?.match(/\d{4}-\d{2}-\d{2}/)?.[0] || ''
+      state = wake > t0 ? 'snoozed' : 'open'
+      // Legacy Tomorrow cards must return even when the original message is outside the
+      // history window. Use the saved wake date for display, not a new reminder or DB write.
+      if (wake && (!r.due || r.due < wake)) r.due = wake
+    }
     // AI questions close when you answer in that session, which the AI collector checks itself.
     // A card you reopened (Undo on a "done" toast) stays open: no automatic rule closes it again.
     // A follow-up handed back for later ("pitaj me kad završim…") isn't settled by your "ok, pingam te": that's you

@@ -681,6 +681,9 @@ struct CardRow: View {
         if card.maybe?.on == true { Button("Mine") { store.mark(card, "mine") }.buttonStyle(TextButton()) }
         VStack(alignment: .leading, spacing: 8) {
           if card.card == "appointment" { AppointmentCalendarButton(card: card) }
+          if card.card == "reply" && card.canReply {
+            Button(kind.main) { store.reply(card) }.buttonStyle(TextButton())
+          }
           CardTriageActions(card: card)
         }
       }

@@ -43,6 +43,22 @@ test('a file left uncommitted gets one card, and closing it holds when another s
   assert.equal(cards().length, 1, 'the same uncommitted file came back as a new card')
 })
 
+test('dismissing a stalled card does not teach suppression of a different session', async () => {
+  const isolated = open(':memory:')
+  try {
+    const seed = (id, at) => addItems(isolated, [{ id: `ai:${id}`, source: 'ai', thread: id, sender: 'Claude', fromMe: false, ts: at,
+      text: id, meta: { kind: 'session', session: id, cwd: repo, edits: [file], human: true, at } }])
+    seed('dismiss-first', now() - 5 * 3600)
+    await checkStalled(isolated)
+    const first = isolated.prepare("select item_id from tags where card='stalled'").get().item_id
+    isolated.prepare("insert into task_state(item_id,status,changed_at,reason,completion_origin) values (?,'dismissed',?,'marked in the timeline','owner')").run(first,now()-4*3600)
+    seed('dismiss-second', now() - 4 * 3600 + 60)
+    await checkStalled(isolated)
+    assert.equal(isolated.prepare("select count(*) n from tags where card='stalled'").get().n, 2)
+    assert.equal(isolated.prepare('select status from task_state where item_id=?').get(first).status, 'dismissed')
+  } finally { isolated.close() }
+})
+
 test('once it was committed, the next edit left behind is a new card', async () => {
   git('commit', '-qam', 'second')
   writeFileSync(file, 'three\n')

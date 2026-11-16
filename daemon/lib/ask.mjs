@@ -108,10 +108,10 @@ function daysAsked(q) {
   return null
 }
 const TO = {
-  open: 'Put back on your list', done: 'Mark done', snoozed: 'Remind me tomorrow', dismissed: 'Not mine',
+  open: 'Put back on your list', done: 'Mark done', dismissed: 'Dismiss',
 }
-const STATE = { open: 'on the list', overdue: 'on the list, overdue', done: 'marked done', handled: 'ticked off by Vahti', dismissed: 'marked not yours', snoozed: 'snoozed', expired: 'past' }
-const ACT = `${config.me} asked Vahti to change something on ${P.his} list. Below are the tasks that may be meant, numbered, each with where it's from and its state now. Which does ${P.he} want changed, and to what: "open" (back on the list, not done), "done", "snoozed" (tomorrow) or "dismissed" (not ${P.his})? Only tasks the request clearly means, usually one; none if it's unclear. Reply with only JSON: {"actions": [{"n": 1, "to": "open"}]}`
+const STATE = { open: 'on the list', overdue: 'on the list, overdue', done: 'marked done', handled: 'ticked off by Vahti', dismissed: 'dismissed from the list (this card only)', snoozed: 'snoozed', expired: 'past' }
+const ACT = `${config.me} asked Vahti to change something on ${P.his} list. Below are the tasks that may be meant, numbered, each with where it's from and its state now. Which does ${P.he} want changed, and to what: "open" (back on the list, not done), "done" or "dismissed" (clear only this card, no ownership inference)? Only tasks the request clearly means, usually one; none if it's unclear. Reply with only JSON: {"actions": [{"n": 1, "to": "open"}]}`
 
 async function actionsFor(db, q, found, item) {
   const ids = new Set(found.map((m) => m.id))
@@ -164,7 +164,7 @@ async function local(q, history = [], about = '', on = QUIET, item = null) {
   }
   // Describe the evidence and available action consistently with the button shown.
   if (offered.length) {
-    const DOES = { open: 'puts it back on your list', done: 'marks it done', snoozed: 'moves it to tomorrow', dismissed: 'takes it off as not yours' }
+    const DOES = { open: 'puts it back on your list', done: 'marks it done', snoozed: 'moves it to tomorrow', dismissed: 'dismisses only this card, without learning' }
     const out = offered.length === 1
       ? `Found it: “${offered[0].summary.replace(/[.!]$/, '')}”, ${STATE[offered[0].state] || offered[0].state}. The button below ${DOES[offered[0].status]}.`
       : `Found ${offered.length}: ${offered.map((o) => `“${o.summary}”`).join(' and ')}. The buttons below do it.`
