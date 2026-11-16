@@ -67,10 +67,11 @@ const openApp = (r) => {
     return r.source === 'notifications' ? JSON.parse(r.meta || '{}').app || null : APPS[r.source] || null } catch { return null }
 }
 
-// Used by the native Confirm action and other explicit owner marks.
-export function markTask(db, id, status) {
+// Used by the native Confirm action and other explicit owner marks. A caller may give the
+// reason ("Sent to Todoist"); without one the mark is the owner's own, made in the timeline.
+export function markTask(db, id, status, { reason: given } = {}) {
   if (!['done', 'dismissed', 'open', 'snoozed'].includes(status)) throw Error('bad status')
-  const reason = status === 'snoozed' ? `until ${plusDays(today(), 1)}` : 'marked in the timeline'
+  const reason = given ?? (status === 'snoozed' ? `until ${plusDays(today(), 1)}` : 'marked in the timeline')
   db.prepare(`insert into task_state (item_id, status, changed_at, reason, completion_origin) values (?, ?, ?, ?, ?)
     on conflict(item_id) do update set status = excluded.status, changed_at = excluded.changed_at,
       reason = excluded.reason, completion_origin = excluded.completion_origin, url = null`)

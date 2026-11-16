@@ -7,6 +7,9 @@ and this project adheres to [Calendar Versioning](https://calver.org/).
 
 ## [Unreleased]
 
+### Added
+- Send to Todoist: Vahti is the detector and the triage place, Todoist is the backend. One click on a card sends it to your Todoist Inbox - no project, no label, due on the date Vahti had already inferred - and closes it here; Todoist owns the task and its reminders from there, and Vahti schedules none. The API token is entered in Setup and lives only in this Mac's Keychain, readable by the signed app alone and handed to the daemon over its private pipe, one send at a time. Before the first send ever, Vahti warns you once that the card's title and due date go to api.todoist.com; every send after that goes straight through. Dismiss stays this card only and Mark done closes a card in the app, as before.
+
 ### Changed
 - Fewer idle wakeups: the island's pointer timer ran at 60 Hz all the time; it now runs at 60 Hz only while the pointer moves, is over the island, or did within the last 1.5 seconds, and at 10 Hz otherwise. Mouse movement still syncs at once through the event monitors, so the notch wake is not delayed; only a pointer that holds still while the island changes shape beneath it can be noticed up to about 100 ms later.
 - The app's repeating timers (clipboard, capture, flush, lists, menu bar, island light and checks) now allow macOS to coalesce their wakeups, a quarter of each interval at most. Nothing is captured less often.

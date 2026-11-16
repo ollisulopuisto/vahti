@@ -1,5 +1,17 @@
 [
   {
+    "version": "0.7.29",
+    "date": "2026-11-16",
+    "title": "Send a card to Todoist",
+    "summary": "Vahti is the detector and the triage place; Todoist is the backend. One click sends a card to your Todoist Inbox and closes it here.",
+    "notes": [
+      "Send to Todoist appears on cards once you save a Todoist API token in Setup. The token lives only in this Mac's Keychain.",
+      "The task lands in your Inbox with no project or label, due on the date Vahti had already inferred. Todoist owns it and its reminders from there; Vahti schedules nothing.",
+      "Vahti warns you once before the first send to Todoist's API; every send after that goes straight through.",
+      "Dismiss stays this card only, and Mark done closes a card right in the app, as before."
+    ]
+  },
+  {
     "version": "0.7.28",
     "date": "2026-11-12",
     "title": "Halfway into the notch",

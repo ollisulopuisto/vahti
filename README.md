@@ -49,7 +49,10 @@ install a newer build deliberately rather than relying on an update prompt.
   clipboard/app activity and chat text available through Accessibility. What can
   actually be collected depends on installed apps, their data and permissions.
 - **Optional integrations:** Gmail, Todoist, local Postilaatikko mail cache,
-  Solmu's local reader and explicitly configured MCP read tools.
+  Solmu's local reader and explicitly configured MCP read tools. Todoist is
+  read through your own calendar feed; with an API token saved in Setup, one
+  click also sends a card to your Todoist Inbox. You are warned once before
+  the first send to Todoist's API.
 - **Calendar/Reminders:** opt-in sync can write plans or dated tasks. Reading your
   existing reminders can also let Vahti mark one complete when it sees evidence.
   These are account changes, not read-only collection.
@@ -71,7 +74,9 @@ vault service. That is not a promise of no network traffic:
 
 - Model/runtime downloads need the network. A custom model endpoint receives
   content sent to it; use a local endpoint if that is your intended boundary.
-- Gmail and Todoist connect to their providers. Calendar/Reminders changes may
+- Gmail and Todoist connect to their providers. A card's title and due date go
+  to Todoist's API only when you click Send to Todoist, and you are warned
+  before the first send. Calendar/Reminders changes may
   sync through the account configured on the Mac.
 - Online helpers, cloud review and Claude handoffs are optional. A handoff shows
   its brief before sending. Ask with Codex is currently unavailable because the

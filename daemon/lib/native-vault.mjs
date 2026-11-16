@@ -20,7 +20,7 @@ export function nativeVault(input, output, { timeout = 200000 } = {}) {
   })
   input.on('end', fail); input.on('error', fail); output.on('error', fail)
   return (operation) => new Promise((resolve, reject) => {
-    if (!['status', 'connect', 'disconnect', 'access'].includes(operation)) { reject(Error('GMAIL_OPERATION_REFUSED')); return }
+    if (!['status', 'connect', 'disconnect', 'access', 'todoist-token'].includes(operation)) { reject(Error('GMAIL_OPERATION_REFUSED')); return }
     const id = randomBytes(16).toString('hex')
     const timer = setTimeout(() => { pending.delete(id); reject(Error('GMAIL_NATIVE_UNAVAILABLE')) }, timeout)
     pending.set(id, { resolve, reject, timer })

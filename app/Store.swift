@@ -279,10 +279,12 @@ struct Settings: Decodable {
   let claude: Bool
   // The internet connections Vahti makes of its own: off unless the owner turns them on.
   var online: Bool
-  // A Todoist API token is saved on this Mac; the token itself never comes back from the daemon.
+  // The owner's Todoist calendar feed is connected; the feed URL itself never comes back from the daemon.
   var todoist: Bool? = nil
   // The daemon's last failed Todoist read, so a token that stopped working shows instead of going silently stale.
   var todoistError: String? = nil
+  // The once-only first-send warning for the Todoist API has been acknowledged.
+  var todoistSendWarned: Bool? = nil
 }
 
 // Model connections expose only whether a saved key exists; the key never comes back from the daemon.
@@ -702,7 +704,31 @@ final class Store {
   }
 
   func loadPrivacy() async { privacy = await get("/api/privacy") ?? privacy }
-  func loadSettings() async { settings = await get("/api/settings") ?? settings }
+  func loadSettings() async {
+    settings = await get("/api/settings") ?? settings
+    refreshTodoistWrite()
+  }
+
+  // Whether Send to Todoist is offered on cards: the API token lives in this Mac's Keychain,
+  // read here, never through the daemon's API. Setup saves and removes it; this just reflects it.
+  var todoistWrite = false
+  func refreshTodoistWrite() { todoistWrite = TodoistKeychain.shared.hasToken }
+
+  enum TodoistSend { case sent, needsWarning, failed(String) }
+  // One click: the card goes to the Todoist Inbox and closes here. The daemon warns once before
+  // the first send ever (acknowledge carries the owner's OK), then every send goes straight out.
+  func sendToTodoist(_ card: Card, acknowledge: Bool) async -> TodoistSend {
+    struct Reply: Decodable { let ok: Bool; let needsWarning: Bool?; let error: String? }
+    guard let reply: Reply = await post("/api/todoist/send", ["id": card.id, "acknowledge": acknowledge]) else { return .failed("The daemon isn't answering.") }
+    if reply.needsWarning == true { return .needsWarning }
+    if reply.ok == true {
+      settings?.todoistSendWarned = true
+      if let b: Brief = await fresh("/api/brief") { brief = b }
+      if page == .done { await loadCompleted() }
+      return .sent
+    }
+    return .failed(reply.error ?? "Todoist could not be reached. Check the connection and try again.")
+  }
 
   func loadCalendars() async {
     if let reply: CalendarsReply = await get("/api/calendars") { calendars = reply.calendars; calendarsError = reply.error }

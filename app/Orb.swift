@@ -2016,7 +2016,7 @@ struct DoneRow: View {
       Image(systemName: merged ? "arrow.triangle.merge" : "checkmark.circle.fill").font(.system(size: 15))
         .foregroundStyle(merged ? Color.secondary : Color(red: 0.45, green: 0.95, blue: 0.62).opacity(0.8))
       VStack(alignment: .leading, spacing: 2) {
-        Text(card.state == "done" ? "You marked it done" : howDone(card.reason) ?? "Done").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+        Text(card.reason == "Sent to Todoist" ? "Sent to Todoist" : card.state == "done" ? "You marked it done" : howDone(card.reason) ?? "Done").font(.caption).foregroundStyle(.secondary).lineLimit(1)
         Text(card.headline).font(.callout).strikethrough().foregroundStyle(.secondary).lineLimit(1)
       }
       Spacer(minLength: 4)

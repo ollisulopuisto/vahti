@@ -115,10 +115,16 @@ final class GmailVault: @unchecked Sendable {
   private lazy var google = NativeGoogleSession(
     clientID: Bundle.main.object(forInfoDictionaryKey: "VahtiGoogleClientID") as? String ?? "",
     credential: { [unowned self] operation, token in try self.credential(operation, token: token) })
+  // The Todoist token store, wired at launch; the daemon reads it here, one send at a time.
+  var todoist: TodoistKeychain?
   func perform(_ operation: String) async throws -> [String: Any] {
     // Reject credential requests before any Keychain access, even from a replaced runtime.
-    guard ["status", "connect", "disconnect", "access"].contains(operation), bundled,
-          let runtime else { throw URLError(.noPermissionsToReadFile) }
+    guard bundled, let runtime else { throw URLError(.noPermissionsToReadFile) }
+    if operation == "todoist-token" {
+      try runtime.verify()
+      return ["token": todoist?.read() ?? ""]
+    }
+    guard ["status", "connect", "disconnect", "access"].contains(operation) else { throw URLError(.noPermissionsToReadFile) }
     try runtime.verify()
     return try await google.perform(operation)
   }
