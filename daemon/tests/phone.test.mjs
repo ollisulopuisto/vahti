@@ -17,7 +17,12 @@ test('a time in the task\'s words is its reminder time; a date with dots is not 
   assert.equal(at('do 15.11.'), null)
   assert.equal(at('9.11.2026'), null)
   assert.equal(at('by 1.12'), null)
+  assert.equal(at('u 9.05'), null)
   assert.equal(at('sutra u 10'), null)
+  // An explicit clock marker rescues month-shaped minutes.
+  assert.equal(at('u 17.10h'), '17:10')
+  assert.equal(at('at 9.05 am'), '09:05')
+  assert.equal(at('at 9.05 pm'), '21:05')
   // am/pm moves the hour; noon and midnight land right.
   assert.equal(at('at 2:30 PM'), '14:30')
   assert.equal(at('at 2:30 am'), '02:30')

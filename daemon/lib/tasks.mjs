@@ -342,13 +342,14 @@ const from = (t) => `${t.from_me ? 'You said' : who(t.sender)}, ${SOURCE[t.sourc
 const DAY_LINES = 4
 // Read time words as HH:MM, distinguishing dotted dates from clock times and applying am/pm.
 export function clockOf(t) {
-  const m = String(t.when_words || '').match(/\b([01]?\d|2[0-3])(?::([0-5]\d)(?!\d)|\.([0-5]\d)(?!\d)(?!\.\d|\.(?:\s|$)))(?:\s*([ap])\.?m\.?)?/i)
+  const m = String(t.when_words || '').match(/\b([01]?\d|2[0-3])(?::([0-5]\d)(?!\d)|\.([0-5]\d)(?!\d)(?!\.\d|\.(?:\s|$))(h)?)(?:\s*([ap])\.?m\.?)?/i)
   if (!m) return null
   // A dotted day and month is a date, never a clock: 'by 1.12' and '9.11' stay dates. Dotted
-  // minutes that can't be a month (9.30) or can't be a day (14.00) still read as times.
-  if (m[3] !== undefined && Number(m[3]) >= 1 && Number(m[3]) <= 12) return null
+  // minutes that can't be a month (9.30) or can't be a day (14.00) still read as times, and an
+  // explicit clock marker (a trailing h or am/pm) rescues month-shaped minutes like 17.10h.
+  if (m[3] !== undefined && Number(m[3]) >= 1 && Number(m[3]) <= 12 && !m[4] && !m[5]) return null
   let h = Number(m[1])
-  const meridiem = (m[4] || '').toLowerCase()
+  const meridiem = (m[5] || '').toLowerCase()
   if (meridiem === 'p' && h < 12) h += 12
   if (meridiem === 'a' && h === 12) h = 0
   return `${String(h).padStart(2, '0')}:${m[2] ?? m[3]}`
