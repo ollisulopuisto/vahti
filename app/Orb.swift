@@ -2320,13 +2320,6 @@ struct ItemPage: View {
           }
         }
         if let hint = card.hint, !ticked { Label("Maybe done by: \(hint)", systemImage: "arrow.triangle.branch").font(.caption).foregroundStyle(.teal) }
-        if card.needsConfirmation {
-          HStack {
-            Text(card.suggestionLabel).font(.caption).foregroundStyle(.secondary)
-            Button("Confirm") { decide(card.confirmStatus) }
-            Button(card.looksUnneeded ? "Keep" : "Not done") { decide("open") }
-          }.buttonStyle(.borderless).disabled(decision.busy)
-        }
         if ticked {
           if let url = safeLink(card.evidence_url) { Link(closedBy, destination: url).font(.caption) }
           else { Text(closedBy).font(.caption).foregroundStyle(.secondary) }
@@ -2336,6 +2329,22 @@ struct ItemPage: View {
       ScrollViewReader { scroll in
         ScrollView {
           VStack(alignment: .leading, spacing: 18) {
+            if card.needsConfirmation {
+              VStack(alignment: .leading, spacing: 6) {
+                Text(card.suggestionLabel).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                if let reason = card.reason {
+                  if let url = safeLink(card.evidence_url) {
+                    Link(howDone(reason) ?? reason, destination: url).font(.caption)
+                  } else {
+                    Text(howDone(reason) ?? reason).font(.caption).textSelection(.enabled)
+                  }
+                }
+                HStack {
+                  Button("Confirm") { decide(card.confirmStatus) }
+                  Button(card.looksUnneeded ? "Keep" : "Not done") { decide("open") }
+                }.buttonStyle(.borderless).disabled(decision.busy || exporting)
+              }
+            }
             ContextTimeline(entries: timeline, expanded: $expandedContext, openOriginal: canOpenSource ? {
               guard !exporting else { return }
               Task { await decision.inspect { await store.openSource(card) } }
