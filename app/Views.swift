@@ -564,6 +564,23 @@ struct TodoistSendButton: View {
   }
 }
 
+// Separate from triage: Done never means an event was added to Calendar.
+struct AppointmentCalendarButton: View {
+  @Environment(Store.self) var store
+  let card: Card
+  @State private var added = false
+
+  var body: some View {
+    Button(added ? "Added to calendar" : "Add to calendar") {
+      guard !added else { return }
+      added = true
+      store.addToCalendar(card)
+    }
+    .buttonStyle(TextButton()).disabled(added)
+    .onChange(of: card.id) { added = false }
+  }
+}
+
 struct CardRow: View {
   @Environment(Store.self) var store
   let card: Card
@@ -615,7 +632,7 @@ struct CardRow: View {
       Button("Dismiss") { store.mark(card, "dismissed") }
       Button("Done") { store.mark(card, "done") }
       if card.maybe?.on == true { Button("Mine") { store.mark(card, "mine") } }
-      TodoistSendButton(card: card)
+      // Sending stays on the persistent card strip, not transient menu content: its alerts must outlive the menu.
     }
   }
 
@@ -655,7 +672,10 @@ struct CardRow: View {
         Button { store.mark(card, "done") } label: { Label("Mark done", systemImage: "checkmark") }.buttonStyle(TextButton())
       } else {
         if card.maybe?.on == true { Button("Mine") { store.mark(card, "mine") }.buttonStyle(TextButton()) }
-        CardTriageActions(card: card)
+        VStack(alignment: .leading, spacing: 8) {
+          if card.card == "appointment" { AppointmentCalendarButton(card: card) }
+          CardTriageActions(card: card)
+        }
       }
     }
   }

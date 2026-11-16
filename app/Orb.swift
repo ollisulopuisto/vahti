@@ -2343,7 +2343,7 @@ struct ItemPage: View {
         openSession
         if card.canReply { Button(card.openLabel) { store.reply(card) } }
         if !ticked && !card.needsConfirmation {
-          if card.maybe?.on == true { Button("Mine") { store.mark(card, "mine") } }
+          if card.maybe?.on == true { Button("Mine") { store.mark(card, "mine"); back() } }
         }
         Spacer()
         handOff
@@ -2353,6 +2353,10 @@ struct ItemPage: View {
       .overlay(alignment: .top) { Rectangle().fill(Glass.hairline).frame(height: 0.5) }
 
       if !ticked && !card.needsConfirmation {
+        if card.card == "appointment" {
+          AppointmentCalendarButton(card: card)
+            .padding(.horizontal, 12).padding(.top, 8)
+        }
         CardTriageActions(card: card, finished: back)
           .padding(.horizontal, 12).padding(.top, 8)
       }
