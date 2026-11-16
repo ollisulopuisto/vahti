@@ -7,7 +7,7 @@ import { join } from 'node:path'
 process.env.VAHTI_DATA_DIR = mkdtempSync(join(tmpdir(), 'vahti-triage-'))
 after(() => rmSync(process.env.VAHTI_DATA_DIR, { recursive: true, force: true }))
 const { open, addItems, now } = await import('../lib/db.mjs')
-const { markTask, tasks, brief, today, plusDays } = await import('../lib/tasks.mjs')
+const { markTask, tasks, brief, daysText, today, plusDays } = await import('../lib/tasks.mjs')
 
 for (const status of ['dismissed', 'done']) {
   test(`${status} closes only the selected card, without learning or a Todoist send`, t => {
@@ -57,4 +57,19 @@ test('resurfacing keeps inferred deadlines unchanged for Todoist and phone sync'
     assert.equal(brief(db).today.tasks.some(c=>c.id===id),true)
     assert.equal(phoneItems(db,{decisionAvailable:false}).items.some(c=>c.id===id),false)
   }
+})
+
+
+test('day answers include resurfaced undated and overdue cards once without changing deadlines', t => {
+  const db = open(':memory:'); t.after(() => db.close())
+  for (const [id,due] of [['undated',''],['overdue',plusDays(today(),-1)],['due-today',today()]]) {
+    addItems(db,[{id,source:'whatsapp',thread:id,sender:'Nika',fromMe:false,ts:now(),text:`Review ${id}`}])
+    db.prepare("insert into tags(item_id,is_task,due,summary,model,tagged_at,card,confirmed) values (?,1,?,?,'test',?,'todo',1)").run(id,due,`Review ${id}`,now())
+    db.prepare("insert into task_state(item_id,status,changed_at,reason) values (?,'snoozed',?,?)").run(id,now(),`until ${today()}`)
+  }
+  const answer = daysText(db,today(),today())
+  for (const id of ['undated','overdue','due-today']) assert.equal(answer.split(`Review ${id} (`).length-1,1,answer)
+  assert.doesNotMatch(answer,/nothing on the calendar or the list/)
+  assert.equal(tasks(db).find(c=>c.id==='undated').due,'')
+  assert.equal(tasks(db).find(c=>c.id==='overdue').due,plusDays(today(),-1))
 })

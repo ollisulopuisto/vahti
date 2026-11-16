@@ -438,7 +438,7 @@ export function daysText(db, from, to, { evidenceLabels = false } = {}) {
   const name = (iso) => (iso === t0 ? `Today, ${dayLabel(iso)}` : iso === plusDays(t0, 1) ? `Tomorrow, ${dayLabel(iso)}` : dayLabel(iso))
   const out = []
   for (let d = from; d <= to; d = plusDays(d, 1)) {
-    const lines = [...ev.filter((e) => e.day === d).map(eventText), ...live.filter((t) => t.due === d).map(taskText)]
+    const lines = [...ev.filter((e) => e.day === d).map(eventText), ...live.filter((t) => t.due === d || (d === t0 && t.resurface && t.resurface <= t0)).map(taskText)]
     out.push(lines.length ? `${name(d)}:` : `${name(d)}: nothing on the calendar or the list`, ...lines.map((l) => `- ${l}`))
   }
   // Asked about today, what's still waiting from before is on today's plate too.
