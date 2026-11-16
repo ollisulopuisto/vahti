@@ -711,7 +711,7 @@ final class Store {
 
   // Whether Send to Todoist is offered on cards: the API token lives in this Mac's Keychain,
   // read here, never through the daemon's API. Setup saves and removes it; this just reflects it.
-  var todoistWrite = false
+  var todoistWrite = TodoistKeychain.shared.hasToken
   func refreshTodoistWrite() { todoistWrite = TodoistKeychain.shared.hasToken }
 
   enum TodoistSend { case sent, needsWarning, failed(String) }

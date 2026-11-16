@@ -75,8 +75,8 @@ vault service. That is not a promise of no network traffic:
 - Model/runtime downloads need the network. A custom model endpoint receives
   content sent to it; use a local endpoint if that is your intended boundary.
 - Gmail and Todoist connect to their providers. A card's title, due date and
-  link go to Todoist's API only when you click Send to Todoist, and you are
-  warned before the first send. Calendar/Reminders changes may
+  time, and link go to Todoist's API only when you click Send to Todoist, and
+  you are warned before the first send. Calendar/Reminders changes may
   sync through the account configured on the Mac.
 - Online helpers, cloud review and Claude handoffs are optional. A handoff shows
   its brief before sending. Ask with Codex is currently unavailable because the

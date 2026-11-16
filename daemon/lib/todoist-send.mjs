@@ -8,7 +8,7 @@ import { config } from './config.mjs'
 import { now } from './db.mjs'
 import { vaultCall } from './native-vault.mjs'
 import { save } from './settings.mjs'
-import { markTask, tasks } from './tasks.mjs'
+import { clockOf, markTask, tasks } from './tasks.mjs'
 
 // The only host Send to Todoist may talk to: Todoist's current API (REST v2 and Sync v9 are retired).
 export const TASKS_URL = 'https://api.todoist.com/api/v1/tasks'
@@ -47,7 +47,9 @@ export function payloadFor(card, tz = config.timezone) {
   const body = { content }
   if (typeof card.url === 'string' && card.url.startsWith('https://')) body.description = card.url.slice(0, 2000)
   const due = /^\d{4}-\d{2}-\d{2}$/.test(card.due || '') ? card.due : null
-  const time = /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(card.when_words || '') ? card.when_words : null
+  // The clock is read the way the rest of Vahti reads it, so 'at 14:00' and 'u 9.30' keep their
+  // time while a dotted date stays a date.
+  const time = clockOf(card)
   if (due && time) body.due_datetime = dueUtc(due, time, tz)
   else if (due) body.due_date = due
   return body
@@ -98,7 +100,10 @@ export async function sendCard(db, id, { acknowledge = false, fetcher = fetch, g
     const card = tasks(db, { days: 365 }).find((x) => x.id === id)
     if (!card) throw Error('TODOIST_NO_CARD')
     if (card.source === 'todoist') throw Error('TODOIST_OWN_CARD')
-    if (card.state === 'done' && card.reason === 'Sent to Todoist') throw Error('TODOIST_ALREADY_SENT')
+    // The scoped card list masks completion reasons whenever any source is switched off, so the
+    // transfer marker is checked against the persisted state itself - an off source can't clone a task.
+    const persisted = db.prepare('select status, reason from task_state where item_id = ?').get(id)
+    if (persisted?.status === 'done' && persisted?.reason === 'Sent to Todoist') throw Error('TODOIST_ALREADY_SENT')
     const token = await getToken()
     if (!token) throw Error('TODOIST_NO_TOKEN')
     await createTask(token, payloadFor(card), { fetcher })

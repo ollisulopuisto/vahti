@@ -10,6 +10,7 @@ after(() => rmSync(dir, { recursive: true, force: true }))
 const { open, addItems, now } = await import('../lib/db.mjs')
 const { payloadFor, createTask, sendCard, sendWarned, acknowledgeSend, TASKS_URL } = await import('../lib/todoist-send.mjs')
 const { tasks } = await import('../lib/tasks.mjs')
+const { setSource } = await import('../lib/settings.mjs')
 
 const t0 = now()
 function fixture(t) {
@@ -32,6 +33,11 @@ test('the payload is the card title, its link, and only the due Vahti inferred',
   // A clock time rides along as an instant: Helsinki is two hours ahead of UTC in December.
   assert.equal(payloadFor({ ...base, due: '2026-12-01', when_words: '09:30' }, 'Europe/Helsinki').due_datetime, '2026-12-01T07:30:00Z')
   assert.equal(payloadFor({ ...base, due: '2026-07-01', when_words: '09:30' }, 'Europe/Helsinki').due_datetime, '2026-07-01T06:30:00Z')
+  // Timing words keep their clock the way the rest of Vahti reads them; a dotted date stays a date.
+  assert.equal(payloadFor({ ...base, due: '2026-12-01', when_words: 'at 14:00' }, 'Europe/Helsinki').due_datetime, '2026-12-01T12:00:00Z')
+  assert.equal(payloadFor({ ...base, due: '2026-12-01', when_words: 'u 9.30' }, 'Europe/Helsinki').due_datetime, '2026-12-01T07:30:00Z')
+  const dotted = payloadFor({ ...base, due: '2026-12-01', when_words: 'per 1.12.' }, 'Europe/Helsinki')
+  assert.equal(dotted.due_date, '2026-12-01'); assert.equal(dotted.due_datetime, undefined)
   // Model words are not a time, a malformed date is no date: neither is invented.
   const words = payloadFor({ ...base, due: 'next Friday', when_words: 'tomorrow evening' }, 'Europe/Helsinki')
   assert.equal(words.due_date, undefined); assert.equal(words.due_datetime, undefined)
@@ -117,6 +123,23 @@ test('a send in flight claims its card: no twin task from a double click', async
   await assert.rejects(() => sendCard(db, 'failed', { fetcher: fail, getToken }), /TODOIST_UNREACHABLE/)
   assert.equal(tasks(db, { days: 365 }).find((x) => x.id === 'failed').state, 'open')
   await assert.rejects(() => sendCard(db, 'failed', { fetcher: fail, getToken }), /TODOIST_UNREACHABLE/)
+})
+
+test('a switched-off source cannot un-send a card: the marker is read from the vault, not the masked view', async t => {
+  const db = fixture(t)
+  acknowledgeSend()
+  card(db, 'masked')
+  let calls = 0
+  const fetcher = () => { calls++; return okResponse() }
+  const getToken = () => Promise.resolve(token)
+  assert.deepEqual(await sendCard(db, 'masked', { fetcher, getToken }), { ok: true })
+  assert.equal(calls, 1)
+  // With any source off, the scoped card list masks the completion reason; the persisted marker still refuses a twin.
+  setSource('browser', false)
+  t.after(() => setSource('browser', true))
+  assert.equal(tasks(db, { days: 365 }).find((x) => x.id === 'masked').reason, null)
+  await assert.rejects(() => sendCard(db, 'masked', { fetcher, getToken }), /TODOIST_ALREADY_SENT/)
+  assert.equal(calls, 1)
 })
 
 test('what cannot be sent is refused before any network call', async t => {

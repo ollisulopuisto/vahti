@@ -549,7 +549,7 @@ struct CardRow: View {
       Button("Send") { sendToTodoist(acknowledge: true) }
       Button("Cancel", role: .cancel) {}
     } message: {
-      Text("Vahti sends this card's title, its due date, and its link when it has one to Todoist's API (api.todoist.com), where it lands in your Inbox. This is the only time Vahti asks; every later send is one click. Remove the API token in Setup to stop.")
+      Text("Vahti sends this card's title, its due date and time, and its link when it has one to Todoist's API (api.todoist.com), where it lands in your Inbox. This is the only time Vahti asks; every later send is one click. Remove the API token in Setup to stop.")
     }
     .alert("Could not send to Todoist", isPresented: Binding(get: { todoistError != nil }, set: { if !$0 { todoistError = nil } })) {
       Button("OK", role: .cancel) {}
@@ -1411,7 +1411,7 @@ struct SetupView: View {
       // Send to Todoist: cards go to the Inbox with one click. The token is typed here, kept only
       // in this Mac's Keychain, and Vahti warns once before the first send to Todoist's API.
       if store.todoistWrite {
-        row("Send to Todoist", "Cards you send land in your Todoist Inbox: the title, the due date Vahti inferred, and the card's link. The API token is in this Mac's Keychain.", symbol: "paperplane") {
+        row("Send to Todoist", "Cards you send land in your Todoist Inbox: the title, the due date and time Vahti inferred, and the card's link. The API token is in this Mac's Keychain.", symbol: "paperplane") {
           Button("Remove token") {
             TodoistKeychain.shared.clear()
             store.refreshTodoistWrite()
