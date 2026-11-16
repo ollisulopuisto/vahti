@@ -340,10 +340,18 @@ const from = (t) => `${t.from_me ? 'You said' : who(t.sender)}, ${SOURCE[t.sourc
 // always get a line. It's worked out from what's open, so it holds still through the day: things drop off as they're
 // done, and only something new and important adds a line.
 const DAY_LINES = 4
-// Read time words as HH:MM, distinguishing dotted dates from clock times.
+// Read time words as HH:MM, distinguishing dotted dates from clock times and applying am/pm.
 export function clockOf(t) {
-  const m = String(t.when_words || '').match(/\b([01]?\d|2[0-3])(?::([0-5]\d)(?!\d)|\.([0-5]\d)(?!\d)(?!\.\d|\.(?:\s|$)))/)
-  return m ? `${m[1].padStart(2, '0')}:${m[2] ?? m[3]}` : null
+  const m = String(t.when_words || '').match(/\b([01]?\d|2[0-3])(?::([0-5]\d)(?!\d)|\.([0-5]\d)(?!\d)(?!\.\d|\.(?:\s|$)))(?:\s*([ap])\.?m\.?)?/i)
+  if (!m) return null
+  // A dotted day and month is a date, never a clock: 'by 1.12' and '9.11' stay dates. Dotted
+  // minutes that can't be a month (9.30) or can't be a day (14.00) still read as times.
+  if (m[3] !== undefined && Number(m[3]) >= 1 && Number(m[3]) <= 12) return null
+  let h = Number(m[1])
+  const meridiem = (m[4] || '').toLowerCase()
+  if (meridiem === 'p' && h < 12) h += 12
+  if (meridiem === 'a' && h === 12) h = 0
+  return `${String(h).padStart(2, '0')}:${m[2] ?? m[3]}`
 }
 
 function dayList(b) {

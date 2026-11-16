@@ -38,6 +38,10 @@ test('the payload is the card title, its link, and only the due Vahti inferred',
   assert.equal(payloadFor({ ...base, due: '2026-12-01', when_words: 'u 9.30' }, 'Europe/Helsinki').due_datetime, '2026-12-01T07:30:00Z')
   const dotted = payloadFor({ ...base, due: '2026-12-01', when_words: 'per 1.12.' }, 'Europe/Helsinki')
   assert.equal(dotted.due_date, '2026-12-01'); assert.equal(dotted.due_datetime, undefined)
+  // A bare dotted date invents no clock, and am/pm moves the hour instead of dropping it.
+  const bare = payloadFor({ ...base, due: '2026-12-01', when_words: 'by 1.12' }, 'Europe/Helsinki')
+  assert.equal(bare.due_date, '2026-12-01'); assert.equal(bare.due_datetime, undefined)
+  assert.equal(payloadFor({ ...base, due: '2026-12-01', when_words: 'at 2:30 PM' }, 'Europe/Helsinki').due_datetime, '2026-12-01T12:30:00Z')
   // Model words are not a time, a malformed date is no date: neither is invented.
   const words = payloadFor({ ...base, due: 'next Friday', when_words: 'tomorrow evening' }, 'Europe/Helsinki')
   assert.equal(words.due_date, undefined); assert.equal(words.due_datetime, undefined)
