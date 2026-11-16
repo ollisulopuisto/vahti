@@ -1,3 +1,13 @@
+## 2026-11-16 - Review follow-up: card-only Dismiss and legacy snoozes
+
+Restored Brief Reply as a separate source action; the three decisions did not require losing it. Dismiss copy in the local assistant no longer says Not mine, and dismissed stalled cards no longer suppress a different session's card for the same files. Done keeps the existing completed-work suppression. The assistant no longer offers new Tomorrow/snooze actions; old snoozes remain readable and return on their saved wake date even outside the history window. Tests were run red first for both cross-session suppression and old snooze resurfacing, then green after the fixes. The original tag-unchanged tests remain coverage, not claimed as failing-first evidence.
+
+## 2026-11-16 - Three-action triage cleanup (0.7.30)
+
+Brief and orb detail now share Dismiss / Done / Send to Todoist. Removed Tomorrow / Not mine and changed toast Later to Dismiss. Existing completion confirmation and Maybe yours claim flows stay separate; Todoist cards cannot be sent back to Todoist, and sending without a token points to Setup. Setup labels distinguish read feed from send token. No daemon API, storage, learning or outbound network behavior changed. First-send warning and failure retention use the existing send path.
+
+Native compile and visual capture run in the existing macOS smoke job. Live Todoist exchange and actual user-account behavior are not tested here. Rollback: revert this PR.
+
 ## 2026-11-16 - Send to Todoist: Vahti triages, Todoist is the backend (0.7.29)
 
 **Task:** Olli: "build vahti D8" (iMessage 2026-11-16 08:20). The design was his over iMessage 2026-11-15: Todoist as the backend because data spreads around (11:09, voice 11:35), the three card actions Dismiss / Mark done / Send to Todoist (19:42), one click to the Inbox with no project/label and the due "the way vahti infers all dates" (21:18). Open points kept the proposed defaults he never overruled: Dismiss = this card only, no learning; Done in app yes; Snooze no (Todoist snooze is mobile-only). Vahti schedules no reminders.

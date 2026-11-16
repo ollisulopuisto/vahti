@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.7.30",
+    "date": "2026-11-16",
+    "title": "Three decisions for every card",
+    "summary": "Dismiss, Done, or Send to Todoist. Undecided cards stay pending.",
+    "notes": [
+      "Brief and orb detail share the same actions. Dismiss affects only this card, with no learning; Done closes it locally without creating a Todoist task.",
+      "Tomorrow, Later and Not mine controls are removed. The toast offers Done or Dismiss; open it for Send to Todoist.",
+      "Setup separates the read-only calendar feed from the API token used to send cards. The token stays in Keychain, and the first-send warning still appears once."
+    ]
+  },
+  {
     "version": "0.7.29",
     "date": "2026-11-16",
     "title": "Send a card to Todoist",

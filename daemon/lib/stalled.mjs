@@ -122,11 +122,12 @@ export async function checkStalled(db, { fresh = false, github = {} } = {}) {
         `Pick up PR #${pr.number} “${pr.title}” (still open${pr.draft ? ', a draft' : ''})`, { pr: url })
     }
   }
-  // Keep dismissed uncommitted work closed until a new commit changes its state.
+  // Completed work stays closed until a new commit changes its state. Dismissal is card-only,
+  // so it must not suppress a different session touching the same files.
   // Another session touching the same files must not resurrect it.
   const settled = new Map()
   for (const c of db.prepare(`select i.meta, s.changed_at from items i join task_state s on s.item_id = i.id join tags t on t.item_id = i.id
-      where i.source = 'ai' and t.card = 'stalled' and s.status in ('done', 'dismissed') and s.changed_at > ?`).all(now() - 30 * 86400)) {
+      where i.source = 'ai' and t.card = 'stalled' and s.status = 'done' and s.changed_at > ?`).all(now() - 30 * 86400)) {
     const m = metaOf(c)
     if (!m.repo || !m.files?.length || await committed(m.repo, m.files, c.changed_at)) continue
     settled.set(m.repo, new Set([...(settled.get(m.repo) || []), ...m.files]))

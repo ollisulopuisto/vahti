@@ -85,7 +85,7 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
   const rows = db.prepare(`
     select i.id, i.rowid rid, i.source, i.thread, i.sender, i.from_me, i.ts, coalesce(t.said, i.text) text, i.text raw_text, i.url, i.meta, t.due, t.when_words, t.amount, t.urgency, t.summary, t.second, t.quiet, t.confirmed, t.card, t.hint, t.hint_url, t.model, s.status, s.reason, s.url evidence_url, s.changed_at done_at, s.completion_origin
     from tags t join items i on i.id = t.item_id left join task_state s on s.item_id = i.id
-    where t.is_task = 1 and (i.ts > ? or t.due >= ? or s.changed_at > ?
+    where t.is_task = 1 and (i.ts > ? or t.due >= ? or s.changed_at > ? or s.status = 'snoozed'
       or (i.source = 'vahti' and (s.status is null or s.status in ('open', 'snoozed', 'looks_done', 'looks_unneeded')))
       or (t.card = 'callback' and (s.status is null or s.status in ('open', 'snoozed', 'looks_done', 'looks_unneeded')))) ${sourceFilter(sources)}
     order by i.ts desc`).all(now() - days * 86400, plusDays(t0, -days), now() - days * 86400)
@@ -126,7 +126,12 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
     }
 
     // "Tomorrow" hides a task until its date comes round.
-    if (state === 'snoozed') state = (reason?.match(/\d{4}-\d{2}-\d{2}/)?.[0] || '') > t0 ? 'snoozed' : 'open'
+    if (state === 'snoozed') {
+      const wake = reason?.match(/\d{4}-\d{2}-\d{2}/)?.[0] || ''
+      state = wake > t0 ? 'snoozed' : 'open'
+      // Wake/display is not an inferred deadline. Exports must keep the original due unchanged.
+      if (wake) r.resurface = wake
+    }
     // AI questions close when you answer in that session, which the AI collector checks itself.
     // A card you reopened (Undo on a "done" toast) stays open: no automatic rule closes it again.
     // A follow-up handed back for later ("pitaj me kad završim…") isn't settled by your "ok, pingam te": that's you
@@ -153,7 +158,7 @@ export function tasks(db, { days = 14, sources, auth = authorization(sources ?? 
     }
     // Anything tied to a moment (being somewhere, a quick "reply now") has simply passed once its day is over.
     // Only promises, to-dos and payments can be forgotten, for a few days.
-    if (state === 'open' && r.due && r.due < t0) state = r.source === 'vahti' ? 'overdue' : r.card === 'callback' || (!moment(r) && r.due >= plusDays(t0, -OVERDUE_DAYS)) ? 'overdue' : 'expired'
+    if (state === 'open' && !r.resurface && r.due && r.due < t0) state = r.source === 'vahti' ? 'overdue' : r.card === 'callback' || (!moment(r) && r.due >= plusDays(t0, -OVERDUE_DAYS)) ? 'overdue' : 'expired'
     // Summaries were written on the day the message came, so "tomorrow" goes stale; the card shows the date instead.
     if (r.summary) r.summary = r.summary.replace(/\s+(?:(?:by|until|before|on|for)\s+)?(today|tomorrow|tonight|this evening|this morning)\.?$/i, '')
     // Without a second opinion, keep the first model’s judgment. Owner promises, personal
@@ -284,18 +289,18 @@ export function brief(db, { sources, auth = authorization(sources ?? null) } = {
   const back = new Map(owed(db, live, now(), 24 * 60).map((o) => [o.card.id, o.at]))
   // Your own "I'll fix it" without a date is usually handled in the same conversation, so it only
   // stays in the brief for a day; requests from other people stay until answered or 3 days pass.
-  const recent = (t) => t.source === 'vahti' || t.card === 'callback' || t.due || t.ts > now() - (t.from_me ? OWN_UNDATED_HOURS * 3600 : OVERDUE_DAYS * 86400) || back.has(t.id)
+  const recent = (t) => t.source === 'vahti' || t.card === 'callback' || t.resurface || t.due || t.ts > now() - (t.from_me ? OWN_UNDATED_HOURS * 3600 : OVERDUE_DAYS * 86400) || back.has(t.id)
   const maybe = top(all.filter((t) => t.maybe && recent(t)))
   const forgotten = top(live.filter((t) => t.state === 'overdue' || (['looks_done', 'looks_unneeded'].includes(t.state) && t.due && t.due < t0)))
-  const open = top(live.filter((t) => !t.due && recent(t)), (t) => back.get(t.id) || t.ts)
+  const open = top(live.filter((t) => !t.due && !t.resurface && recent(t)), (t) => back.get(t.id) || t.ts)
   const b = {
     date: t0,
-    today: { events: ev.filter((e) => e.day === t0), tasks: live.filter((t) => t.due === t0) },
+    today: { events: ev.filter((e) => e.day === t0), tasks: live.filter((t) => t.due === t0 || (t.resurface && t.resurface <= t0)) },
     forgotten: forgotten.list,
     open: open.list,
     maybe: maybe.list,
     more: { forgotten: forgotten.more, open: open.more, maybe: maybe.more },
-    soon: { events: ev.filter((e) => e.day > t0), tasks: live.filter((t) => t.due > t0 && t.due <= week) },
+    soon: { events: ev.filter((e) => e.day > t0), tasks: live.filter((t) => !t.resurface && t.due > t0 && t.due <= week) },
     waiting: waiting(db, { sources }).slice(0, 8),
     // Done lately, the last one done first: what Vahti saw done (a reply, a call, a commit), shown so a wrong guess can
     // be undone, and what you ticked off yourself, so the one you just marked is at the top.
@@ -433,7 +438,7 @@ export function daysText(db, from, to, { evidenceLabels = false } = {}) {
   const name = (iso) => (iso === t0 ? `Today, ${dayLabel(iso)}` : iso === plusDays(t0, 1) ? `Tomorrow, ${dayLabel(iso)}` : dayLabel(iso))
   const out = []
   for (let d = from; d <= to; d = plusDays(d, 1)) {
-    const lines = [...ev.filter((e) => e.day === d).map(eventText), ...live.filter((t) => t.due === d).map(taskText)]
+    const lines = [...ev.filter((e) => e.day === d).map(eventText), ...live.filter((t) => t.due === d || (d === t0 && t.resurface && t.resurface <= t0)).map(taskText)]
     out.push(lines.length ? `${name(d)}:` : `${name(d)}: nothing on the calendar or the list`, ...lines.map((l) => `- ${l}`))
   }
   // Asked about today, what's still waiting from before is on today's plate too.
