@@ -33,6 +33,7 @@ import { listCalendars } from '../collectors/calendar.mjs'
 import { NeedsAccess } from '../collectors/util.mjs'
 import { remove as removeItems } from './privacy.mjs'
 import { connectTodoist, disconnectTodoist, todoistConnected } from './todoist.mjs'
+import { sendCard as sendCardToTodoist, sendWarned as todoistSendWarned } from './todoist-send.mjs'
 import { markTask, donePage, brief, briefText, dayRange, icsFor, isoDay, plusDays, tasks, today } from './tasks.mjs'
 import { phoneItems } from './phone.mjs'
 import { syncReminders } from './reminders.mjs'
@@ -251,6 +252,8 @@ export function serve(db, { install, port = config.port } = {}) {
           claudeCheck: config.claudeCheck === true, claude: !!CLAUDE, online: config.online === true,
           todoist: todoistConnected(),
           todoistError: db.prepare("select error from runs where source = 'todoist' and ok = 0").get()?.error ?? null,
+          // Whether the once-only first-send warning for the Todoist API has been acknowledged.
+          todoistSendWarned: todoistSendWarned(),
         })
       }
       if (url.pathname === '/api/status') {
@@ -303,6 +306,34 @@ export function serve(db, { install, port = config.port } = {}) {
         } catch (error) {
           const message = error?.message === 'TODOIST_FEED_UNREACHABLE' ? 'The feed could not be reached. Check the connection and try again.' : 'That URL isn\u2019t a Todoist calendar feed. Copy the feed URL from Todoist Settings, Integrations, Calendar.'
           return json(res, { ok: false, error: message }, 400)
+        }
+      }
+      // One click on a card: the card goes to the owner's Todoist Inbox (no project, no label,
+      // the due date Vahti already inferred) and closes here; Todoist owns it and its reminders
+      // from there. The first ever send must be acknowledged (the app shows the warning); after
+      // that no send asks again. The API token never passes through this server: the daemon gets
+      // it from the Keychain over its inherited pipe, one send at a time.
+      if (url.pathname === '/api/todoist/send' && post) {
+        if (requestBody.length > 2000) return json(res, { ok: false, error: 'Request too large.' }, 400)
+        try {
+          const input = JSON.parse(requestBody || '{}')
+          const result = await sendCardToTodoist(db, String(input.id || '').slice(0, 200), { acknowledge: input.acknowledge === true })
+          if (result.needsWarning) return json(res, { ok: false, needsWarning: true })
+          return json(res, { ok: true })
+        } catch (error) {
+          const known = {
+            TODOIST_NO_CARD: 'That card is no longer on the list.',
+            TODOIST_OWN_CARD: 'That card came from Todoist, so it is already there.',
+            TODOIST_ALREADY_SENT: 'That card was already sent to Todoist.',
+            TODOIST_EMPTY_CARD: 'That card has no title to send.',
+            TODOIST_NO_TOKEN: 'No Todoist API token is saved on this Mac. Save one in Setup first.',
+            TODOIST_IN_FLIGHT: 'That card is already being sent.',
+            TODOIST_TOKEN_REFUSED: 'Todoist refused the saved token. Save a fresh one in Setup.',
+            TODOIST_REFUSED: 'Todoist refused that task. Try again.',
+            GMAIL_KEYCHAIN_UNAVAILABLE: 'The Keychain is not answering. Restart Vahti and try again.',
+            GMAIL_NATIVE_UNAVAILABLE: 'The Keychain is not answering. Restart Vahti and try again.',
+          }
+          return json(res, { ok: false, error: known[error?.message] || 'Todoist could not be reached. Check the connection and try again.' }, 400)
         }
       }
       // One calendar switched on or off. Off: nothing more is read from it and what Vahti kept

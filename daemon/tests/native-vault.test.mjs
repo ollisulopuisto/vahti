@@ -61,7 +61,7 @@ test('complete sealed runtime is checked before launch and after resource replac
     writeFileSync(join(contents, 'Info.plist'), '<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>to.sulopuis.vahti.fixture</string><key>CFBundleExecutable</key><string>Fixture</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>')
     execFileSync('/usr/bin/codesign', ['--force', '--sign', '-', bundle], { stdio: 'pipe' })
     const binary = join(dir, 'seal-test')
-    execFileSync('swiftc', ['../app/GmailVault.swift', '../app/NativeGoogleSession.swift', '../app/LinkPolicy.swift', 'tests/runtime-seal.swift', '-o', binary], { stdio: 'pipe' })
+    execFileSync('swiftc', ['../app/GmailVault.swift', '../app/TodoistKeychain.swift', '../app/NativeGoogleSession.swift', '../app/LinkPolicy.swift', 'tests/runtime-seal.swift', '-o', binary], { stdio: 'pipe' })
     assert.match(execFileSync(binary, [bundle], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), /checks passed/)
     const main = readFileSync('../app/main.swift', 'utf8')
     assert.ok(main.indexOf('try gmailVault.prepareForLaunch') < main.indexOf('try child.run()'))

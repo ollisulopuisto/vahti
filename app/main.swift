@@ -41,6 +41,7 @@ if args.first == "open" { child.standardOutput = output }
 let vaultInput = Pipe(), vaultOutput = Pipe()
 let vaultDirectory = child.environment?["VAHTI_DATA_DIR"] ?? FileManager.default.homeDirectoryForCurrentUser.path + "/Library/Application Support/Vahti"
 let gmailVault = GmailVault(directory: vaultDirectory, bundled: bundled)
+gmailVault.todoist = TodoistKeychain(directory: vaultDirectory, bundled: bundled)
 if daemon {
   child.standardInput = vaultInput
   child.standardOutput = vaultOutput

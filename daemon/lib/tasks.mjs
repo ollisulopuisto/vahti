@@ -67,10 +67,11 @@ const openApp = (r) => {
     return r.source === 'notifications' ? JSON.parse(r.meta || '{}').app || null : APPS[r.source] || null } catch { return null }
 }
 
-// Used by the native Confirm action and other explicit owner marks.
-export function markTask(db, id, status) {
+// Used by the native Confirm action and other explicit owner marks. A caller may give the
+// reason ("Sent to Todoist"); without one the mark is the owner's own, made in the timeline.
+export function markTask(db, id, status, { reason: given } = {}) {
   if (!['done', 'dismissed', 'open', 'snoozed'].includes(status)) throw Error('bad status')
-  const reason = status === 'snoozed' ? `until ${plusDays(today(), 1)}` : 'marked in the timeline'
+  const reason = given ?? (status === 'snoozed' ? `until ${plusDays(today(), 1)}` : 'marked in the timeline')
   db.prepare(`insert into task_state (item_id, status, changed_at, reason, completion_origin) values (?, ?, ?, ?, ?)
     on conflict(item_id) do update set status = excluded.status, changed_at = excluded.changed_at,
       reason = excluded.reason, completion_origin = excluded.completion_origin, url = null`)
@@ -339,10 +340,19 @@ const from = (t) => `${t.from_me ? 'You said' : who(t.sender)}, ${SOURCE[t.sourc
 // always get a line. It's worked out from what's open, so it holds still through the day: things drop off as they're
 // done, and only something new and important adds a line.
 const DAY_LINES = 4
-// Read time words as HH:MM, distinguishing dotted dates from clock times.
+// Read time words as HH:MM, distinguishing dotted dates from clock times and applying am/pm.
 export function clockOf(t) {
-  const m = String(t.when_words || '').match(/\b([01]?\d|2[0-3])(?::([0-5]\d)(?!\d)|\.([0-5]\d)(?!\d)(?!\.\d|\.(?:\s|$)))/)
-  return m ? `${m[1].padStart(2, '0')}:${m[2] ?? m[3]}` : null
+  const m = String(t.when_words || '').match(/\b([01]?\d|2[0-3])(?::([0-5]\d)(?!\d)|\.([0-5]\d)(?!\d)(?!\.\d|\.(?:\s|$))(h)?)(?:\s*([ap])\.?m\.?)?/i)
+  if (!m) return null
+  // A dotted day and month is a date, never a clock: 'by 1.12' and '9.11' stay dates. Dotted
+  // minutes that can't be a month (9.30) or can't be a day (14.00) still read as times, and an
+  // explicit clock marker (a trailing h or am/pm) rescues month-shaped minutes like 17.10h.
+  if (m[3] !== undefined && Number(m[3]) >= 1 && Number(m[3]) <= 12 && !m[4] && !m[5]) return null
+  let h = Number(m[1])
+  const meridiem = (m[5] || '').toLowerCase()
+  if (meridiem === 'p' && h < 12) h += 12
+  if (meridiem === 'a' && h === 12) h = 0
+  return `${String(h).padStart(2, '0')}:${m[2] ?? m[3]}`
 }
 
 function dayList(b) {

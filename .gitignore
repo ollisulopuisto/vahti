@@ -4,3 +4,6 @@ scripts/local.env
 .DS_Store
 *.swp
 
+
+# Local dependency installs
+daemon/node_modules/

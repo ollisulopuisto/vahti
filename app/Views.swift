@@ -472,7 +472,7 @@ struct DoneLine: View {
       VStack(alignment: .leading, spacing: 2) {
         Text(card.headline).font(.system(size: 14.5)).strikethrough(color: Vahti.faint).foregroundStyle(Vahti.dim).lineLimit(showSource ? 2 : 1)
         if showSource {
-          Text("\(dateLabel(card.done_at ?? card.ts)) · \(card.state == "done" ? "You marked it done" : howDone(card.reason) ?? "Done")")
+          Text("\(dateLabel(card.done_at ?? card.ts)) · \(card.reason == "Sent to Todoist" ? "Sent to Todoist" : card.state == "done" ? "You marked it done" : howDone(card.reason) ?? "Done")")
             .font(.vahtiSmall).foregroundStyle(Vahti.faint).lineLimit(1)
           Text(card.kicker).font(.vahtiSmall).foregroundStyle(Vahti.faint).lineLimit(1)
         } else if let how = howDone(card.reason) { Text(how).font(.vahtiSmall).foregroundStyle(Vahti.faint).lineLimit(1) }
@@ -492,6 +492,9 @@ struct CardRow: View {
   // The lead card at the top of the brief: a bigger headline, its buttons always underneath.
   var hero = false
   @State private var added = false
+  @State private var todoistConfirm = false
+  @State private var todoistError: String? = nil
+  @State private var todoistSending = false
 
   var body: some View {
     let kind = Kind.of(card.card)
@@ -538,7 +541,34 @@ struct CardRow: View {
       Button { store.mark(card, "done") } label: { Label("Mark done", systemImage: "checkmark") }
       Button("Tomorrow") { store.mark(card, "snoozed") }
       if card.maybe?.on == true { Button("Mine") { store.mark(card, "mine") } }
+      if canSendToTodoist { Button { sendToTodoist() } label: { Label("Send to Todoist", systemImage: "paperplane") } }
       Button("Not mine") { store.mark(card, "dismissed") }
+    }
+    // The once-ever warning before the first send to any API: what goes out, where, and that it never asks again.
+    .alert("Send to Todoist?", isPresented: $todoistConfirm) {
+      Button("Send") { sendToTodoist(acknowledge: true) }
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      Text("Vahti sends this card's title, its due date and time, and its link when it has one to Todoist's API (api.todoist.com), where it lands in your Inbox. This is the only time Vahti asks; every later send is one click. Remove the API token in Setup to stop.")
+    }
+    .alert("Could not send to Todoist", isPresented: Binding(get: { todoistError != nil }, set: { if !$0 { todoistError = nil } })) {
+      Button("OK", role: .cancel) {}
+    } message: { Text(todoistError ?? "") }
+  }
+
+  // Offered once the API token is saved in Setup, on cards that did not come from Todoist itself.
+  private var canSendToTodoist: Bool { store.todoistWrite && card.source != "todoist" && card.maybe?.on != true }
+
+  private func sendToTodoist(acknowledge: Bool = false) {
+    guard !todoistSending else { return }
+    todoistSending = true
+    Task {
+      defer { todoistSending = false }
+      switch await store.sendToTodoist(card, acknowledge: acknowledge) {
+      case .sent: break
+      case .needsWarning: todoistConfirm = true
+      case .failed(let message): todoistError = message
+      }
     }
   }
 
@@ -579,6 +609,7 @@ struct CardRow: View {
       } else {
         main(kind)
         if kind.main != "Mark done" && kind.main != "Paid" { Button { store.mark(card, "done") } label: { Label("Mark done", systemImage: "checkmark") }.buttonStyle(TextButton()) }
+        if canSendToTodoist { Button { sendToTodoist() } label: { Label("Send to Todoist", systemImage: "paperplane") }.buttonStyle(TextButton()).disabled(todoistSending) }
         if card.card != "appointment" { Button("Tomorrow") { store.mark(card, "snoozed") }.buttonStyle(TextButton()) }
         if card.maybe?.on == true { Button("Mine") { store.mark(card, "mine") }.buttonStyle(TextButton()) }
         if card.card != "promise" && card.card != "stalled" { Button("Not mine") { store.mark(card, "dismissed") }.buttonStyle(TextButton()) }
@@ -1260,6 +1291,8 @@ struct SetupView: View {
   @State private var draft: Profile?
   @State private var todoistFeed = ""
   @State private var todoistError: String? = nil
+  @State private var todoistToken = ""
+  @State private var todoistTokenError: String? = nil
 
   @State private var tab = SetupTab.permissions
   @State private var profileBaseline: Profile?
@@ -1373,6 +1406,33 @@ struct SetupView: View {
         }
         .padding(.vertical, 13)
         if let todoistError { Text(todoistError).font(.vahtiSmall).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true) }
+      }
+      Divider()
+      // Send to Todoist: cards go to the Inbox with one click. The token is typed here, kept only
+      // in this Mac's Keychain, and Vahti warns once before the first send to Todoist's API.
+      if store.todoistWrite {
+        row("Send to Todoist", "Cards you send land in your Todoist Inbox: the title, the due date and time Vahti inferred, and the card's link. The API token is in this Mac's Keychain.", symbol: "paperplane") {
+          Button("Remove token") {
+            TodoistKeychain.shared.clear()
+            store.refreshTodoistWrite()
+          }.buttonStyle(TextButton())
+        }
+      } else {
+        HStack(spacing: 10) {
+          Image(systemName: "paperplane").foregroundStyle(Vahti.dim).frame(width: 28, height: 28)
+          SecureField("Todoist API token", text: $todoistToken).textFieldStyle(.plain).font(.vahtiBody)
+          Button("Save") {
+            if TodoistKeychain.shared.save(todoistToken.trimmingCharacters(in: .whitespacesAndNewlines)) {
+              todoistToken = ""
+              todoistTokenError = nil
+              store.refreshTodoistWrite()
+            } else { todoistTokenError = "That token could not be saved." }
+          }.buttonStyle(PillButton()).disabled(todoistToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+        .padding(.vertical, 13)
+        Text("For Send to Todoist: one click puts a card in your Todoist Inbox. Copy the token from Todoist Settings, Integrations, Developer. It is saved only in this Mac's Keychain, and Vahti warns you before the first send to Todoist's API.")
+          .font(.vahtiSmall).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true)
+        if let todoistTokenError { Text(todoistTokenError).font(.vahtiSmall).foregroundStyle(Vahti.dim).fixedSize(horizontal: false, vertical: true) }
       }
     }
     setupSteps("Calendar & Reminders", steps: store.steps.filter { syncIDs.contains($0.id) })
