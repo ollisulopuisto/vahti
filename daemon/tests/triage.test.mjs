@@ -42,3 +42,19 @@ test('legacy snoozes outside the history window return to Today on their wake da
   assert.equal(tasks(db).find(c => c.id === id)?.state, 'snoozed')
   assert.equal(brief(db).today.tasks.some(c => c.id === id), false)
 })
+
+test('resurfacing keeps inferred deadlines unchanged for Todoist and phone sync', async t => {
+  const db = open(':memory:'); t.after(() => db.close())
+  const { payloadFor } = await import('../lib/todoist-send.mjs')
+  const { phoneItems } = await import('../lib/phone.mjs')
+  for (const [id,due] of [['undated',''],['overdue',plusDays(today(),-1)]]) {
+    addItems(db,[{id,source:'whatsapp',thread:id,sender:'Nika',fromMe:false,ts:now(),text:`Review ${id}`}])
+    db.prepare("insert into tags(item_id,is_task,due,summary,model,tagged_at,card,confirmed) values (?,1,?,?,'test',?,'todo',1)").run(id,due,`Review ${id}`,now())
+    db.prepare("insert into task_state(item_id,status,changed_at,reason) values (?,'snoozed',?,?)").run(id,now(),`until ${today()}`)
+    const card=tasks(db).find(c=>c.id===id)
+    assert.equal(card.due,due)
+    assert.equal(payloadFor(card).due_date,due||undefined)
+    assert.equal(brief(db).today.tasks.some(c=>c.id===id),true)
+    assert.equal(phoneItems(db,{decisionAvailable:false}).items.some(c=>c.id===id),false)
+  }
+})
