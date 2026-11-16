@@ -327,6 +327,7 @@ export function serve(db, { install, port = config.port } = {}) {
             TODOIST_ALREADY_SENT: 'That card was already sent to Todoist.',
             TODOIST_EMPTY_CARD: 'That card has no title to send.',
             TODOIST_NO_TOKEN: 'No Todoist API token is saved on this Mac. Save one in Setup first.',
+            TODOIST_IN_FLIGHT: 'That card is already being sent.',
             TODOIST_TOKEN_REFUSED: 'Todoist refused the saved token. Save a fresh one in Setup.',
             TODOIST_REFUSED: 'Todoist refused that task. Try again.',
             GMAIL_KEYCHAIN_UNAVAILABLE: 'The Keychain is not answering. Restart Vahti and try again.',

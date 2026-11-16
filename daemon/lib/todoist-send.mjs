@@ -37,15 +37,15 @@ const dueUtc = (date, time, tz) => {
   } catch { return new Date(wall).toISOString().replace(/\.\d{3}Z$/, 'Z') }
 }
 
-// The task one click creates: the card's title, a short note on where it came from, and the due
-// date Vahti inferred for it (a clock time rides along when the card carries one). Nothing else:
-// no project, no label, no priority, no reminder - Inbox triage keeps Todoist as the backend.
+// The task one click creates: exactly what the first-send warning discloses - the card's title,
+// its due date as Vahti inferred it (a clock time rides along when the card carries one), and its
+// link when it has one. The quoted message, sender, thread and source stay in the vault. Nothing
+// else: no project, no label, no priority, no reminder - Inbox triage keeps Todoist as the backend.
 export function payloadFor(card, tz = config.timezone) {
-  const content = String(card.summary || card.text || '').replace(/\s+/g, ' ').trim().slice(0, 500)
+  const content = String(card.summary || '').replace(/\s+/g, ' ').trim().slice(0, 500)
   if (!content) throw Error('TODOIST_EMPTY_CARD')
-  const origin = [card.from_me ? 'you' : card.sender, card.thread && card.thread !== card.sender ? `in ${card.thread}` : null, card.source ? `via ${card.source}` : null]
-    .filter(Boolean).join(' ')
-  const body = { content, description: [`Vahti card from ${origin || 'your vault'}.`, typeof card.url === 'string' && card.url.startsWith('https://') ? card.url : null].filter(Boolean).join('\n').slice(0, 2000) }
+  const body = { content }
+  if (typeof card.url === 'string' && card.url.startsWith('https://')) body.description = card.url.slice(0, 2000)
   const due = /^\d{4}-\d{2}-\d{2}$/.test(card.due || '') ? card.due : null
   const time = /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(card.when_words || '') ? card.when_words : null
   if (due && time) body.due_datetime = dueUtc(due, time, tz)
@@ -79,6 +79,12 @@ export const acknowledgeSend = () => save({ todoist: { ...(config.todoist || {})
 
 const tokenFromVault = async () => (await vaultCall('todoist-token'))?.token
 
+// A send in flight claims its card: a double click or a retried tap meets TODOIST_IN_FLIGHT instead
+// of creating a twin task, and the card closes only after Todoist has answered with success. (An
+// answer lost on the wire can still leave a task without its card closing - the card stays open
+// and shows the failure, so the owner decides instead of a silent duplicate.)
+const inFlight = new Set()
+
 // Send one card. Refuses cards that came from Todoist (already there) and cards already sent
 // (the card closes on success, so a second click would clone the task). Nothing is scheduled.
 export async function sendCard(db, id, { acknowledge = false, fetcher = fetch, getToken = tokenFromVault } = {}) {
@@ -86,13 +92,17 @@ export async function sendCard(db, id, { acknowledge = false, fetcher = fetch, g
     if (!acknowledge) return { needsWarning: true }
     acknowledgeSend()
   }
-  const card = tasks(db, { days: 365 }).find((x) => x.id === id)
-  if (!card) throw Error('TODOIST_NO_CARD')
-  if (card.source === 'todoist') throw Error('TODOIST_OWN_CARD')
-  if (card.state === 'done' && card.reason === 'Sent to Todoist') throw Error('TODOIST_ALREADY_SENT')
-  const token = await getToken()
-  if (!token) throw Error('TODOIST_NO_TOKEN')
-  await createTask(token, payloadFor(card), { fetcher })
-  markTask(db, id, 'done', { reason: 'Sent to Todoist' })
-  return { ok: true }
+  if (inFlight.has(id)) throw Error('TODOIST_IN_FLIGHT')
+  inFlight.add(id)
+  try {
+    const card = tasks(db, { days: 365 }).find((x) => x.id === id)
+    if (!card) throw Error('TODOIST_NO_CARD')
+    if (card.source === 'todoist') throw Error('TODOIST_OWN_CARD')
+    if (card.state === 'done' && card.reason === 'Sent to Todoist') throw Error('TODOIST_ALREADY_SENT')
+    const token = await getToken()
+    if (!token) throw Error('TODOIST_NO_TOKEN')
+    await createTask(token, payloadFor(card), { fetcher })
+    markTask(db, id, 'done', { reason: 'Sent to Todoist' })
+    return { ok: true }
+  } finally { inFlight.delete(id) }
 }

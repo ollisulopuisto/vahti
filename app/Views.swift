@@ -494,6 +494,7 @@ struct CardRow: View {
   @State private var added = false
   @State private var todoistConfirm = false
   @State private var todoistError: String? = nil
+  @State private var todoistSending = false
 
   var body: some View {
     let kind = Kind.of(card.card)
@@ -548,7 +549,7 @@ struct CardRow: View {
       Button("Send") { sendToTodoist(acknowledge: true) }
       Button("Cancel", role: .cancel) {}
     } message: {
-      Text("Vahti sends this card's title and due date to Todoist's API (api.todoist.com), where it lands in your Inbox. This is the only time Vahti asks; every later send is one click. Remove the API token in Setup to stop.")
+      Text("Vahti sends this card's title, its due date, and its link when it has one to Todoist's API (api.todoist.com), where it lands in your Inbox. This is the only time Vahti asks; every later send is one click. Remove the API token in Setup to stop.")
     }
     .alert("Could not send to Todoist", isPresented: Binding(get: { todoistError != nil }, set: { if !$0 { todoistError = nil } })) {
       Button("OK", role: .cancel) {}
@@ -559,7 +560,10 @@ struct CardRow: View {
   private var canSendToTodoist: Bool { store.todoistWrite && card.source != "todoist" && card.maybe?.on != true }
 
   private func sendToTodoist(acknowledge: Bool = false) {
+    guard !todoistSending else { return }
+    todoistSending = true
     Task {
+      defer { todoistSending = false }
       switch await store.sendToTodoist(card, acknowledge: acknowledge) {
       case .sent: break
       case .needsWarning: todoistConfirm = true
@@ -605,7 +609,7 @@ struct CardRow: View {
       } else {
         main(kind)
         if kind.main != "Mark done" && kind.main != "Paid" { Button { store.mark(card, "done") } label: { Label("Mark done", systemImage: "checkmark") }.buttonStyle(TextButton()) }
-        if canSendToTodoist { Button { sendToTodoist() } label: { Label("Send to Todoist", systemImage: "paperplane") }.buttonStyle(TextButton()) }
+        if canSendToTodoist { Button { sendToTodoist() } label: { Label("Send to Todoist", systemImage: "paperplane") }.buttonStyle(TextButton()).disabled(todoistSending) }
         if card.card != "appointment" { Button("Tomorrow") { store.mark(card, "snoozed") }.buttonStyle(TextButton()) }
         if card.maybe?.on == true { Button("Mine") { store.mark(card, "mine") }.buttonStyle(TextButton()) }
         if card.card != "promise" && card.card != "stalled" { Button("Not mine") { store.mark(card, "dismissed") }.buttonStyle(TextButton()) }
@@ -1407,7 +1411,7 @@ struct SetupView: View {
       // Send to Todoist: cards go to the Inbox with one click. The token is typed here, kept only
       // in this Mac's Keychain, and Vahti warns once before the first send to Todoist's API.
       if store.todoistWrite {
-        row("Send to Todoist", "Cards you send land in your Todoist Inbox, with the due date Vahti inferred. The API token is in this Mac's Keychain.", symbol: "paperplane") {
+        row("Send to Todoist", "Cards you send land in your Todoist Inbox: the title, the due date Vahti inferred, and the card's link. The API token is in this Mac's Keychain.", symbol: "paperplane") {
           Button("Remove token") {
             TodoistKeychain.shared.clear()
             store.refreshTodoistWrite()

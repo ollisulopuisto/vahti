@@ -25,12 +25,9 @@ function card(db, id, { source = 'whatsapp', thread = 'Nika', sender = 'Nika', s
 const token = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const okResponse = () => Promise.resolve(new Response('{"id":"123"}', { status: 200, headers: { 'content-type': 'application/json' } }))
 
-test('the payload is the card title, its origin, and only the due Vahti inferred', () => {
+test('the payload is the card title, its link, and only the due Vahti inferred', () => {
   const base = { summary: 'Reply to Nika about the keys', text: 'can you bring the keys?', source: 'whatsapp', thread: 'Nika', sender: 'Nika', from_me: 0, url: null, due: '', when_words: '' }
-  assert.deepEqual(payloadFor(base, 'Europe/Helsinki'), {
-    content: 'Reply to Nika about the keys',
-    description: 'Vahti card from Nika via whatsapp.',
-  })
+  assert.deepEqual(payloadFor(base, 'Europe/Helsinki'), { content: 'Reply to Nika about the keys' })
   assert.equal(payloadFor({ ...base, due: '2026-12-01' }, 'Europe/Helsinki').due_date, '2026-12-01')
   // A clock time rides along as an instant: Helsinki is two hours ahead of UTC in December.
   assert.equal(payloadFor({ ...base, due: '2026-12-01', when_words: '09:30' }, 'Europe/Helsinki').due_datetime, '2026-12-01T07:30:00Z')
@@ -38,12 +35,14 @@ test('the payload is the card title, its origin, and only the due Vahti inferred
   // Model words are not a time, a malformed date is no date: neither is invented.
   const words = payloadFor({ ...base, due: 'next Friday', when_words: 'tomorrow evening' }, 'Europe/Helsinki')
   assert.equal(words.due_date, undefined); assert.equal(words.due_datetime, undefined)
-  // The quoted message never becomes the task; a bare summary is trimmed and capped.
-  assert.equal(payloadFor({ ...base, summary: '', text: '  bring the keys  ' }, 'Europe/Helsinki').content, 'bring the keys')
+  // Egress stays what the first-send warning discloses: the title, the due and the link. The
+  // quoted message never becomes the task, and no sender, thread or source names leave the Mac.
+  const narrow = payloadFor({ ...base, sender: 'Sendername', thread: 'Threadname', text: 'the raw quoted message body' }, 'Europe/Helsinki')
+  for (const leaked of ['raw quoted message', 'Sendername', 'Threadname', 'whatsapp']) assert.equal(JSON.stringify(narrow).includes(leaked), false)
+  assert.throws(() => payloadFor({ ...base, summary: '' }, 'Europe/Helsinki'), /TODOIST_EMPTY_CARD/)
   assert.equal(payloadFor({ ...base, summary: `  ${'x'.repeat(600)}  ` }, 'Europe/Helsinki').content.length, 500)
-  assert.equal(payloadFor({ ...base, url: 'https://example.com/thread' }, 'Europe/Helsinki').description, 'Vahti card from Nika via whatsapp.\nhttps://example.com/thread')
-  assert.equal(payloadFor({ ...base, url: 'javascript:alert(1)' }, 'Europe/Helsinki').description.includes('javascript'), false)
-  assert.throws(() => payloadFor({ ...base, summary: ' ', text: '' }, 'Europe/Helsinki'), /TODOIST_EMPTY_CARD/)
+  assert.equal(payloadFor({ ...base, url: 'https://example.com/thread' }, 'Europe/Helsinki').description, 'https://example.com/thread')
+  assert.equal(payloadFor({ ...base, url: 'javascript:alert(1)' }, 'Europe/Helsinki').description, undefined)
 })
 
 test('one bounded POST to api.todoist.com, token only in the Authorization header', async () => {
@@ -97,6 +96,27 @@ test('the first send warns once; acknowledging sends and never asks again', asyn
   // A sent card is not sent twice.
   await assert.rejects(() => sendCard(db, 'first', { fetcher, getToken }), /TODOIST_ALREADY_SENT/)
   assert.equal(calls, 2)
+})
+
+test('a send in flight claims its card: no twin task from a double click', async t => {
+  const db = fixture(t)
+  acknowledgeSend()
+  card(db, 'raced')
+  let calls = 0, release
+  const slow = () => { calls++; return new Promise((resolve) => { release = () => resolve(okResponse()) }) }
+  const getToken = () => Promise.resolve(token)
+  const first = sendCard(db, 'raced', { fetcher: slow, getToken })
+  await assert.rejects(() => sendCard(db, 'raced', { fetcher: slow, getToken }), /TODOIST_IN_FLIGHT/)
+  release()
+  assert.deepEqual(await first, { ok: true })
+  assert.equal(calls, 1)
+  // The claim ends with the flight: after success the card is closed, after a failure it can go again.
+  await assert.rejects(() => sendCard(db, 'raced', { fetcher: slow, getToken }), /TODOIST_ALREADY_SENT/)
+  card(db, 'failed')
+  const fail = () => { calls++; return Promise.resolve(new Response('no', { status: 500 })) }
+  await assert.rejects(() => sendCard(db, 'failed', { fetcher: fail, getToken }), /TODOIST_UNREACHABLE/)
+  assert.equal(tasks(db, { days: 365 }).find((x) => x.id === 'failed').state, 'open')
+  await assert.rejects(() => sendCard(db, 'failed', { fetcher: fail, getToken }), /TODOIST_UNREACHABLE/)
 })
 
 test('what cannot be sent is refused before any network call', async t => {
