@@ -1,5 +1,17 @@
 [
   {
+    "version": "0.7.31",
+    "date": "2026-11-16",
+    "title": "Context timeline and clear decisions",
+    "summary": "The waiting detail groups original context and later activity in a timeline, with four decisions always in view.",
+    "notes": [
+      "Expand each context source only when you need it. The title, source, footer and Ask field stay visible while the timeline scrolls.",
+      "I did it checks off without opening anything. Tomorrow hides the card until the next day. Open & done marks done only after the source launch is accepted; a failed launch leaves it waiting.",
+      "Drop this affects only this card, with no learning. Let AI deal with it keeps the review-first handoff. Give me more info reveals the original context and focuses Ask.",
+      "Todoist sending and its one-time warning remain available on cards not already from Todoist."
+    ]
+  },
+  {
     "version": "0.7.30",
     "date": "2026-11-16",
     "title": "Three decisions for every card",

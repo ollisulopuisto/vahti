@@ -523,6 +523,8 @@ struct TodoistSendButton: View {
   @Environment(Store.self) var store
   let card: Card
   var finished: () -> Void = {}
+  var prominent = true
+  var onSendingChanged: (Bool) -> Void = { _ in }
   @State private var confirm = false
   @State private var error: String? = nil
   @State private var sending = false
@@ -536,7 +538,7 @@ struct TodoistSendButton: View {
 
   var body: some View {
     Button("Send to Todoist") { send() }
-      .buttonStyle(PillButton(prominent: true))
+      .buttonStyle(PillButton(prominent: prominent))
       .disabled(sending || unavailable != nil)
       .help(unavailable ?? "Send to the Todoist Inbox with the inferred due date.")
       .alert("Send to Todoist?", isPresented: $confirm) {
@@ -553,8 +555,9 @@ struct TodoistSendButton: View {
   private func send(acknowledge: Bool = false) {
     guard !sending, unavailable == nil else { return }
     sending = true
+    onSendingChanged(true)
     Task {
-      defer { sending = false }
+      defer { sending = false; onSendingChanged(false) }
       switch await store.sendToTodoist(card, acknowledge: acknowledge) {
       case .sent: finished()
       case .needsWarning: confirm = true

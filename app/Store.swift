@@ -137,7 +137,7 @@ struct Waiting: Codable, Identifiable, Hashable {
 struct Context: Codable {
   struct Message: Codable, Identifiable { let id: String; let sender: String?; let from_me: Bool; let ts: Int; let text: String?; let picked: Bool }
   struct Tag: Codable { let summary: String?; let card: String?; let second: Double?; let when_words: String?; let reason: String?; let url: String? }
-  struct Since: Codable, Identifiable { let line: String; let url: String?; var id: String { line } }
+  struct Since: Codable, Identifiable { let line: String; let url: String?; let ts: Int?; let kind: String?; var id: String { line } }
   struct Origin: Codable {
     let id: String; let source: String; let thread: String?; let sender: String?; let ts: Int; let text: String?; let meta: String?
     var importedMetadata: [String: String] {
@@ -470,6 +470,8 @@ final class Store {
   var query = ""
   var asking: Set<String> = []
   var context: Context?
+  var contextLoading = false
+  private var contextRequest = UUID()
   private let base = "http://127.0.0.1:4777"
   @ObservationIgnored private var searching: Task<Void, Never>?
 
@@ -804,13 +806,51 @@ final class Store {
     }
   }
 
+  // Detail decisions wait for an authenticated acknowledgement before closing the page.
+  func markCard(_ card: Card, _ status: String) async -> Bool {
+    let result: OpenResult? = await post("/api/mark", ["id": card.id, "status": status])
+    guard result?.ok == true else { return false }
+    if card.source == "reminders" { PhoneSync.shared.tick(force: true) }
+    await loadBrief()
+    if page == .done { await loadCompleted() }
+    return true
+  }
+
+  // OS launch acceptance, not a claim that the person replied or finished the source task.
+  func openSource(_ card: Card) async -> String? {
+    if card.source == "ai" {
+      await loadHandoff(card.id)
+      if let session = handoffs[card.id]?.session, session.opensIn != nil {
+        return await withCheckedContinuation { continuation in
+          openSession(card.id, session) { continuation.resume(returning: $0) }
+        }
+      }
+    }
+    if let url = card.chatURL { return LinkPolicy.open(url) ? nil : "The source link was not accepted" }
+    if let app = card.app {
+      return await withCheckedContinuation { continuation in
+        NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration()) { running, error in
+          continuation.resume(returning: running != nil && error == nil ? nil : "The source app did not open")
+        }
+      }
+    }
+    return "No source link or installed source app is available"
+  }
+
   func select(_ card: Card?) {
     selected = card
     context = nil
-    guard let card, let id = card.id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
+    let request = UUID()
+    contextRequest = request
+    contextLoading = false
+    guard let card, let id = card.id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) else { return }
+    contextLoading = true
     Task {
       let c: Context? = await get("/api/context?id=\(id)")
-      if selected?.id == card.id { context = c }
+      if contextRequest == request {
+        context = c
+        contextLoading = false
+      }
     }
   }
 
@@ -908,7 +948,7 @@ final class Store {
     if s.opensIn == "app" { Deliver.open(session: s.title, done: done); return }
     Task {
       let r: OpenResult? = await post("/api/handoff", ["id": id, "open": true])
-      done(r == nil ? "Vahti isn't running" : r?.error)
+      done(r?.ok == true ? nil : r?.error ?? "Vahti could not open the session")
     }
   }
 

@@ -240,5 +240,77 @@ MainActor.assumeIsolated {
             subprocess.run([str(executable)], check=True, timeout=20)
 
 
+
+@unittest.skipUnless(sys.platform == 'darwin', 'AppKit needs macOS')
+class ContextTimelineTest(unittest.TestCase):
+    def test_production_timeline_footer_and_decision_failures(self):
+        with tempfile.TemporaryDirectory(prefix='vahti-context-') as directory:
+            out = pathlib.Path(directory)
+            (out / 'main.swift').write_text(r'''
+import AppKit
+import SwiftUI
+MainActor.assumeIsolated {
+  NSApplication.shared.setActivationPolicy(.accessory)
+  for width: CGFloat in [440, 300] {
+    let entries = [
+      ContextTimelineEntry(id: "later", title: "AI session", subtitle: "Worked on the parser with Codex", timestamp: 1794821340, text: "An AI session is context, not proof the task is done.", url: nil),
+      ContextTimelineEntry(id: "original", title: "Original Todoist context", subtitle: "Project: Inbox", timestamp: 1794650400, text: "Create a Markdown to DOCX converter and preserve formatting.", url: URL(string: "https://example.com/task")),
+      ContextTimelineEntry(id: "pr", title: "Pull request page", subtitle: "Parser update · example/parser", timestamp: 1794696540, text: "Review the source before relying on this activity.", url: URL(string: "https://example.com/pr"))]
+    let panel = VStack(alignment: .leading, spacing: 16) {
+      Text("Waiting").font(.headline).foregroundStyle(.secondary)
+      Text("Todoist · 14 Nov, 12:00").font(.caption).foregroundStyle(.secondary)
+      Text("Create a Markdown to DOCX converter").font(.title3.weight(.medium))
+      ContextTimeline(entries: entries, expanded: .constant(width < 400 ? ["original"] : []))
+      Divider()
+      HStack { Button("Drop this") {}; Spacer(); Button("Let AI deal with it…") {} }.buttonStyle(.borderless).font(.caption)
+      DetailIntentButtons(busy: false, canOpen: true, didIt: {}, tomorrow: {}, openAndDone: {}, moreInfo: {})
+      TextField("Ask about this…", text: .constant("")).textFieldStyle(.roundedBorder)
+    }.padding(16).frame(width: width).background(Color(white: 0.055)).environment(\.colorScheme, .dark)
+    let host = NSHostingView(rootView: panel)
+    let fit = host.fittingSize
+    precondition(fit.width <= width + 1, "timeline/footer overflow")
+    precondition(fit.height > 350 && fit.height < 1000, "timeline/footer height is broken")
+    host.frame = NSRect(origin: .zero, size: fit)
+    let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+    window.contentView = host
+    window.orderFrontRegardless()
+    RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+    host.layoutSubtreeIfNeeded()
+    let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+    host.cacheDisplay(in: host.bounds, to: bitmap)
+    print("CONTEXT_CAPTURE_\(Int(width))=\(bitmap.representation(using: .png, properties: [:])!.base64EncodedString())")
+    window.orderOut(nil)
+  }
+  Task { @MainActor in
+    let flow = DetailActionState()
+    var marks = 0, finishes = 0
+    await flow.run(open: { "No app" }, mark: { marks += 1; return true }, finished: { finishes += 1 })
+    precondition(marks == 0 && finishes == 0 && flow.error != nil && !flow.busy, "failed source open must leave card pending")
+    await flow.run(open: { nil }, mark: { marks += 1; return false }, finished: { finishes += 1 })
+    precondition(marks == 1 && finishes == 0 && flow.error?.contains("source opened") == true, "failed mark must stay visible")
+    await flow.run(mark: { marks += 1; return true }, finished: { finishes += 1 })
+    precondition(marks == 2 && finishes == 1 && flow.error == nil, "plain check-off must not open a source")
+    var release: CheckedContinuation<String?, Never>?
+    let first = Task { @MainActor in
+      await flow.run(open: { await withCheckedContinuation { release = $0 } }, mark: { marks += 1; return true }, finished: { finishes += 1 })
+    }
+    while release == nil { await Task.yield() }
+    await flow.run(mark: { marks += 100; return true }, finished: { finishes += 100 })
+    precondition(flow.busy && marks == 2 && finishes == 1, "double-click must not write twice")
+    release!.resume(returning: nil)
+    await first.value
+    precondition(marks == 3 && finishes == 2 && !flow.busy, "open-and-done must await launch then save")
+    print("Detail decision failures, plain Done, successful open-and-done and in-flight double-click passed")
+    exit(0)
+  }
+  RunLoop.main.run()
+}
+''')
+            executable = out / 'context-smoke'
+            subprocess.run(['xcrun', 'swiftc', str(ROOT / 'app/ContextTimeline.swift'),
+                            str(ROOT / 'app/DetailActionState.swift'), str(out / 'main.swift'), '-o', str(executable)], check=True)
+            subprocess.run([str(executable)], check=True, timeout=30)
+
+
 if __name__ == '__main__':
     unittest.main()

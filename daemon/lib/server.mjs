@@ -519,7 +519,7 @@ export function serve(db, { install, port = config.port } = {}) {
           // Activity sharing no meaningful terms is only weak evidence for the owner’s own promise;
           // do not attach unrelated work to another person’s request.
           since: evidence(db, { ...item, summary: tag?.summary, text: tag?.said || item.text })
-            .filter((e) => e.kind !== 'chat' && ((e.shared ?? 2) >= 2 || item.from_me)).map((e) => ({ line: e.line, url: e.url || null })),
+            .filter((e) => e.kind !== 'chat' && ((e.shared ?? 2) >= 2 || item.from_me)).map((e) => ({ line: e.line, url: e.url || null, ts: e.ts ?? null, kind: e.kind })),
         })
       }
       if (url.pathname === '/api/forget' && post) {

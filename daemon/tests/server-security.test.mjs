@@ -142,6 +142,24 @@ test('browser credentials expire and cannot mint fresh launch credentials', asyn
   } finally { Date.now = clock }
 })
 
+test('context timeline retains source timestamps without exposing evidence internals', async () => {
+  const { addItems, now } = await import('../lib/db.mjs')
+  const at = now() - 3600
+  addItems(db, [
+    { id: 'timeline-task', source: 'whatsapp', thread: 'Timeline', sender: 'Nika', fromMe: false, ts: at, text: 'Please review widget parser' },
+    { id: 'timeline-pr', source: 'browser', thread: 'GitHub', ts: at + 60, text: 'widget parser pull request', url: 'https://github.com/example/widget/pull/1' },
+  ])
+  db.prepare("insert into tags(item_id,is_task,summary,model,tagged_at,card,confirmed) values ('timeline-task',1,'Review widget parser','test',?,'todo',1)").run(at)
+  const response = await get('/api/context?id=timeline-task', auth)
+  assert.equal(response.status, 200)
+  const ctx = JSON.parse(response.body)
+  const pr = ctx.since.find(e => e.url?.endsWith('/pull/1'))
+  assert.ok(pr, JSON.stringify(ctx))
+  assert.equal(pr.ts, at + 60)
+  assert.equal(pr.kind, 'browser')
+  assert.deepEqual(Object.keys(pr).sort(), ['kind', 'line', 'ts', 'url'])
+})
+
 test('requests exceeding rate limit receive 429 with retry-after header', async () => {
   let res
   for (let i = 0; i < 125; i++) res = await get('/api/status', auth)
