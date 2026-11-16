@@ -13,6 +13,7 @@ struct ContextTimelineEntry: Identifiable {
 struct ContextTimeline: View {
   let entries: [ContextTimelineEntry]
   @Binding var expanded: Set<String>
+  var openOriginal: (() -> Void)? = nil
 
   private var ordered: [ContextTimelineEntry] {
     entries.enumerated().sorted {
@@ -52,7 +53,9 @@ struct ContextTimeline: View {
               }.buttonStyle(.plain).accessibilityLabel("\(entry.title), \(entry.subtitle)")
               if expanded.contains(entry.id) {
                 Text(entry.text).font(.callout).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                if let url = entry.url {
+                if entry.id == "original", let openOriginal {
+                  Button("Open source", action: openOriginal).font(.caption).buttonStyle(.borderless)
+                } else if let url = entry.url {
                   Link("Open source", destination: url).font(.caption)
                 }
               }

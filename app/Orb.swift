@@ -1853,7 +1853,7 @@ struct CompanionView: View {
       switch screen {
       case .home: home.transition(.move(edge: .leading).combined(with: .opacity))
       case .item(let id):
-        if let c = (waiting + maybe + doneByVahti).first(where: { $0.id == id }) ?? fetched[id] { ItemPage(card: c, agent: $agent, back: { go(.home) }).transition(.move(edge: .trailing)) }
+        if let c = (waiting + maybe + doneByVahti).first(where: { $0.id == id }) ?? fetched[id] { ItemPage(card: c, agent: $agent, back: { go(.home) }).id(c.id).transition(.move(edge: .trailing)) }
         // Fetch cards missing from the current lists by id, including distant dates and search results.
         else { Color.clear.task(id: id) { if let c = await store.card(id) { fetched[id] = c } else { go(.home) } } }
       case .event(let id): EventPage(id: id, agent: $agent, back: { go(.home) }).transition(.move(edge: .trailing))
@@ -2265,6 +2265,7 @@ struct ItemPage: View {
       case "ai": title = "AI session"
       case "github": title = "GitHub update"
       case "vahti": title = "Conversation with Vahti"
+      case "calls": title = "Connected call"
       default: title = "Later activity"
       }
       let detail = activity.line.range(of: "] ").map { String(activity.line[$0.upperBound...]) } ?? activity.line
@@ -2335,7 +2336,10 @@ struct ItemPage: View {
       ScrollViewReader { scroll in
         ScrollView {
           VStack(alignment: .leading, spacing: 18) {
-            ContextTimeline(entries: timeline, expanded: $expandedContext).id("context")
+            ContextTimeline(entries: timeline, expanded: $expandedContext, openOriginal: canOpenSource ? {
+              guard !exporting else { return }
+              Task { await decision.inspect { await store.openSource(card) } }
+            } : nil).disabled(decision.busy || exporting).id("context")
             if store.contextLoading { ProgressView("Loading context…").font(.caption) }
             else if store.context?.item.id != card.id {
               Button("Could not load more context. Retry") { store.select(card) }.font(.caption)

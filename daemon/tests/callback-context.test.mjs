@@ -46,7 +46,7 @@ test('failed attempts remain raw history and only a real connected call is proof
   row(db,'connected',AT-600,{fromMe:true,text:'Called Nika Example on phone (2 minutes)',meta:{...contact,seconds:120}})
   card.meta=JSON.stringify({...JSON.parse(card.meta),connectedCall:'connected'})
   ctx=callbackContext(db,card,tag)
-  assert.deepEqual(ctx.since,[{line:'Called Nika Example on phone (2 minutes)',url:null}])
+  assert.deepEqual(ctx.since,[{line:'Called Nika Example on phone (2 minutes)',url:null,ts:AT-600,kind:'calls'}])
   assert.equal(ctx.messages.some(m=>m.id==='connected'),false)
 })
 test('another canonical contact cannot become connected-call evidence',t=>{

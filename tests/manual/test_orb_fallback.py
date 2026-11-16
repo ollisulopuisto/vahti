@@ -290,6 +290,10 @@ MainActor.assumeIsolated {
     precondition(marks == 1 && finishes == 0 && flow.error?.contains("source opened") == true, "failed mark must stay visible")
     await flow.run(mark: { marks += 1; return true }, finished: { finishes += 1 })
     precondition(marks == 2 && finishes == 1 && flow.error == nil, "plain check-off must not open a source")
+    await flow.inspect(open: { nil })
+    precondition(marks == 2 && finishes == 1 && flow.error == nil, "source inspection must not complete even app-only or already-done cards")
+    await flow.inspect(open: { "Missing app" })
+    precondition(marks == 2 && finishes == 1 && flow.error != nil, "failed inspection must not write")
     var release: CheckedContinuation<String?, Never>?
     let first = Task { @MainActor in
       await flow.run(open: { await withCheckedContinuation { release = $0 } }, mark: { marks += 1; return true }, finished: { finishes += 1 })

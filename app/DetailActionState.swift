@@ -6,6 +6,15 @@ import Observation
   private(set) var busy = false
   var error: String?
 
+  // Inspection works for app-only sources too, including a card already marked complete.
+  func inspect(open: () async -> String?) async {
+    guard !busy else { return }
+    busy = true
+    error = nil
+    defer { busy = false }
+    if let why = await open() { error = "Could not open the source: \(why)." }
+  }
+
   func run(open: (() async -> String?)? = nil, mark: () async -> Bool, finished: () -> Void) async {
     guard !busy else { return }
     busy = true
