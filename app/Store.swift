@@ -822,7 +822,11 @@ final class Store {
     }
   }
 
-  func addToCalendar(_ card: Card) { Task { await post("/api/calendar", ["id": card.id]) } }
+  func addToCalendar(_ card: Card) async -> Bool {
+    struct Reply: Decodable { let ok: Bool }
+    let reply: Reply? = await post("/api/calendar", ["id": card.id])
+    return reply?.ok == true
+  }
 
   // The chat itself when the card links to it, else the app the conversation lives in.
   func reply(_ card: Card) {

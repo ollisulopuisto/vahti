@@ -568,16 +568,23 @@ struct TodoistSendButton: View {
 struct AppointmentCalendarButton: View {
   @Environment(Store.self) var store
   let card: Card
-  @State private var added = false
+  @State private var opening = false
+  @State private var failed = false
 
   var body: some View {
-    Button(added ? "Added to calendar" : "Add to calendar") {
-      guard !added else { return }
-      added = true
-      store.addToCalendar(card)
+    Button(opening ? "Opening Calendar…" : "Add to calendar…") {
+      guard !opening else { return }
+      opening = true
+      Task {
+        defer { opening = false }
+        failed = !(await store.addToCalendar(card))
+      }
     }
-    .buttonStyle(TextButton()).disabled(added)
-    .onChange(of: card.id) { added = false }
+    .buttonStyle(TextButton()).disabled(opening)
+    .help("Open Calendar's import dialog. Confirm the import there; canceling does not add an event.")
+    .alert("Could not open Calendar", isPresented: $failed) {
+      Button("OK", role: .cancel) {}
+    } message: { Text("Try again. Vahti has not confirmed that any event was added.") }
   }
 }
 
