@@ -1853,7 +1853,7 @@ struct CompanionView: View {
       switch screen {
       case .home: home.transition(.move(edge: .leading).combined(with: .opacity))
       case .item(let id):
-        if let c = (waiting + maybe + doneByVahti).first(where: { $0.id == id }) ?? fetched[id] { ItemPage(card: c, agent: $agent, back: { go(.home) }).transition(.move(edge: .trailing)) }
+        if let c = (waiting + maybe + doneByVahti).first(where: { $0.id == id }) ?? fetched[id] { ItemPage(card: c, agent: $agent, back: { go(.home) }).id(c.id).transition(.move(edge: .trailing)) }
         // Fetch cards missing from the current lists by id, including distant dates and search results.
         else { Color.clear.task(id: id) { if let c = await store.card(id) { fetched[id] = c } else { go(.home) } } }
       case .event(let id): EventPage(id: id, agent: $agent, back: { go(.home) }).transition(.move(edge: .trailing))
@@ -2227,7 +2227,10 @@ struct ItemPage: View {
   @Binding var agent: String
   let back: () -> Void
   // Once you're talking about it, what was said folds away so the conversation has the room; one tap brings it back.
-  @State private var showContext = false
+  @State private var expandedContext: Set<String> = []
+  @State private var infoRequest = 0
+  @State private var decision = DetailActionState()
+  @State private var exporting = false
   // Renaming it by hand: a double-click on the title, or the pencil beside it. Return keeps it, Escape doesn't.
   @State private var renaming = false
   @State private var newTitle = ""
@@ -2246,142 +2249,158 @@ struct ItemPage: View {
   @State private var handedWhy: String?
   @State private var openWhy: String?
 
+  private var timeline: [ContextTimelineEntry] {
+    let ctx = store.context.flatMap { $0.item.id == card.id ? $0 : nil }
+    let original = ctx?.messages.map { m in
+      "\(dateLabel(m.ts)) \(timeLabel(m.ts)) · \(m.from_me ? "You" : m.sender ?? "Unknown")\n\(m.text ?? "")"
+    }.joined(separator: "\n\n")
+    var entries = [ContextTimelineEntry(id: "original", title: "Original \(sourceName(card.source)) context",
+      subtitle: card.thread ?? sourceName(card.source), timestamp: card.ts,
+      text: original?.isEmpty == false ? original! : ctx?.item.text ?? card.text ?? "No original text is available.", url: card.chatURL)]
+    for (index, activity) in (ctx?.since ?? []).enumerated() {
+      let title: String
+      switch activity.kind {
+      case "browser": title = "Pull request page"
+      case "git": title = "Commit"
+      case "ai": title = "AI session"
+      case "github": title = "GitHub update"
+      case "vahti": title = "Conversation with Vahti"
+      case "calls": title = "Connected call"
+      default: title = "Later activity"
+      }
+      let detail = activity.line.range(of: "] ").map { String(activity.line[$0.upperBound...]) } ?? activity.line
+      entries.append(ContextTimelineEntry(id: "activity-\(index)", title: title,
+        subtitle: String(detail.prefix(120)), timestamp: activity.ts, text: activity.line, url: safeLink(activity.url)))
+    }
+    return entries
+  }
+
+  private var canOpenSource: Bool {
+    card.canReply || (card.source == "ai" && store.handoffs[card.id]?.session?.opensIn != nil)
+  }
+
+  private func decide(_ status: String, opening: Bool = false) {
+    guard !exporting else { return }
+    Task {
+      if opening {
+        await decision.run(open: { await store.openSource(card) }, mark: { await store.markCard(card, status) }, finished: back)
+      } else {
+        await decision.run(mark: { await store.markCard(card, status) }, finished: back)
+      }
+    }
+  }
+
   var body: some View {
-    let chatting = !(store.chats[card.id] ?? []).isEmpty || store.asking.contains(card.id)
     VStack(spacing: 0) {
       HStack {
         Button(action: back) { Label("Waiting", systemImage: "chevron.left") }.buttonStyle(.borderless).focusable(false)
         Spacer()
         if ticked {
-          Button("Put back") { store.mark(card, "open"); back() }.buttonStyle(.borderless).focusable(false).help("Not done: back on the list")
-        } else {
-          Button { store.mark(card, card.confirmStatus); back() } label: { Label(card.needsConfirmation ? "Confirm" : "Mark done", systemImage: "checkmark") }.buttonStyle(.borderless).focusable(false)
+          Button("Put back") { decide("open") }.buttonStyle(.borderless).disabled(decision.busy)
         }
-      }
-      .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
+      }.padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
+
+      // Title and source stay visible while the expandable timeline and conversation scroll.
+      VStack(alignment: .leading, spacing: 10) {
+        Text(card.kicker).font(.caption).foregroundStyle(.secondary)
+        if renaming {
+          TextField("Title", text: $newTitle)
+            .textFieldStyle(.plain).font(.title3.weight(.medium)).focused($titleFocused)
+            .onSubmit {
+              let t = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+              if t.count > 1, t != card.headline { store.rename(card, to: t) }
+              renaming = false
+            }.onKeyPress(.escape) { renaming = false; return .handled }
+        } else {
+          HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(card.headline).font(.title3.weight(.medium)).lineLimit(4).help(card.headline).fixedSize(horizontal: false, vertical: true)
+              .onTapGesture(count: 2) { newTitle = card.headline; renaming = true; titleFocused = true }
+            Button { newTitle = card.headline; renaming = true; titleFocused = true } label: { Image(systemName: "pencil") }
+              .buttonStyle(.borderless).foregroundStyle(.tertiary).help("Rename")
+          }
+        }
+        if let hint = card.hint, !ticked { Label("Maybe done by: \(hint)", systemImage: "arrow.triangle.branch").font(.caption).foregroundStyle(.teal) }
+        if ticked {
+          if let url = safeLink(card.evidence_url) { Link(closedBy, destination: url).font(.caption) }
+          else { Text(closedBy).font(.caption).foregroundStyle(.secondary) }
+        }
+      }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.bottom, 16)
 
       ScrollViewReader { scroll in
         ScrollView {
-          VStack(alignment: .leading, spacing: 12) {
-            Text(card.kicker).font(.caption).foregroundStyle(.secondary)
-            if renaming {
-              TextField("Title", text: $newTitle)
-                .textFieldStyle(.plain).font(.title3.weight(.medium))
-                .focused($titleFocused)
-                .onSubmit {
-                  let t = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                  if t.count > 1, t != card.headline { store.rename(card, to: t) }
-                  renaming = false
-                }
-                .onKeyPress(.escape) { renaming = false; return .handled }
-            } else {
-              HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(card.headline).font(.title3.weight(.medium)).fixedSize(horizontal: false, vertical: true)
-                  .onTapGesture(count: 2) { newTitle = card.headline; renaming = true; titleFocused = true }
-                Button { newTitle = card.headline; renaming = true; titleFocused = true } label: { Image(systemName: "pencil") }
-                  .buttonStyle(.borderless).foregroundStyle(.tertiary).help("Rename")
-              }
-            }
-            if let hint = card.hint, !ticked { Label("Maybe done by: \(hint)", systemImage: "arrow.triangle.branch").font(.caption).foregroundStyle(.teal) }
+          VStack(alignment: .leading, spacing: 18) {
             if card.needsConfirmation {
-              VStack(alignment: .leading, spacing: 4) {
-                Text(card.suggestionLabel).font(.caption.weight(.medium))
-                if let reason = card.reason { Text(howDone(reason) ?? reason).font(.caption).foregroundStyle(.secondary) }
-                Button(card.looksUnneeded ? "Keep" : "Not done") { store.mark(card, "open"); back() }.buttonStyle(.borderless)
-              }
-            }
-            // Ticked off by Vahti: how it knows, and the proof itself when it's a link (a commit, a pull request).
-            if ticked {
-              HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color(red: 0.45, green: 0.95, blue: 0.62))
-                if let url = safeLink(card.evidence_url) {
-                  Link(destination: url) { Text(closedBy).multilineTextAlignment(.leading) }
-                } else {
-                  Text(closedBy).foregroundStyle(.secondary)
+              VStack(alignment: .leading, spacing: 6) {
+                Text(card.suggestionLabel).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                if let reason = card.reason {
+                  if let url = safeLink(card.evidence_url) {
+                    Link(howDone(reason) ?? reason, destination: url).font(.caption)
+                  } else {
+                    Text(howDone(reason) ?? reason).font(.caption).textSelection(.enabled)
+                  }
                 }
+                HStack {
+                  Button("Confirm") { decide(card.confirmStatus) }
+                  Button(card.looksUnneeded ? "Keep" : "Not done") { decide("open") }
+                }.buttonStyle(.borderless).disabled(decision.busy || exporting)
               }
-              .font(.caption)
             }
-
-            if chatting {
-              Button { withAnimation(.easeOut(duration: 0.2)) { showContext.toggle() } } label: {
-                Label(showContext ? "Hide what was said" : "What was said, and since", systemImage: showContext ? "chevron.up" : "chevron.down").font(.caption)
-              }
-              .buttonStyle(.borderless).focusable(false)
+            ContextTimeline(entries: timeline, expanded: $expandedContext, openOriginal: canOpenSource ? {
+              guard !exporting else { return }
+              Task { await decision.inspect { await store.openSource(card) } }
+            } : nil).disabled(decision.busy || exporting).id("context")
+            if store.contextLoading { ProgressView("Loading context…").font(.caption) }
+            else if store.context?.item.id != card.id {
+              Button("Could not load more context. Retry") { store.select(card) }.font(.caption)
             }
-
-            if chatting && !showContext {
-              EmptyView()
-            } else if let ctx = store.context, ctx.item.id == card.id, !ctx.messages.isEmpty {
-              VStack(spacing: 4) { ForEach(ctx.messages) { MiniBubble(message: $0) } }
-                .padding(10)
-                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Glass.hairline, lineWidth: 0.5))
-              ForEach(ctx.since.prefix(4)) { since in
-                if let link = since.url.flatMap(URL.init(string:)) {
-                  Link(destination: link) { Text(since.line).font(.caption).multilineTextAlignment(.leading) }
-                } else {
-                  Text(since.line).font(.caption).foregroundStyle(.secondary)
-                }
-              }
-            } else if let said = card.text, card.card != "ask" {
-              Text("“\(said.replacingOccurrences(of: "\n", with: " / "))”").font(.callout).foregroundStyle(.secondary)
-            }
-
-            Divider().padding(.vertical, 4)
-            ChatThread(key: card.id, empty: "Ask anything about this: is it done, what they meant, what was agreed, what to reply.")
-          }
-          .padding(.horizontal, 16).padding(.bottom, 8)
+            Divider()
+            ChatThread(key: card.id, empty: "Ask about this task or open a context source above.")
+          }.padding(.horizontal, 16).padding(.vertical, 8)
         }
-        // Follow the conversation: when you send, and when the answer comes.
+        .onChange(of: infoRequest) { withAnimation { scroll.scrollTo("context", anchor: .top) } }
         .onChange(of: store.chats[card.id]?.count ?? 0) { withAnimation { scroll.scrollTo("end", anchor: .bottom) } }
         .onChange(of: store.asking.contains(card.id)) { withAnimation { scroll.scrollTo("end", anchor: .bottom) } }
         .onChange(of: store.partial[card.id]?.count ?? 0) { scroll.scrollTo("end", anchor: .bottom) }
       }
 
-      // What you can do with it stays at the bottom with the chat box, however far the page scrolls.
-      HStack(spacing: 8) {
-        openSession
-        if card.canReply { Button(card.openLabel) { store.reply(card) } }
-        if !ticked && !card.needsConfirmation {
-          if card.maybe?.on == true { Button("Mine") { store.mark(card, "mine"); back() } }
+      // Fixed footer, outside the scroll view, above Ask.
+      VStack(spacing: 10) {
+        if let error = decision.error {
+          Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        Spacer()
-        handOff
-      }
-      .buttonStyle(.bordered).controlSize(.small).focusable(false)
-      .padding(.horizontal, 12).padding(.top, 8)
-      .overlay(alignment: .top) { Rectangle().fill(Glass.hairline).frame(height: 0.5) }
-
-      if !ticked && !card.needsConfirmation {
-        if card.card == "appointment" {
-          AppointmentCalendarButton(card: card)
-            .padding(.horizontal, 12).padding(.top, 8)
+        if !ticked {
+          HStack {
+            Button("Drop this") { decide("dismissed") }.help("Hide only this card, without learning who owns it.")
+            Spacer()
+            handOff
+          }.buttonStyle(.borderless).font(.caption).foregroundStyle(.secondary).disabled(decision.busy || exporting)
+          DetailIntentButtons(busy: decision.busy || exporting, canOpen: canOpenSource,
+            didIt: { decide("done") }, tomorrow: { decide("snoozed") },
+            openAndDone: { decide("done", opening: true) }, moreInfo: {
+              expandedContext.insert("original")
+              infoRequest += 1
+            })
+          // Preserve #62's existing export/claim/calendar paths without making them triage decisions.
+          if card.source != "todoist" || card.maybe?.on == true || card.card == "appointment" {
+            HStack(spacing: 12) {
+              if card.maybe?.on == true { Button("Mine") { decide("mine") }.buttonStyle(.borderless) }
+              if card.card == "appointment" { AppointmentCalendarButton(card: card) }
+              Spacer(minLength: 0)
+              if card.source != "todoist" { TodoistSendButton(card: card, finished: back, prominent: false, onSendingChanged: { exporting = $0 }) }
+            }.controlSize(.small).disabled(decision.busy)
+          }
         }
-        CardTriageActions(card: card, finished: back)
-          .padding(.horizontal, 12).padding(.top, 8)
-      }
+      }.padding(.horizontal, 12).padding(.top, 10)
+        .overlay(alignment: .top) { Rectangle().fill(Glass.hairline).frame(height: 0.5) }
 
-      InputBar(placeholder: "Ask about this…", agent: $agent) { q in
-        withAnimation(.easeOut(duration: 0.2)) { showContext = false }
+      InputBar(placeholder: "Ask about this…", agent: $agent, focusRequest: infoRequest) { q in
         store.ask(q, agent: agent, key: card.id, item: card.id)
-      }
-      .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 12)
+      }.padding(.horizontal, 12).padding(.top, 10).padding(.bottom, 12)
     }
     .onAppear { store.select(card) }
     .task { await store.loadChat(card.id) }
     .task { await store.loadHandoff(card.id) }
-  }
-
-  // A card from an AI session (its question, or work it left unfinished) opens that session as it was: in the Claude
-  // app when it ran there, else resumed in Terminal, when Claude Code or Codex is installed.
-  @ViewBuilder private var openSession: some View {
-    if card.source == "ai", let s = store.handoffs[card.id]?.session, s.opensIn != nil {
-      Button(openWhy != nil ? "Couldn't open" : "Open in \(s.product)") {
-        store.openSession(card.id, s) { why in openWhy = why.map { "Couldn't open it: \($0)." } }
-      }
-      .help(openWhy ?? (s.opensIn == "app" ? "Opens “\(s.title)” in \(s.product)." : "Resumes “\(s.title)” in Terminal."))
-      .onChange(of: openWhy) { if openWhy != nil { Task { try? await Task.sleep(for: .seconds(6)); openWhy = nil } } }
-    }
   }
 
   // One button: a new Claude session working on it; the arrow for Codex, or a note for a session that's already running.
@@ -2412,7 +2431,7 @@ struct ItemPage: View {
       Divider()
       Button("Show in Vahti") { viewer.show("/"); store.select(card) }
     } label: {
-      Label(handed ?? (copied ? "Copied, paste with ⌘V" : "Hand off"), systemImage: handed != nil || copied ? "checkmark" : "arrow.up.forward")
+      Label(handed ?? (copied ? "Copied, paste with ⌘V" : "Let AI deal with it…"), systemImage: handed != nil || copied ? "checkmark" : "arrow.up.forward")
     } primaryAction: {
       store.startSession(card.id, agent: "claude")
     }
@@ -2558,6 +2577,7 @@ struct TypingDots: View {
 struct InputBar: View {
   let placeholder: String
   @Binding var agent: String
+  var focusRequest: Int = 0
   let send: (String) -> Void
   @State private var text = ""
   @FocusState private var focused: Bool
@@ -2579,6 +2599,7 @@ struct InputBar: View {
         .textFieldStyle(.plain)
         .focused($focused)
         .onSubmit(submit)
+        .onChange(of: focusRequest) { focused = true }
       Button(action: submit) {
         Image(systemName: "arrow.up.circle.fill").font(.system(size: 20))
           .foregroundStyle(text.trimmingCharacters(in: .whitespaces).isEmpty ? Color.secondary : Color.accentColor)

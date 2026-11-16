@@ -65,6 +65,6 @@ export function callbackContext(db, item, tag = null, { resolveContact = contact
     messages: [...rows.values()].sort((a, b) => a.ts - b.ts || a.id.localeCompare(b.id)).map(row => ({
       id: row.id, sender: row.sender, from_me: !!row.from_me, ts: row.ts, text: row.text, picked: picked.has(row.id),
     })),
-    since: proof ? [{ line: proof.text, url: proof.url || null }] : [],
+    since: proof ? [{ line: proof.text, url: proof.url || null, ts: proof.ts, kind: 'calls' }] : [],
   }
 }

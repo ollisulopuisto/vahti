@@ -288,7 +288,20 @@ export async function reopen(db, id) {
     const child = spawn('open', [script], { stdio: 'ignore', detached: true })
     child.on('error', cleanup)
     child.on('exit', code => { if (code !== 0) cleanup() })
-    child.unref()
-    return { ok: true }
+    const result = await waitForOpen(child)
+    if (!result.ok) cleanup()
+    return result
   } catch (error) { cleanup(); throw error }
+}
+
+// Wait for the OS opener, not for the coding session to finish.
+export function waitForOpen(child) {
+  return new Promise(resolve => {
+    let settled = false
+    const finish = result => { if (!settled) { settled = true; clearTimeout(timer); resolve(result) } }
+    const failed = () => finish({ error: 'Could not open the session in Terminal.' })
+    const timer = setTimeout(failed, 15000)
+    child.once('error', failed)
+    child.once('exit', code => code === 0 ? finish({ ok: true }) : failed())
+  })
 }
