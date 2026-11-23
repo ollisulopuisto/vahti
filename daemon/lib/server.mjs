@@ -290,7 +290,7 @@ export function serve(db, { install, port = config.port } = {}) {
           if (url.pathname !== '/api/model-settings') return json(res, { ok: false, error: 'Not found.' }, 404)
           const result = await saveModelSettings(candidate)
           json(res, result)
-          setTimeout(() => process.exit(0), 1000).unref()
+          if (result.restarting) setTimeout(() => process.exit(0), 1000).unref()
           return
         } catch (error) { return json(res, { ok: false, error: String(error.message || 'Could not connect.').slice(0, 300) }, 400) }
       }

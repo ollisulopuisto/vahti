@@ -302,8 +302,9 @@ struct ModelSettings: Decodable {
   let hasKey: Bool
   let activeModel: String
   let managedReady: Bool
+  let paused: Bool?
   enum CodingKeys: String, CodingKey {
-    case mode, endpoint, model, hasKey, activeModel, managedReady
+    case mode, endpoint, model, hasKey, activeModel, managedReady, paused
     case connection = "protocol"
   }
 }
@@ -531,6 +532,12 @@ final class Store {
 
   func loadModelSettings() async {
     if let settings: ModelSettings = await get("/api/model-settings") { modelSettings = settings }
+  }
+
+  func pauseLocalModel(_ paused: Bool) async -> ModelAction? {
+    let result = await modelRequest("/api/model-settings", ["action": paused ? "pause" : "resume"])
+    await loadModelSettings()
+    return result
   }
 
   // Configuration tests send only a synthetic probe; save is the explicit action that changes the active model.

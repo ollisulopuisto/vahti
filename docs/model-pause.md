@@ -1,0 +1,7 @@
+# Unload and pause the local model
+
+Settings → System → Model has Unload model for Vahti's own Qwen runtime. It saves a pause flag before terminating the managed model worker and waits for that supervisor to exit. Its ordinary five-second restart path checks the flag, including after a daemon restart. Local-model requests fail closed while paused, rather than restarting Qwen or falling back to an online provider. Resume model clears the flag and starts the existing runtime on demand. Embeddings and semantic search are not stopped; Vahti stays open.
+
+The existing authenticated model-settings route handles pause/resume actions. No new endpoint, socket, host or online provider is added. External/custom providers have no pause control. Switching providers does not silently clear a prior local-model pause.
+
+Verification: synthetic supervised-worker startup/pause/resume/persistence/no-respawn and external-provider exclusion tests pass (2/2). Model provider tests pass. Mail plus pause tests pass 44/44. Full local suite: 833 passed, 29 failed, 5 skipped. Baseline main: 833 passed, 27 failed, 5 skipped. Failures include missing macOS executables, language/date fixtures and existing lifecycle/speech checks; the two differing failures need native follow-up and are not waived. Native SwiftUI build and actual rendered settings control have not been verified here. No merge or release readiness claim.
