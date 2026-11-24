@@ -181,6 +181,7 @@ async function externalModelFetch(candidate, path, options = {}) {
 
 export function modelFetch(path, options = {}) {
   if (config.runtime !== 'external') {
+    if (config.modelPaused === true) throw fail('Local model paused. Resume it in Settings → System → Model.')
     if (!usesMlx) throw fail('Choose your model server in Setup or install Vahti’s local model.')
     return sidecarFetch('llm', path, options)
   }

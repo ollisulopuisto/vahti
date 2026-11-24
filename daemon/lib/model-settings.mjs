@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { config, configPath, mlxReady } from './config.mjs'
+import { applyModelPause } from './runtime.mjs'
 import { testModelConnection } from './model-provider.mjs'
 
 const stored = () => existsSync(configPath) ? JSON.parse(readFileSync(configPath, 'utf8')) : {}
@@ -7,7 +8,7 @@ export function modelSettings() {
   const custom = stored().externalModel || {}
   return { mode: config.runtime === 'external' ? 'custom' : 'builtin', protocol: custom.protocol || 'ollama',
     endpoint: custom.endpoint || 'http://127.0.0.1:11434', model: custom.model || '', hasKey: !!custom.apiKey,
-    activeModel: config.model, managedReady: mlxReady() }
+    activeModel: config.model, managedReady: mlxReady(), paused: config.modelPaused === true }
 }
 
 // An omitted secret preserves the current one; an explicit clear is needed to remove it.
@@ -23,6 +24,16 @@ export async function testModelSettings(body) {
 }
 
 export async function saveModelSettings(body) {
+  if (body.action === 'pause' || body.action === 'resume') {
+    if (config.runtime === 'external') throw Error('This control is for Vahti’s own local model.')
+    const paused = body.action === 'pause'
+    const temporary = configPath + '.next'
+    writeFileSync(temporary, JSON.stringify({ ...stored(), modelPaused: paused }, null, 2), { mode: 0o600 })
+    renameSync(temporary, configPath)
+    config.modelPaused = paused
+    await applyModelPause(paused)
+    return { ok: true, paused, restarting: false }
+  }
   let patch
   if (body.mode === 'builtin') patch = { runtime: 'auto', model: 'qwen3.5:9b' }
   else if (body.mode === 'custom') {

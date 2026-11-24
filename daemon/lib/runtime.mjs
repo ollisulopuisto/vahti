@@ -49,8 +49,22 @@ export function startRuntime(logTo) {
   process.once('SIGTERM', () => { stop(); process.exit(0) })
 }
 
+// Pause intent is persisted before stopping. A supervised exit must not reload it.
+export async function applyModelPause(paused) {
+  if (paused) {
+    const child = children['local model']
+    if (!child) return
+    await new Promise((resolve, reject) => {
+      const stopped = () => { clearTimeout(timer); resolve() }
+      const timer = setTimeout(() => { child.removeListener('exit', stopped); reject(Error('The local model is still stopping. Try again.')) }, 10000)
+      child.once('exit', stopped)
+      child.kill()
+    })
+  } else if (usesMlx && existsSync(MLX.python)) part('local model', [MLX.model, MLX.socket])
+}
+
 function part(name, args) {
-  if (children[name]) return
+  if (children[name] || (name === 'local model' && config.modelPaused === true)) return
   const child = spawn(MLX.python, ['-B', '-I', '-E', SCRIPT, ...args], {
     env: { VAHTI_SIDECAR_TOKEN: sidecarToken(), HF_HUB_OFFLINE: '1', TRANSFORMERS_OFFLINE: '1', TOKENIZERS_PARALLELISM: 'false', VAHTI_MODEL_NAME: config.model, VAHTI_EMBED_MODEL: EMBED.dir },
     stdio: ['ignore', 'pipe', 'pipe'],

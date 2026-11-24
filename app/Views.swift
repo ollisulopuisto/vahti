@@ -1813,6 +1813,19 @@ struct ModelPanel: View {
           }
           .labelsHidden().fixedSize()
         }
+        if s.mode == "builtin" {
+          row("Local model", s.paused == true ? "Paused. Local-model work waits for Resume. Search embeddings stay available." : "Unload Qwen and pause local-model work until you resume. Search embeddings stay available.", symbol: "pause.circle") {
+            Button(busy == "pause" ? "Updating…" : s.paused == true ? "Resume model" : "Unload model") {
+              Task {
+                busy = "pause"
+                let result = await store.pauseLocalModel(s.paused != true)
+                failed = result?.ok != true
+                message = failed ? result?.error ?? "Could not change the local model state." : nil
+                busy = nil
+              }
+            }.buttonStyle(PillButton(prominent: false)).disabled(busy != nil)
+          }
+        }
         if d.mode == "custom" {
           row("Kind of server", "Ollama, or OpenAI-compatible: LM Studio, llama.cpp, vLLM, DeepSeek and most others.", symbol: "server.rack") {
             Picker("", selection: Binding(get: { d.connection }, set: { c in
