@@ -1746,6 +1746,7 @@ struct SetupView: View {
 // A global shortcut you change by pressing it: click, then press the keys. Escape keeps the old one, Reset brings back
 // Vahti's own. While it listens the shortcuts let go (Shortcut.recording), so the current one can be pressed again.
 struct ShortcutField: View {
+  @Environment(Store.self) var store
   let name: String
   let fallback: Shortcut
   @State private var current: Shortcut
@@ -1759,10 +1760,15 @@ struct ShortcutField: View {
   }
 
   var body: some View {
-    HStack(spacing: 10) {
-      if current != fallback && !listening { Button("Reset") { set(nil) }.buttonStyle(TextButton()) }
-      Button(listening ? "Press keys…" : current.symbols) { listening ? stop() : listen() }
-        .buttonStyle(PillButton(prominent: listening))
+    VStack(alignment: .leading, spacing: 6) {
+      HStack(spacing: 10) {
+        if current != fallback && !listening { Button("Reset") { set(nil) }.buttonStyle(TextButton()) }
+        Button(listening ? "Press keys…" : current.symbols) { listening ? stop() : listen() }
+          .buttonStyle(PillButton(prominent: listening))
+      }
+      if !listening, let error = store.shortcutErrors[name] {
+        Text(error).font(.vahtiSmall).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+      }
     }
     .onDisappear { stop() }
   }

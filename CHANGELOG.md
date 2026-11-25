@@ -7,6 +7,11 @@ and this project adheres to [Calendar Versioning](https://calver.org/).
 
 ## [Unreleased]
 
+## [0.7.32] - 2026-11-25
+
+### Fixed
+- Global search defaults to Option-Shift-Command-K instead of Spotlight's Option-Command-Space. Saved shortcut overrides stay unchanged; Reset uses the new default. Settings shows a registration error when a shortcut cannot be acquired.
+
 ### Added
 - Send to Todoist: Vahti is the detector and the triage place, Todoist is the backend. One click on a card sends it to your Todoist Inbox - no project, no label, due on the date Vahti had already inferred - and closes it here; Todoist owns the task and its reminders from there, and Vahti schedules none. The API token is entered in Setup and lives only in this Mac's Keychain, readable by the signed app alone and handed to the daemon over its private pipe, one send at a time. Before the first send ever, Vahti warns you once that the card's title and due date go to api.todoist.com; every send after that goes straight through. Dismiss stays this card only and Mark done closes a card in the app, as before.
 

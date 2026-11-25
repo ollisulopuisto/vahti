@@ -61,6 +61,14 @@ Use **Setup → What Vahti reads** to switch sources off. Disabled sources stop
 collection and are excluded from reader results; turning a source off is not a
 claim that all stored data has been deleted. Use Forget for removal.
 
+## Keyboard shortcuts
+
+Option-Command-K opens the panel; Option-Shift-Command-K opens search.
+Change either in Setup > Shortcuts. Existing saved choices are kept, including
+a saved Option-Command-Space; use Reset to adopt the new default. A registration
+error appears beside the shortcut if macOS cannot register it. Another app or
+a system shortcut can still use your chosen combination.
+
 ## Privacy and external services
 
 The vault, configuration and local runtime data live under:
