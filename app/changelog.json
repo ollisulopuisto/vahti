@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.7.32",
+    "date": "2026-11-25",
+    "title": "Search without a system shortcut clash",
+    "summary": "The default search shortcut changes from Option-Command-Space to Option-Shift-Command-K.",
+    "notes": [
+      "Saved shortcut overrides stay unchanged, including the old chord. Use Reset in Settings to adopt the new default.",
+      "Settings shows a registration error when macOS cannot register a shortcut. The panel shortcut remains Option-Command-K."
+    ]
+  },
+  {
     "version": "0.7.31",
     "date": "2026-11-16",
     "title": "Context timeline and clear decisions",

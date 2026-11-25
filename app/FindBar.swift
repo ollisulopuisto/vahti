@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// Search from anywhere with ⌥⌘Space. Results arrive from words and semantic search, then from
+// Search from anywhere with ⌥⇧⌘K. Results arrive from words and semantic search, then from
 // the interpreted query (daemon/lib/find.mjs). Return opens a result; ⌘Return asks Vahti.
 struct FindResult: Decodable, Identifiable, Hashable {
   struct Open: Decodable, Hashable {

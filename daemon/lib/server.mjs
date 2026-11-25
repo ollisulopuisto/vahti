@@ -210,7 +210,7 @@ export function serve(db, { install, port = config.port } = {}) {
         const like = `%${(q.q || '').replace(/[%_]/g, '')}%`
         return json(res, { items: rows('(i.text like ? or i.sender like ? or i.thread like ?) and i.ts > ?', [like, like, like, now() - 365 * 86400], 300).reverse() })
       }
-      // The search bar (⌥⌘Space, lib/find.mjs): as you type, then once Vahti has read what you're asking for.
+      // The search bar (⌥⇧⌘K, lib/find.mjs): as you type, then once Vahti has read what you're asking for.
       if (url.pathname === '/api/find') return json(res, { results: await findQuick(db, String(q.q || '').slice(0, 300)) })
       if (url.pathname === '/api/find/ai') return json(res, await findUnderstood(db, String(q.q || '').slice(0, 300)))
       if (url.pathname === '/api/find/warm') return json(res, { ready: await findWarm() })
