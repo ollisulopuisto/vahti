@@ -660,7 +660,7 @@ struct Shortcut: Codable, Equatable {
   var label: String
 
   static let open = Shortcut(key: kVK_ANSI_K, modifiers: cmdKey | optionKey, label: "K")
-  static let find = Shortcut(key: kVK_Space, modifiers: cmdKey | optionKey, label: "Space")
+  static let find = Shortcut(key: kVK_ANSI_K, modifiers: cmdKey | optionKey | shiftKey, label: "K")
   static let changed = Notification.Name("VahtiShortcutChanged")
   // While one is being recorded the shortcuts let go, so pressing the current one records it instead of running it.
   static let recording = Notification.Name("VahtiShortcutRecording")
@@ -699,7 +699,7 @@ struct Shortcut: Codable, Equatable {
   }
 }
 
-// Global shortcuts (⌥⌘K for the panel, ⌥⌘Space for search, unless changed in Settings). Carbon hot keys need no
+// Global shortcuts (⌥⌘K for the panel, ⌥⇧⌘K for search, unless changed in Settings). Carbon hot keys need no
 // permission and don't see any other keystroke. Each has its own id, and one handler sends a press to the shortcut it
 // belongs to: with one shared action, a second shortcut took over the first. Letting one go frees its keys.
 final class HotKey {
@@ -708,10 +708,15 @@ final class HotKey {
   nonisolated(unsafe) private static var last: UInt32 = 0
   private var ref: EventHotKeyRef?
   private let id: UInt32
+  private(set) var registrationError: String?
 
-  convenience init(_ s: Shortcut, action: @escaping () -> Void) { self.init(key: s.key, modifiers: s.modifiers, action: action) }
+  static func failureMessage(_ status: OSStatus, shortcut: Shortcut) -> String? {
+    status == noErr ? nil : "Could not register \(shortcut.symbols) (error \(status)). Choose another shortcut in Settings. Another app or macOS may be using it."
+  }
 
-  init(key: Int, modifiers: Int, action: @escaping () -> Void) {
+  convenience init(_ s: Shortcut, action: @escaping () -> Void) { self.init(key: s.key, modifiers: s.modifiers, label: s.label, action: action) }
+
+  init(key: Int, modifiers: Int, label: String = "", action: @escaping () -> Void) {
     HotKey.last += 1
     id = HotKey.last
     HotKey.actions[id] = action
@@ -727,7 +732,8 @@ final class HotKey {
       }, 1, &spec, nil, nil)
     }
     let status = RegisterEventHotKey(UInt32(key), UInt32(modifiers), EventHotKeyID(signature: OSType(0x4B49_4552), id: id), GetApplicationEventTarget(), 0, &ref)
-    if status != noErr { NSLog("Vahti: shortcut \(key) is taken by another app (\(status))") }
+    registrationError = Self.failureMessage(status, shortcut: Shortcut(key: key, modifiers: modifiers, label: label))
+    if let registrationError { NSLog("Vahti: \(registrationError)") }
   }
 
   deinit {
@@ -744,7 +750,7 @@ final class Companion: NSObject {
   private var chatPanel: KeyPanel?
   private var bubble: NSPanel?
   private var hotKey: HotKey?
-  // The search bar (FindBar.swift), on ⌥⌘Space unless changed.
+  // The search bar (FindBar.swift), on ⌥⇧⌘K unless changed.
   private var findKey: HotKey?
   private var findPanel: KeyPanel?
   private let find = FindModel()
@@ -1071,6 +1077,8 @@ final class Companion: NSObject {
     findKey = nil
     hotKey = HotKey(Shortcut.saved("open", or: .open)) { [weak self] in MainActor.assumeIsolated { self?.toggleChat() } }
     findKey = HotKey(Shortcut.saved("find", or: .find)) { [weak self] in MainActor.assumeIsolated { self?.toggleFind() } }
+    store.shortcutErrors["open"] = hotKey?.registrationError
+    store.shortcutErrors["find"] = findKey?.registrationError
   }
 
   func toggleFind() {

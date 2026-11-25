@@ -420,6 +420,7 @@ extension Brief {
 @MainActor
 @Observable
 final class Store {
+  var shortcutErrors: [String: String] = [:]
   var page: Page = .brief
   var brief: Brief?
   var completed: [Card]?
